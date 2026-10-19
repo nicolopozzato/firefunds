@@ -14,11 +14,12 @@ interface StatCardProps {
   detail?: ReactNode
 }
 
+// Decorative, from the theme (lib/theme.ts) so they suit light and dark mode.
 const iconColorStyles = {
-  blue: 'bg-blue-500/10 text-info dark:text-blue-400',
-  green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  orange: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  yellow: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+  blue: 'bg-info/10 text-info',
+  green: 'bg-positive/10 text-positive',
+  orange: 'bg-warning/10 text-warning',
+  yellow: 'bg-[hsl(var(--series-4)/0.1)] text-[hsl(var(--series-4))]',
 }
 
 export default function StatCard({ title, value, icon: Icon, iconColor, valueClassName, detail }: StatCardProps) {

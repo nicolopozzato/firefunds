@@ -4,7 +4,7 @@ import { differenceInCalendarDays, format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { Card, CardContent } from '@/components/ui/card'
 import PositionMiniChart from '@/components/PositionMiniChart'
-import { cn, formatMoney, formatPercent, formatQuantity, moneyColorClass } from '@/lib/utils'
+import { cn, formatMoney, formatPercent, formatQuantity, moneyColorClass, parseDate } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
 import type { OpenPosition } from '@/types/investment'
@@ -35,7 +35,7 @@ export function PositionStat({ label, children }: { label: string; children: Rea
 export default function OpenPositionCard({ position, currencySymbol, weight, weightLabel, extra, children }: OpenPositionCardProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language === 'it' ? it : enUS
-  const openedOn = position.openedOn ? new Date(position.openedOn) : null
+  const openedOn = position.openedOn ? parseDate(position.openedOn) : null
 
   return (
     <Card>

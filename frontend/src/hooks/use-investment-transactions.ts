@@ -31,6 +31,8 @@ export function useInvestmentTransactionDistributions(enabled = true) {
 
 export function useInvestmentTransaction(id: string) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['investment-transactions', 'detail', id],
     queryFn: () => investmentTransactionsApi.get(id),
     enabled: !!id,

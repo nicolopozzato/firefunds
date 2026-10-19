@@ -8,6 +8,7 @@ use App\Entity\Tag;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<Tag>
@@ -42,6 +43,11 @@ class TagRepository extends ServiceEntityRepository
 
     public function findOneByUserAndId(User $user, string $id): ?Tag
     {
+        // Not a UUID is not anything of theirs (and would fail the conversion).
+        if (!Uuid::isValid($id)) {
+            return null;
+        }
+
         return $this->findOneBy(['user' => $user, 'id' => $id]);
     }
 }

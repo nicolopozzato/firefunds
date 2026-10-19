@@ -50,6 +50,7 @@ enum ErrorCode: string
     // Periods
     case InvalidDateRange = 'invalid_date_range';
     case DateRangeInverted = 'date_range_inverted';
+    case DateRangeTooLong = 'date_range_too_long';
 
     /**
      * @param array<string, string|int> $params filled into the {name} placeholders
@@ -83,6 +84,7 @@ enum ErrorCode: string
             self::CurrencyInUse => 'This currency is in use by one or more accounts and cannot be deleted.',
             self::InvalidDateRange => 'Invalid date range.',
             self::DateRangeInverted => '"from" must be on or before "to".',
+            self::DateRangeTooLong => 'A date range can span at most {years} years.',
         };
 
         $replacements = [];

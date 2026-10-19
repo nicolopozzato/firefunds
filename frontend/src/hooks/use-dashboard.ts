@@ -3,6 +3,8 @@ import { dashboardApi } from '@/lib/dashboard-api'
 
 export function useDashboard(from: string, to: string) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['dashboard', from, to],
     queryFn: () => dashboardApi.get(from, to),
     placeholderData: (previousData) => previousData,

@@ -22,6 +22,7 @@ import { dateLocale, signedMoney } from '@/lib/report-format'
 import { monthlyChanges, monthlyValues, withOpening } from '@/lib/net-worth'
 import { cn, formatMoney, formatPercent, moneyColorClass } from '@/lib/utils'
 import type { NetWorthReport as ReportData } from '@/types/report'
+import LoadFailed from '@/components/LoadFailed'
 
 const CURRENT_COLOR = 'hsl(var(--series-1))'
 const PREVIOUS_COLOR = OTHER_COLOR
@@ -219,7 +220,7 @@ export default function NetWorthReport() {
   const year = Number(searchParams.get('year')) || currentYear
   const view: NetWorthView = searchParams.has('view') ? (searchParams.get('view') === 'changes' ? 'changes' : 'values') : remembered.view
   const compare = searchParams.has('compare') ? searchParams.get('compare') === '1' : remembered.compare
-  const { data: report, isLoading, isPlaceholderData } = useNetWorthReport(year)
+  const { data: report, isLoading, isPlaceholderData, error, refetch } = useNetWorthReport(year)
 
   const update = (next: { year?: number; view?: NetWorthView; compare?: boolean }) => {
     const chosen = { year, view, compare, ...next }
@@ -279,7 +280,9 @@ export default function NetWorthReport() {
         />
       </div>
 
-      {isLoading || !report ? (
+      {!report && error ? (
+        <LoadFailed error={error} onRetry={() => void refetch()} />
+      ) : isLoading || !report ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {[0, 1, 2, 3].map((index) => (

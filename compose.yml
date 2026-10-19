@@ -13,7 +13,7 @@ x-app: &app
     APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
     JWT_PASSPHRASE: ${JWT_PASSPHRASE:?set JWT_PASSPHRASE in .env}
     DATABASE_URL: postgresql://firefunds:${POSTGRES_PASSWORD}@database:5432/firefunds?serverVersion=16&charset=utf8
-    CORS_ALLOW_ORIGIN: ^https?://${DOMAIN:-localhost}(:[0-9]+)?$$
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-PRIVATE_SUBNETS}
     APP_TIMEZONE: ${TIMEZONE:-Europe/Rome}
   volumes:
     - ./data/jwt:/app/backend/config/jwt

@@ -9,12 +9,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 final readonly class ReportQuery
 {
     public function __construct(
-        /** Y-m-d, both included. */
-        #[Assert\NotBlank]
-        #[Assert\Date]
+        /** Y-m-d, both included; checked by CalendarRange, like every range. */
         public string $from = '',
-        #[Assert\NotBlank]
-        #[Assert\Date]
         public string $to = '',
         /** A column per month or per year. */
         #[Assert\Choice(choices: [ReportRange::BY_MONTH, ReportRange::BY_YEAR])]

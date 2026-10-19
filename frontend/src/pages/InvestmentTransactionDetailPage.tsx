@@ -24,11 +24,13 @@ import {
 } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
 import { currencySymbolFor, formatDateTime, formatMoney, formatQuantity, formatTime24h } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 import type {
   InvestmentTransaction,
   InvestmentTransactionAuditLogChange,
   InvestmentTransactionAuditLogEntry,
 } from '@/types/investment'
+import LoadFailed from '@/components/LoadFailed'
 
 const basePath = '/transactions/investments'
 
@@ -127,11 +129,12 @@ function InvestmentTransactionHistoryCard({ transactionId }: { transactionId: st
 }
 
 export default function InvestmentTransactionDetailPage() {
+  const { user } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
-  const { data: transaction, isLoading } = useInvestmentTransaction(id ?? '')
+  const { data: transaction, isLoading, error, refetch } = useInvestmentTransaction(id ?? '')
   const deleteTransaction = useDeleteInvestmentTransaction()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -148,6 +151,10 @@ export default function InvestmentTransactionDetailPage() {
     } catch (error) {
       toast.error(handleApiError(error))
     }
+  }
+
+  if (!transaction && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
   }
 
   if (isLoading || !transaction) {
@@ -234,6 +241,10 @@ export default function InvestmentTransactionDetailPage() {
               />
               <div className="mt-1.5 text-sm text-muted-foreground">
                 {formatDateTime(transaction.occurredAt)} · {formatTime24h(transaction.occurredAt)}
+                {/* Written in another timezone (e.g. abroad): the time is that place's. */}
+                {transaction.timezone !== user?.timezone && (
+                  <span className="text-muted-foreground"> ({transaction.timezone.replace(/_/g, ' ')})</span>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                 <Badge variant="outline">{t(`investmentTransactions.type_${transaction.type}`)}</Badge>

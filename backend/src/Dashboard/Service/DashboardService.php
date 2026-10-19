@@ -59,7 +59,7 @@ class DashboardService
         $valueByInstrument = $values->valueByInstrument;
         $valueOn = $values->valueOn(...);
 
-        [$periodStart, $periodEnd] = UserDayRange::bounds($user, $from, $to);
+        [$periodStart, $periodEnd] = UserDayRange::bounds($from, $to);
         $expensesByCategory = $this->toEntries($this->transactionRepository->sumByCategory($user, 'withdrawal', $periodStart, $periodEnd));
         $expenseAccounts = $this->toEntries($this->transactionRepository->sumByDestinationAccount($user, 'withdrawal', $periodStart, $periodEnd));
         $revenueAccounts = $this->toEntries($this->transactionRepository->sumBySourceAccount($user, 'deposit', $periodStart, $periodEnd));

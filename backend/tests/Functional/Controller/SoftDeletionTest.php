@@ -139,7 +139,7 @@ class SoftDeletionTest extends WebTestCaseBase
             ['Vecchio', $this->id($this->user)]
         );
         $this->assertSame(
-            ['source_account_id' => null, 'destination_account_id' => $this->id($new), 'amount' => '100.0000', 'category_id' => null, 'occurred_at' => '2026-08-14 22:00:00'],
+            ['source_account_id' => null, 'destination_account_id' => $this->id($new), 'amount' => '100.0000', 'category_id' => null, 'occurred_at' => '2026-08-15 00:00:00'],
             array_intersect_key($carried, array_flip(['source_account_id', 'destination_account_id', 'amount', 'category_id', 'occurred_at']))
         );
         $this->assertSame(['created'], $this->connection->fetchFirstColumn('SELECT action FROM transaction_audit_log WHERE transaction_id = ?', [$carried['id']]));

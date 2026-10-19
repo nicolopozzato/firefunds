@@ -15,6 +15,7 @@ import {
   subYears,
 } from 'date-fns'
 import { transactionsApi } from '@/lib/transactions-api'
+import { parseDate } from '@/lib/utils'
 
 /**
  * `currentMonth`, the `lastNDays`, `currentYear` and `previousYear` follow
@@ -198,8 +199,8 @@ export function TimeframeProvider({ children }: { children: ReactNode }) {
         const { earliest, latest } = await transactionsApi.dateRange()
         setTimeframe({
           preset: 'all',
-          from: earliest !== null ? new Date(earliest) : ALL_TIME_FROM,
-          to: latest !== null ? new Date(latest) : new Date(),
+          from: earliest !== null ? parseDate(earliest) : ALL_TIME_FROM,
+          to: latest !== null ? parseDate(latest) : new Date(),
         })
       } catch {
         const { from, to } = rangeForPreset('all')

@@ -4,6 +4,8 @@ import type { ReportComparison, ReportGranularity } from '@/types/report'
 
 export function useIncomeExpenseReport(from: string | null, to: string | null, by: ReportGranularity, compare: ReportComparison) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['reports', 'income-expenses', from, to, by, compare],
     queryFn: () => reportsApi.incomeExpenses(from!, to!, by, compare),
     enabled: from !== null && to !== null,
@@ -13,6 +15,8 @@ export function useIncomeExpenseReport(from: string | null, to: string | null, b
 
 export function useNetWorthReport(year: number) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['reports', 'net-worth', year],
     queryFn: () => reportsApi.netWorth(year),
     placeholderData: (previousData) => previousData,

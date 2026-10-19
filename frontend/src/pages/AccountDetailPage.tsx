@@ -24,6 +24,7 @@ import { useTimeframe } from '@/contexts/TimeframeContext'
 import { cn, formatMoney, formatPercent, moneyColorClass, totalAccountValue } from '@/lib/utils'
 import { useState } from 'react'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
+import LoadFailed from '@/components/LoadFailed'
 
 export default function AccountDetailPage() {
   const { t } = useTranslation()
@@ -36,7 +37,7 @@ export default function AccountDetailPage() {
   const from = format(timeframe.from, 'yyyy-MM-dd')
   const to = format(timeframe.to, 'yyyy-MM-dd')
 
-  const { data: account, isLoading } = useAccount(id ?? '')
+  const { data: account, isLoading, error, refetch } = useAccount(id ?? '')
   const isInvestmentAccount = account?.assetKind === 'investment'
   const { data: history, isLoading: isHistoryLoading } = useAccountBalanceHistory(id ?? '', from, to)
   const { data: valueHistory, isLoading: isValueHistoryLoading } = useAccountValueHistory(
@@ -45,6 +46,10 @@ export default function AccountDetailPage() {
     to
   )
   const { data: distributions, isLoading: isDistributionsLoading } = useAccountDistributions(id ?? '', from, to)
+
+  if (!account && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
+  }
 
   if (isLoading || !account) {
     return (

@@ -2,10 +2,24 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Requests arrive through a reverse proxy on a Docker network: take the
-    # client IP from X-Forwarded-For, which login throttling counts attempts by.
-    trusted_proxies: '127.0.0.1,172.16.0.0/12'
+    # Requests arrive through a reverse proxy: take the client IP from
+    # X-Forwarded-For, which login throttling counts attempts by. Trusted only
+    # from TRUSTED_PROXIES (private networks by default: Docker's, whatever
+    # pool it picks). The proxy must add the client's address to the header,
+    # not pass on what the client sent (Traefik, Caddy and nginx do).
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['x-forwarded-for']
+
+    # Yahoo Finance (YahooFinancePriceProvider, as $yahooClient): a slow or
+    # stuck answer must not hold a request or the price fetch for long.
+    http_client:
+        scoped_clients:
+            yahoo.client:
+                base_uri: 'https://query1.finance.yahoo.com/v8/finance/chart/'
+                timeout: 5
+                max_duration: 15
+                headers:
+                    User-Agent: 'Mozilla/5.0'
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true

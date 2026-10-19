@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import FormSkeleton from '@/components/FormSkeleton'
 import Combobox from '@/components/Combobox'
-import { useAllAccounts } from '@/hooks/use-accounts'
+import { useAccountOpenPositions, useAllAccounts } from '@/hooks/use-accounts'
 import { useAllInvestmentInstruments } from '@/hooks/use-investments'
 import { useFormFill } from '@/hooks/use-form-fill'
 import {
@@ -20,7 +20,7 @@ import {
   useUpdateInvestmentTransaction,
 } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, formatAccountBalance, formatMoney } from '@/lib/utils'
+import { cn, deviceTimezone, formatAccountBalance, formatMoney, formatQuantity, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
 import type { InvestmentTransactionType } from '@/types/investment'
 import FormActions from '@/components/FormActions'
 
@@ -38,21 +38,7 @@ function isInvestmentTransactionType(value: string | null): value is InvestmentT
   return value === 'buy' || value === 'sell'
 }
 
-function toDatetimeLocal(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
 
-/** Converts a `datetime-local` input value into an ISO string with an explicit UTC offset. */
-function datetimeLocalToIso(value: string): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const local = new Date(value)
-  const offsetMinutes = -local.getTimezoneOffset()
-  const sign = offsetMinutes >= 0 ? '+' : '-'
-  const abs = Math.abs(offsetMinutes)
-  const offset = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
-  return `${value}:00${offset}`
-}
 
 /** Quantity × unit price rounded to cents, what a broker usually charges; null while either is missing. */
 function suggestAmount(quantity: string, unitPrice: string): string | null {
@@ -101,7 +87,7 @@ export default function InvestmentTransactionFormPage() {
   const [description, setDescription] = useState('')
   const [accountId, setAccountId] = useState(() => searchParams.get('accountId') ?? '')
   const [instrumentId, setInstrumentId] = useState('')
-  const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocal(new Date()))
+  const [occurredAt, setOccurredAt] = useState(nowAsDatetimeLocal)
   const [quantity, setQuantity] = useState('')
   const [unitPrice, setUnitPrice] = useState('')
   // The amount follows quantity × price until the user types their own (what the broker actually charged).
@@ -122,7 +108,7 @@ export default function InvestmentTransactionFormPage() {
     setAccountId(existingTransaction.account.id)
     setInstrumentId(existingTransaction.instrumentId)
     // A clone (e.g. the next installment of a recurring buy) happens now, not on the original's date.
-    setOccurredAt(isCloning ? toDatetimeLocal(new Date()) : toDatetimeLocal(new Date(existingTransaction.occurredAt)))
+    setOccurredAt(isCloning ? nowAsDatetimeLocal() : toDatetimeLocal(existingTransaction.occurredAt))
     setQuantity(existingTransaction.quantity)
     setUnitPrice(existingTransaction.unitPrice)
     const storedAmount = String(Number(existingTransaction.amount))
@@ -159,6 +145,20 @@ export default function InvestmentTransactionFormPage() {
   const isAmountPlausible = !amountDiffers || isPlausibleAmount(quantity, unitPrice, effectiveAmount)
   const total = computeTotal(type, effectiveAmount, fees, taxes)
 
+  // Selling more than is held is allowed (the position just goes negative,
+  // and shows it), but most likely a typo: say how many are held today.
+  const { data: positions } = useAccountOpenPositions(type === 'sell' ? accountId : '')
+  const held = (() => {
+    if (type !== 'sell' || !accountId || !instrumentId || positions === undefined) return null
+    let units = Number(positions.find((p) => p.instrumentId === instrumentId)?.quantity ?? 0)
+    // The trade being edited is already in that figure: take it back out.
+    if (isEditing && existingTransaction && existingTransaction.account.id === accountId && existingTransaction.instrumentId === instrumentId) {
+      units += (existingTransaction.type === 'sell' ? 1 : -1) * Number(existingTransaction.quantity)
+    }
+    return units
+  })()
+  const sellsMoreThanHeld = held !== null && quantity !== '' && Number(quantity) > held + 1e-9
+
   const handleCancel = () => {
     if (isEditing) {
       navigate(-1)
@@ -182,7 +182,9 @@ export default function InvestmentTransactionFormPage() {
         amount: effectiveAmount || undefined,
         fees: fees || '0',
         taxes: taxes || '0',
-        occurredAt: datetimeLocalToIso(occurredAt),
+        occurredAt: fromDatetimeLocal(occurredAt),
+        // An edit keeps where it happened; a new one happens where this device is.
+        timezone: isEditing ? undefined : deviceTimezone(),
         notes: notes || null,
       }
 
@@ -314,10 +316,17 @@ export default function InvestmentTransactionFormPage() {
                     step="0.000001"
                     min="0.000001"
                     required
-                    placeholder="0,000000"
+                    placeholder={numberFormatter({ minimumFractionDigits: 6 }).format(0)}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                   />
+                  {held !== null && (
+                    <p className={cn('text-xs', sellsMoreThanHeld ? 'text-warning' : 'text-muted-foreground')}>
+                      {t(sellsMoreThanHeld ? 'investmentTransactionForm.sellExceedsHolding' : 'investmentTransactionForm.heldToday', {
+                        quantity: formatQuantity(Math.max(held, 0)),
+                      })}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

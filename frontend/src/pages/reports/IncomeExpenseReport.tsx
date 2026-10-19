@@ -34,8 +34,9 @@ import {
   type ReportPreset,
   type ReportSpan,
 } from '@/lib/report-period'
-import { cn, formatMoney, formatPercent, moneyColorClass, numberFormatter } from '@/lib/utils'
+import { cn, formatMoney, formatPercent, moneyColorClass, numberFormatter, parseDate } from '@/lib/utils'
 import type { IncomeExpenseReport as ReportData, ReportComparison, ReportGranularity } from '@/types/report'
+import LoadFailed from '@/components/LoadFailed'
 
 const INCOME_COLOR = 'hsl(var(--positive))'
 const EXPENSE_COLOR = 'hsl(var(--negative))'
@@ -237,14 +238,14 @@ export default function IncomeExpenseReport() {
     if (options.preset === 'all') {
       if (!dateRange) return null
       const today = new Date()
-      return { preset: 'all', from: startOfMonth(dateRange.earliest ? new Date(dateRange.earliest) : today), to: endOfMonth(today) }
+      return { preset: 'all', from: startOfMonth(dateRange.earliest ? parseDate(dateRange.earliest) : today), to: endOfMonth(today) }
     }
     return options.from && options.to ? { preset: options.preset, from: options.from, to: options.to } : null
   }, [options, dateRange])
 
   const by: ReportGranularity = options?.by ?? (span ? defaultGranularity(span.from, span.to) : 'month')
   const compare: ReportComparison = options?.compare ?? 'none'
-  const { data: report, isLoading, isPlaceholderData } = useIncomeExpenseReport(
+  const { data: report, isLoading, isPlaceholderData, error, refetch } = useIncomeExpenseReport(
     span ? toIsoDay(span.from) : null,
     span ? toIsoDay(span.to) : null,
     by,
@@ -299,7 +300,9 @@ export default function IncomeExpenseReport() {
         />
       </div>
 
-      {isLoading || !report ? (
+      {!report && error ? (
+        <LoadFailed error={error} onRetry={() => void refetch()} />
+      ) : isLoading || !report ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {[0, 1, 2, 3].map((index) => (

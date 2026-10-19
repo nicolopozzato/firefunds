@@ -151,3 +151,13 @@ export function axisLeft(labels: string[], minimum: number): number {
   const longest = Math.max(0, ...labels.map((label) => label.length))
   return Math.max(minimum, Math.ceil(longest * 5.6) + 12)
 }
+
+/**
+ * Where to anchor the "today" label above its line: centred, or flush with
+ * the line near either edge so it isn't cut off ("toda").
+ */
+export function todayLabelAnchor(x: number, width: number, room = 24): 'start' | 'middle' | 'end' {
+  if (x > width - room) return 'end'
+  if (x < room) return 'start'
+  return 'middle'
+}

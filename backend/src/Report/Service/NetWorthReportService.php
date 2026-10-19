@@ -109,7 +109,7 @@ class NetWorthReportService
     private function changes(User $user, AssetValues $values, array $months, array $previousMonths, string $previousOpening): array
     {
         $lastDate = $this->lastDate([$previousOpening, ...$this->dates([...$previousMonths, ...$months])]);
-        [$start, $end] = UserDayRange::bounds($user, (new \DateTimeImmutable($previousOpening))->modify('+1 day'), new \DateTimeImmutable($lastDate));
+        [$start, $end] = UserDayRange::bounds((new \DateTimeImmutable($previousOpening))->modify('+1 day'), new \DateTimeImmutable($lastDate));
         $savedByMonth = [];
         foreach ($this->transactionRepository->sumFlowsByCategoryAndMonth($user, $start, $end) as $flow) {
             $sign = match ($flow['flow']) {

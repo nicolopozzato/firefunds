@@ -187,12 +187,11 @@ class AccountDeletionService
      */
     private function openingBalanceMoment(Account $account, array $transactions, array $investmentTransactions): \DateTimeImmutable
     {
-        $utc = new \DateTimeZone('UTC');
+        $zone = new \DateTimeZone($account->getUser()->getTimezone());
 
         if ($account->getOpeningBalanceDate() !== null) {
-            // Midnight of that day in the owner's timezone, stored as UTC like every occurredAt.
-            return (new \DateTimeImmutable($account->getOpeningBalanceDate()->format('Y-m-d'), new \DateTimeZone($account->getUser()->getTimezone())))
-                ->setTimezone($utc);
+            // Midnight of that day, in the owner's timezone.
+            return new \DateTimeImmutable($account->getOpeningBalanceDate()->format('Y-m-d'), $zone);
         }
 
         $dates = array_map(
@@ -200,7 +199,7 @@ class AccountDeletionService
             [...$transactions, ...$investmentTransactions]
         );
 
-        return $dates !== [] ? min($dates)->modify('-1 minute') : $account->getCreatedAt()->setTimezone($utc);
+        return $dates !== [] ? min($dates)->modify('-1 minute') : $account->getCreatedAt()->setTimezone($zone);
     }
 
     /**

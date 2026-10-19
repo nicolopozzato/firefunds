@@ -32,6 +32,7 @@ lando composer <command>
 lando phpunit                    # backend tests, on a separate firefunds_test database
 lando npm <command>              # in frontend/, e.g. lando npm run lint
 lando npx tsc --noEmit -p tsconfig.json
+lando npm test                   # frontend unit tests (Vitest)
 lando psql                       # psql on the dev database
 lando db-dump                    # → var/dumps/firefunds_<date>.dump
 lando db-import var/dumps/<file> # replace the dev database (.dump, .sql, .sql.gz)
@@ -67,7 +68,7 @@ These are product decisions, not just style. A pull request that breaks one will
 - **Nothing is ever physically deleted.** Every delete is a soft delete (`SoftDeletable`, `deleted_at`). Deleting something other data depends on handles that data explicitly and tells the user first: an account's transactions are moved or deleted with it, a category is taken off its transactions. A test fails if application code removes rows.
 - **A transaction may have no account on one side** (income from nobody in particular, money given away), never both. Withdrawals go from an asset account to an expense account or nowhere; deposits come from a revenue account or nowhere into an asset account.
 - **Thin controllers.** Calculations belong in services, and a list never runs one query per row (`OpenPositionService` shows the pattern).
-- **Time.** Timestamps are stored in UTC; calendar days are computed in the user's timezone; the price calendar and the scheduled price fetch use `APP_TIMEZONE`.
+- **Time.** System timestamps (created/updated, audit logs) are UTC instants. A transaction's date and time are stored as written where it happened, with that place's timezone (`App\Entity\OccursLocally`): its day never depends on who looks at it, so don't convert it in queries. "Today" follows the user's timezone; the price calendar and the scheduled price fetch use `APP_TIMEZONE`.
 - **Formatting.** Numbers follow the user's number format, dates the interface language; everything goes through `frontend/src/lib/utils.ts`.
 - **Colours come from the theme** (`frontend/src/lib/theme.ts`), never straight from Tailwind's palette, so they work in light and dark mode: `positive`, `negative`, `info`, `invest`, `warning`, chart series `--series-1`…`--series-8`. Check dark mode too.
 - **Every text in both languages.** New UI text goes in `frontend/src/i18n/locales/it.json` and `en.json`.
@@ -80,9 +81,10 @@ These are product decisions, not just style. A pull request that breaks one will
 lando phpunit
 lando npx tsc --noEmit -p tsconfig.json
 lando npm run lint
+lando npm test
 lando npm run build
 ```
 
-All four must pass. Add a test for what you changed: an HTTP request for an endpoint, a service call for a service. If you touched the UI, look at it in light and dark mode and on a phone-sized window.
+All five must pass; the same checks run on every push and pull request (`.github/workflows/checks.yml`). Add a test for what you changed: an HTTP request for an endpoint, a service call for a service, a `*.test.ts` next to a pure frontend module (Vitest). If you touched the UI, look at it in light and dark mode and on a phone-sized window.
 
 By contributing you agree that your contribution is licensed under the [AGPL-3.0](LICENSE).

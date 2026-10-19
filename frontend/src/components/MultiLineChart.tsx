@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { format, isSameDay, parseISO } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { niceTicks, smoothPath, useContainerWidth } from '@/lib/chart'
+import { niceTicks, smoothPath, useContainerWidth, todayLabelAnchor } from '@/lib/chart'
 import { onMouseLeave, useChartTouch } from '@/lib/chart-touch'
 import type { DatedValue } from '@/types/dashboard'
 
@@ -176,7 +176,7 @@ export default function MultiLineChart({
                     strokeWidth={1}
                     strokeDasharray="4 3"
                   />
-                  <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor="middle" fill={TODAY_COLOR}>
+                  <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor={todayLabelAnchor(chart.todayX, width)} fill={TODAY_COLOR}>
                     {t('charts.today')}
                   </text>
                 </g>

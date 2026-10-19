@@ -159,6 +159,55 @@ class InvestmentPriceServiceTest extends KernelTestCase
         $this->service()->importRange($this->instrument, new \DateTimeImmutable('2026-09-24'), new \DateTimeImmutable($through));
     }
 
+    /**
+     * A price the database refuses (here one too large for the column) used to
+     * close the EntityManager, and every symbol after it failed too.
+     */
+    public function testOneSymbolFailingLeavesTheOthersUpdated(): void
+    {
+        $other = new InvestmentInstrument($this->instrument->getUser(), 'Other ETF', InvestmentInstrumentType::Etf);
+        $other->setYahooTicker(\sprintf('OK-%s', uniqid()));
+        $this->entityManager->persist($other);
+        $this->entityManager->flush();
+
+        $broken = $this->instrument->getQuoteSymbol();
+        $provider = new class($broken) implements PriceProviderInterface {
+            public function __construct(private readonly string $broken)
+            {
+            }
+
+            public function getClosingPrices(InvestmentInstrument $instrument, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+            {
+                return ['2026-09-29' => $instrument->getQuoteSymbol() === $this->broken ? '100000000000000000000' : '42.0000'];
+            }
+
+            public function getLiveQuote(InvestmentInstrument $instrument): LiveQuote
+            {
+                return new LiveQuote(null, MarketState::Unknown);
+            }
+        };
+        $container = self::getContainer();
+        $service = new InvestmentPriceService(
+            $container->get(InvestmentInstrumentRepository::class),
+            $this->priceRepository,
+            $container->get(InvestmentTransactionRepository::class),
+            $provider,
+            $this->entityManager,
+            new NullLogger(),
+            $this->calendar(),
+            $container->get('doctrine'),
+        );
+
+        $service->updateAllInstruments();
+
+        $price = $this->priceRepository->findOneByInstrumentAndDate(
+            $this->entityManager->find(InvestmentInstrument::class, $other->getId()),
+            new \DateTimeImmutable('2026-09-29'),
+        );
+        self::assertNotNull($price);
+        self::assertSame('42.0000', $price->getPrice());
+    }
+
     private function seed(): void
     {
         $this->service()->seedInitialPrice($this->instrument);
@@ -195,6 +244,7 @@ class InvestmentPriceServiceTest extends KernelTestCase
             $this->entityManager,
             new NullLogger(),
             $this->calendar(),
+            self::getContainer()->get('doctrine'),
         );
     }
 

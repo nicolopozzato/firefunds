@@ -2,6 +2,7 @@
 
 namespace App\Auth\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Auth\DTO\ChangePasswordRequest;
 use App\Auth\DTO\CheckRegistrationResponse;
 use App\Auth\DTO\RegisterRequest;
@@ -10,8 +11,6 @@ use App\Auth\DTO\UpdatePreferencesRequest;
 use App\Auth\DTO\UpdateProfileRequest;
 use App\Auth\DTO\UserResponse;
 use App\Auth\Service\UserService;
-use App\Core\Exception\ApiException;
-use App\Core\Exception\ErrorCode;
 use App\Entity\User;
 use App\Entity\UserTheme;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +21,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/auth')]
 class AuthController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly UserService $userService,
     ) {
@@ -33,6 +34,26 @@ class AuthController extends AbstractController
         // This endpoint is handled by the JSON login authenticator
         // If we reach here, authentication was successful
         return $this->json(['message' => 'Login successful']);
+    }
+
+    /**
+     * Answered by the refresh token authenticator on the `api` firewall
+     * (`refresh_jwt` in security.yaml), never by this action.
+     */
+    #[Route('/refresh', name: 'api_auth_refresh', methods: ['POST'])]
+    public function refresh(): never
+    {
+        throw new \LogicException('Handled by the refresh_jwt authenticator.');
+    }
+
+    /**
+     * Answered by the firewall's logout, which deletes the refresh token in
+     * the body, never by this action.
+     */
+    #[Route('/logout', name: 'api_auth_logout', methods: ['POST'])]
+    public function logout(): never
+    {
+        throw new \LogicException('Handled by the firewall logout.');
     }
 
     #[Route('/register', name: 'api_auth_register', methods: ['POST'])]
@@ -90,6 +111,7 @@ class AuthController extends AbstractController
             $request->firstName,
             $request->lastName,
             $request->email,
+            $request->currentPassword,
         );
 
         return $this->json(UserResponse::fromEntity($user));
@@ -117,16 +139,5 @@ class AuthController extends AbstractController
         );
 
         return $this->json(UserResponse::fromEntity($user));
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::UserNotFound);
-        }
-
-        return $user;
     }
 }

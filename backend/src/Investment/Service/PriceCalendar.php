@@ -25,15 +25,6 @@ class PriceCalendar
     }
 
     /**
-     * The calendar day a moment falls on in the app's timezone, in the same
-     * shape as yesterday().
-     */
-    public function dayOf(\DateTimeImmutable $moment): \DateTimeImmutable
-    {
-        return new \DateTimeImmutable($moment->setTimezone($this->timezone())->format('Y-m-d'));
-    }
-
-    /**
      * Yesterday's calendar date in the app's timezone, as midnight in PHP's
      * default timezone (UTC): the same shape Doctrine hydrates the `date`
      * column of investment_price into, so the two compare correctly.

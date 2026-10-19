@@ -2,11 +2,14 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
+    # Tokens (JWT and refresh) name the user by id, which never changes;
+    # only the login form looks a user up by email. See User::getUserIdentifier().
     providers:
-        app_user_provider:
+        users_by_id:
             entity:
-                class: App\Entity\User
-                property: email
+                class: App\Entity\User   # UserRepository::loadUserByIdentifier
+        users_by_email:
+            id: App\Auth\Security\EmailUserProvider
 
     firewalls:
         dev:
@@ -16,6 +19,7 @@ security:
         login:
             pattern: ^/api/auth/login
             stateless: true
+            provider: users_by_email
             json_login:
                 check_path: /api/auth/login
                 username_path: email
@@ -35,22 +39,27 @@ security:
             stateless: true
             security: false
 
-        refresh:
-            pattern: ^/api/auth/refresh
-            stateless: true
-            security: false
-
+        # Refresh and logout live here too (gesdinet_jwt_refresh_token.yaml):
+        # a refresh token is single use, every refresh hands out a new one,
+        # and logout deletes the one it is sent.
         api:
             pattern: ^/api
             stateless: true
+            provider: users_by_id
             jwt: ~
+            entry_point: jwt
+            refresh_jwt:
+                check_path: api_auth_refresh
+                invalidate_token_on_logout: true
+            logout:
+                path: api_auth_logout
 
         main:
             lazy: true
-            provider: app_user_provider
+            provider: users_by_id
 
     access_control:
-        - { path: ^/api/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/(login|register|refresh|logout|check-registration)$, roles: PUBLIC_ACCESS }
         - { path: ^/api/health, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 

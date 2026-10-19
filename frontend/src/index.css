@@ -2,42 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Geist Font Faces */
+/* Geist (SIL Open Font License, assets/fonts/LICENSE-Geist.txt), bundled
+   by Vite: one variable file for every weight, and the mono for codes. */
 @font-face {
   font-family: 'Geist';
-  src: url('/fonts/Geist-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/Geist-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/Geist-Bold.woff2') format('woff2');
-  font-weight: 700;
+  src: url('./assets/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Geist Mono';
-  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
+  src: url('./assets/fonts/GeistMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -94,13 +71,6 @@
     --series-7: 248.8 48.4% 44.1%;
     --series-8: 0.4 73.5% 58.6%;
     --series-other: 55 9.1% 74.1%;
-
-    /* Chart colors for data visualization */
-    --chart-1: 221.2 83.2% 53.3%;
-    --chart-2: 212 95% 68%;
-    --chart-3: 216 92% 60%;
-    --chart-4: 210 98% 78%;
-    --chart-5: 212 97% 87%;
   }
 
   /* Density variants */
@@ -126,14 +96,15 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   /* Touch screens: no grey flash on whatever is tapped, the app gives its own feedback (active: states);
-     no double-tap zoom (the app doesn't zoom, see the viewport in index.html). */
+     no double-tap zoom, which delays taps. Pinch zoom stays (index.html). */
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-  /* Phones: iOS zooms into a field whose text is smaller than 16px when it gets the focus.
-     A field drawn larger on purpose (e.g. a form's amount) opts out with data-large. */
-  @media (max-width: 767px) {
+  /* Phones and tablets: iOS (iPad too) zooms into a field whose text is smaller than 16px
+     when it gets the focus. A field drawn larger on purpose (e.g. a form's amount) opts out
+     with data-large. */
+  @media (max-width: 767px), (pointer: coarse) {
     input:not([type='checkbox']):not([type='radio']):not([data-large]),
     select,
     textarea {

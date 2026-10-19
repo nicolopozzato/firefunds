@@ -2,9 +2,10 @@
 
 namespace App\Report\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
-use App\Entity\User;
+use App\Core\Period\CalendarRange;
 use App\Report\DTO\NetWorthReportQuery;
 use App\Report\DTO\ReportQuery;
 use App\Report\Period\ReportRange;
@@ -18,6 +19,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/reports')]
 class ReportController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly IncomeExpenseReportService $incomeExpenseReportService,
         private readonly NetWorthReportService $netWorthReportService,
@@ -35,13 +38,11 @@ class ReportController extends AbstractController
         if ($query->from === '' || $query->to === '') {
             throw new ApiException(ErrorCode::InvalidDateRange);
         }
-        if ($query->from > $query->to) {
-            throw new ApiException(ErrorCode::DateRangeInverted);
-        }
+        [$from, $to] = CalendarRange::checked(CalendarRange::day($query->from), CalendarRange::day($query->to));
 
         return $this->json($this->incomeExpenseReportService->forUser(
             $this->getCurrentUser(),
-            new ReportRange(new \DateTimeImmutable($query->from), new \DateTimeImmutable($query->to)),
+            new ReportRange($from, $to),
             $query->by,
             $query->compare !== 'none' ? $query->compare : null,
         ));
@@ -52,16 +53,5 @@ class ReportController extends AbstractController
     public function netWorth(#[MapQueryString(validationFailedStatusCode: 400)] NetWorthReportQuery $query = new NetWorthReportQuery()): JsonResponse
     {
         return $this->json($this->netWorthReportService->forUser($this->getCurrentUser(), $query->year));
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::UserNotFound);
-        }
-
-        return $user;
     }
 }

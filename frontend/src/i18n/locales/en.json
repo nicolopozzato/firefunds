@@ -4,35 +4,30 @@
     "password": "Password",
     "firstName": "First Name",
     "lastName": "Last Name",
-    "submit": "Submit",
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
-    "close": "Close",
     "loading": "Loading...",
     "refreshing": "Refreshing…",
-    "error": "Error",
-    "success": "Success",
     "profile": "Profile",
     "admin": "Admin",
     "yes": "Yes",
     "no": "No",
-    "back": "Back"
+    "back": "Back",
+    "retry": "Try again",
+    "reload": "Reload"
   },
   "auth": {
     "login": "Log in",
-    "register": "Register",
     "logout": "Log out",
     "loginTitle": "Log in to FireFunds",
-    "registerTitle": "Create your account",
     "alreadyHaveAccount": "Already have an account?",
     "dontHaveAccount": "Don't have an account?",
     "noUsersFound": "No users found. Please register first.",
     "freshInstallation": "It looks like this is a fresh installation. Create your admin account to get started.",
     "createAdminAccount": "Create Admin Account",
     "createAccount": "Create Account",
-    "signingIn": "Signing in...",
     "creatingAccount": "Creating account...",
     "adminAccountSetup": "Set up your administrator account to get started",
     "joinFireFunds": "Join FireFunds to start tracking your finances",
@@ -132,7 +127,6 @@
     "title": "New Transaction",
     "editTitle": "Edit Transaction",
     "description": "Record a movement of money between two accounts",
-    "type": "Transaction Type",
     "typeWithdrawalDescription": "From an asset account to an expense account",
     "typeDepositDescription": "From a revenue account to an asset account",
     "typeTransferDescription": "Between two asset accounts",
@@ -165,6 +159,8 @@
       "occurredAt": "Date",
       "amount": "Amount",
       "currency": "Currency",
+      "foreignAmount": "Foreign amount",
+      "foreignCurrency": "Foreign currency",
       "category": "Category",
       "tags": "Tags",
       "notes": "Notes"
@@ -239,7 +235,6 @@
     "openingBalance": "Opening Balance",
     "openingBalanceDate": "Opening Balance Date",
     "assetKind": "Kind",
-    "selectAssetKind": "Select a kind",
     "assetKind_checking": "Checking Account",
     "assetKind_investment": "Investment Account",
     "assetKindImmutableHint": "Cannot be changed after the account is created.",
@@ -293,7 +288,7 @@
     "add": "Add Expense Account",
     "editTitle": "Edit Expense Account",
     "empty": "No expense accounts yet",
-    "emptyDescription": "Create an expense account (e.g. Amazon, Obi, Leroy Merlin) to get started"
+    "emptyDescription": "Create an expense account (e.g. supermarket, hardware store, clothing) to get started"
   },
   "revenueAccounts": {
     "title": "Revenue Accounts",
@@ -382,24 +377,20 @@
     "other": "Other",
     "instrument": "Instrument"
   },
-  "settings": {
-    "title": "Settings",
-    "language": "Language",
-    "changeLanguage": "Change Language"
-  },
   "profile": {
     "title": "Profile",
     "description": "Manage your account information",
     "personalInfo": "Personal Information",
     "personalInfoDescription": "Update your first name, last name and email",
     "saved": "Changes saved successfully",
+    "emailPassword": "Current password, to change your email",
     "changePassword": "Change Password",
     "changePasswordDescription": "Update your account password",
     "currentPassword": "Current Password",
     "newPassword": "New Password",
     "confirmNewPassword": "Confirm New Password",
     "passwordMismatch": "Passwords do not match",
-    "passwordChanged": "Password updated successfully"
+    "passwordChanged": "Password updated. Your other devices will have to sign in again."
   },
   "preferences": {
     "title": "Preferences",
@@ -466,13 +457,7 @@
     "serverError": "Server error. Please try again later.",
     "validationError": "Please check the form data.",
     "invalidCredentials": "Invalid email or password.",
-    "emailRequired": "Email is required.",
-    "emailInvalid": "Please enter a valid email address.",
-    "passwordRequired": "Password is required.",
     "passwordTooShort": "Password must be at least 8 characters long.",
-    "firstNameRequired": "First name is required.",
-    "lastNameRequired": "Last name is required.",
-    "sessionExpired": "Your session has expired. Please log in again.",
     "conflict": "This can't be done with the data as it is now.",
     "tooManyRequests": "Too many requests. Try again shortly.",
     "accountSide": {
@@ -508,7 +493,8 @@
       "currency_code_taken": "A currency with this code already exists.",
       "currency_in_use": "Cannot delete: the currency is used by one or more accounts.",
       "invalid_date_range": "Invalid date range.",
-      "date_range_inverted": "The start date must be on or before the end date."
+      "date_range_inverted": "The start date must be on or before the end date.",
+      "date_range_too_long": "A date range can span at most {{years}} years."
     },
     "validation": {
       "required": "required.",
@@ -522,6 +508,10 @@
       "invalid_choice": "value not allowed.",
       "invalid_type": "missing or invalid value.",
       "invalid": "invalid value.",
+      "invalid_number": "not a valid number, or too many decimals.",
+      "invalid_date": "not a valid date.",
+      "invalid_id": "not a valid item.",
+      "too_many": "can hold at most {{limit}} items.",
       "currency_required_for_asset": "Currency is required for asset accounts.",
       "kind_required_for_asset": "Account kind is required for asset accounts.",
       "transaction_account_required": "Enter at least one of source and destination account.",
@@ -578,19 +568,15 @@
       "unitPrice": "Unit price",
       "visibleAccountIds": "Accounts",
       "yahooTicker": "Yahoo ticker"
-    }
+    },
+    "loadFailed": "This page couldn't be loaded.",
+    "pageCrashed": "Something went wrong on this page."
   },
   "pagination": {
     "range": "{{first}}-{{last}} of {{total}}",
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {{page}} of {{pageCount}}"
-  },
-  "validation": {
-    "required": "This field is required",
-    "email": "Please enter a valid email address",
-    "minLength": "Must be at least {{min}} characters",
-    "maxLength": "Must be at most {{max}} characters"
   },
   "investmentsOverview": {
     "title": "Investments Overview",
@@ -615,8 +601,6 @@
     "flowNet": "Net"
   },
   "reports": {
-    "title": "Reports",
-    "description": "Analysis and summaries of your finances",
     "incomeExpenses": {
       "title": "Income and expenses",
       "description": "Income, expenses and categories over the chosen range"
@@ -735,8 +719,6 @@
     "title": "New Investment Transaction",
     "editTitle": "Edit Investment Transaction",
     "description": "Record a BUY or SELL operation on an investment account",
-    "typeBuyDescription": "Buy units of an instrument, reducing account cash",
-    "typeSellDescription": "Sell units of an instrument, increasing account cash",
     "descriptionField": "Description",
     "account": "Investment Account",
     "selectAccount": "Select an investment account",
@@ -751,7 +733,9 @@
     "fees": "Fees",
     "taxes": "Taxes",
     "total": "Total",
-    "pricesIncompleteWarning": "Couldn't fetch all missing closing prices for {{instrument}}. Retry manually from the Instruments section for correct charts and reports."
+    "pricesIncompleteWarning": "Couldn't fetch all missing closing prices for {{instrument}}. Retry manually from the Instruments section for correct charts and reports.",
+    "heldToday": "You hold {{quantity}} in this account today.",
+    "sellExceedsHolding": "More than you hold in this account today ({{quantity}}): check the quantity."
   },
   "investmentTransactionDetail": {
     "title": "Investment Transaction Detail",
@@ -880,5 +864,10 @@
     "emptyDescription": "No transaction contains every word searched. Try fewer words, part of a word, or removing the filters.",
     "noQuery": "What are you looking for?",
     "noQueryDescription": "Type in the box at the top: a word from a description or notes, an account, a category, a tag or an instrument. Press / or Ctrl+K on any page to get there."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This address doesn't match any page.",
+    "back": "Back to the dashboard"
   }
 }

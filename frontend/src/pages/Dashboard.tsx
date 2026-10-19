@@ -18,6 +18,7 @@ import { useTimeframe } from '@/contexts/TimeframeContext'
 import { OTHER_COLOR, SERIES_COLORS } from '@/lib/chart'
 import { cn, formatMoney, formatPercent, moneyColorClass, numberFormatter } from '@/lib/utils'
 import type { Dashboard as DashboardData } from '@/types/dashboard'
+import LoadFailed from '@/components/LoadFailed'
 
 const EXPENSE_COLOR = 'hsl(var(--series-2))'
 const REVENUE_COLOR = 'hsl(var(--series-1))'
@@ -245,7 +246,7 @@ export default function Dashboard() {
   const { timeframe } = useTimeframe()
   const from = format(timeframe.from, 'yyyy-MM-dd')
   const to = format(timeframe.to, 'yyyy-MM-dd')
-  const { data: dashboard, isLoading } = useDashboard(from, to)
+  const { data: dashboard, isLoading, error, refetch } = useDashboard(from, to)
 
   const days = useMemo(
     () => (timeframe.from <= timeframe.to ? eachDayOfInterval({ start: timeframe.from, end: timeframe.to }).map((day) => format(day, 'yyyy-MM-dd')) : []),
@@ -267,6 +268,10 @@ export default function Dashboard() {
       }
     />
   )
+
+  if (!dashboard && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
+  }
 
   if (isLoading || !dashboard) {
     return (

@@ -37,6 +37,10 @@ class Schedule implements ScheduleProviderInterface
                 // last price, so re-running it is always safe/idempotent.
                 RecurringMessage::cron('10 0,4,8,12 * * *', new RunCommandMessage('app:investments:fetch-prices'), $this->timezone)
             )
+            ->add(
+                // Expired refresh tokens: a session left unused for 30 days.
+                RecurringMessage::cron('30 3 * * *', new RunCommandMessage('gesdinet:jwt:clear'), $this->timezone)
+            )
         ;
     }
 }

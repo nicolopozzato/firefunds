@@ -25,7 +25,10 @@ export function useCategoryTransactions(
     queryKey: ['transactions', 'by-category', filter, page],
     queryFn: () => transactionsApi.listByCategory(filter!.kind, filter!.categoryId, filter!.from, filter!.to, page),
     enabled: filter !== null,
-    placeholderData: (previousData) => previousData,
+    // The previous page stays on screen while the next loads, but never
+    // another cell's transactions: those are not this list.
+    placeholderData: (previousData, previousQuery) =>
+      JSON.stringify(previousQuery?.queryKey[2]) === JSON.stringify(filter) ? previousData : undefined,
   })
 }
 
@@ -43,6 +46,8 @@ export function useTransactionDistributions(kind: TransactionKind, enabled = tru
 
 export function useTransaction(id: string) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['transactions', 'detail', id],
     queryFn: () => transactionsApi.get(id),
     enabled: !!id,

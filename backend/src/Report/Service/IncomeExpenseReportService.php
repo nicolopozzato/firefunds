@@ -108,7 +108,7 @@ class IncomeExpenseReportService
      */
     private function flows(User $user, ReportRange $range): array
     {
-        [$start, $end] = UserDayRange::bounds($user, $range->from, $range->to);
+        [$start, $end] = UserDayRange::bounds($range->from, $range->to);
 
         return $this->transactionRepository->sumFlowsByCategoryAndMonth($user, $start, $end);
     }

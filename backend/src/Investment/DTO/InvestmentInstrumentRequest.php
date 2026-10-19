@@ -3,6 +3,7 @@
 namespace App\Investment\DTO;
 
 use App\Entity\InvestmentInstrumentType;
+use App\Core\Validation\Decimal;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class InvestmentInstrumentRequest
@@ -27,6 +28,7 @@ final readonly class InvestmentInstrumentRequest
 
         /** Percentage, 0-100; null = the user's capital gains tax rate. */
         #[Assert\Range(min: 0, max: 100)]
+        #[Decimal(precision: 7, scale: 4)]
         public ?string $capitalGainsTaxRate = null,
     ) {
     }

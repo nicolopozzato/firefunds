@@ -13,6 +13,7 @@ use App\Investment\Position\AverageCostPosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<InvestmentTransaction>
@@ -82,11 +83,11 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
         $params = ['userId' => $user->getId()->toRfc4122()];
         if ($from !== null) {
             $dateFilter .= ' AND it.occurred_at >= :from';
-            $params['from'] = $from->format('Y-m-d H:i:s');
+            $params['from'] = $from->format('Y-m-d H:i:s.u');
         }
         if ($to !== null) {
             $dateFilter .= ' AND it.occurred_at <= :to';
-            $params['to'] = $to->format('Y-m-d H:i:s');
+            $params['to'] = $to->format('Y-m-d H:i:s.u');
         }
 
         $sql = <<<SQL
@@ -133,6 +134,11 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
 
     public function findOneByUserAndId(User $user, string $id): ?InvestmentTransaction
     {
+        // Not a UUID is not anything of theirs (and would fail the conversion).
+        if (!Uuid::isValid($id)) {
+            return null;
+        }
+
         return $this->findOneBy(['user' => $user, 'id' => $id]);
     }
 
@@ -140,7 +146,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * Every open position (instrument still held) on an account: quantity, cost
      * basis and average cost, folded from the ordered BUY/SELL history using the
      * running average-cost method (see AverageCostPosition). `openedOn` is the
-     * day (in the owner's timezone) the current holding was opened, i.e. the BUY
+     * day (as written where it happened) the current holding was opened, i.e. the BUY
      * that last took the quantity up from zero.
      *
      * @return array<array{instrumentId: string, instrumentName: string, instrumentTicker: ?string, quantity: string, costBasis: string, averageCost: string, openedOn: ?string, taxRate: ?string}>
@@ -163,12 +169,13 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
 
-        return $first !== null ? new \DateTimeImmutable($first, new \DateTimeZone('UTC')) : null;
+        // The clock time where it happened: its date is the day of the trade.
+        return $first !== null ? new \DateTimeImmutable($first) : null;
     }
 
     /**
      * Every (non-deleted) BUY/SELL on this account, oldest first per
-     * instrument, with the day it happened in the owner's timezone.
+     * instrument, with the day it happened (as written where it happened).
      *
      * @return array<array{account_id: string, instrument_id: string, instrument_name: string, instrument_ticker: ?string, type: string, quantity: string, amount: string, costs: string, day: string}>
      */
@@ -195,10 +202,9 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
                 SELECT it.account_id, it.instrument_id, i.name AS instrument_name, i.ticker AS instrument_ticker,
                        i.capital_gains_tax_rate AS instrument_tax_rate,
                        it.type, it.quantity, it.amount, it.fees + it.taxes AS costs,
-                       CAST(it.occurred_at AT TIME ZONE 'UTC' AT TIME ZONE u.timezone AS date) AS day
+                       CAST(it.occurred_at AS date) AS day
                 FROM investment_transaction it
                 JOIN investment_instrument i ON i.id = it.instrument_id
-                JOIN "user" u ON u.id = it.user_id
                 WHERE it.account_id IN (:accountIds) AND it.deleted_at IS NULL
                 ORDER BY it.account_id, it.instrument_id, it.occurred_at, it.id
                 SQL,
@@ -256,10 +262,8 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * itself forward-filled through weekends/holidays, so this only falls back
      * further for a day before the instrument's first recorded price).
      *
-     * Each transaction's UTC instant is converted into the account owner's own
-     * timezone before being truncated to a calendar day (mirroring
-     * AccountRepository::getDailyBalanceHistory), so a purchase made late at
-     * night local time isn't attributed to the previous UTC day.
+     * A trade's day is the date in its `occurred_at`, the clock time where it
+     * happened (App\Entity\OccursLocally).
      *
      * @return array<array{date: string, value: string}>
      */
@@ -267,7 +271,6 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
     {
         $connection = $this->getEntityManager()->getConnection();
         $id = $account->getId()->toRfc4122();
-        $timezone = $account->getUser()->getTimezone();
 
         $sql = <<<SQL
             WITH RECURSIVE days AS (
@@ -282,7 +285,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
                 SELECT instrument_id, day, SUM(delta) AS delta FROM (
                     SELECT
                         instrument_id,
-                        CAST(occurred_at AT TIME ZONE 'UTC' AT TIME ZONE :timezone AS date) AS day,
+                        CAST(occurred_at AS date) AS day,
                         CASE WHEN type = 'buy' THEN quantity ELSE -quantity END AS delta
                     FROM investment_transaction
                     WHERE account_id = :id AND deleted_at IS NULL
@@ -334,7 +337,6 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             'id' => $id,
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
-            'timezone' => $timezone,
         ])->fetchAllAssociative();
     }
 

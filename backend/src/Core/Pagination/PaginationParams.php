@@ -15,6 +15,9 @@ final readonly class PaginationParams
      */
     private const int UNLIMITED_PAGE_SIZE = 5000;
 
+    /** Far past any real list, and low enough that the offset can't overflow. */
+    private const int MAX_PAGE = 1_000_000;
+
     public function __construct(
         public int $page,
         public int $pageSize,
@@ -30,7 +33,7 @@ final readonly class PaginationParams
      */
     public static function fromRequest(Request $request, User $user): self
     {
-        $page = max(1, $request->query->getInt('page', 1));
+        $page = max(1, min(self::MAX_PAGE, $request->query->getInt('page', 1)));
         $requestedPageSize = $request->query->getInt('pageSize', $user->getPageSize());
 
         if ($requestedPageSize === -1) {

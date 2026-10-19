@@ -43,7 +43,10 @@ def session(browser, **context):
 def shot(page, path, name, full_page=False):
     page.goto(BASE + path)
     page.wait_for_load_state('networkidle')
-    page.mouse.move(0, 0)  # no hover tooltip left open
+    # Bottom-right corner: no hover tooltip left open, and not over the
+    # sidebar, whose collapse button shows on hover.
+    viewport = page.viewport_size
+    page.mouse.move(viewport['width'] - 1, viewport['height'] - 1)
     page.wait_for_timeout(1500)  # chart animations
     page.screenshot(path=f'{OUT}/{name}.png', full_page=full_page)
     print('saved', name)

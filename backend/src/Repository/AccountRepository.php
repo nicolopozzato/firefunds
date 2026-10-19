@@ -13,6 +13,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<Account>
@@ -92,6 +93,11 @@ class AccountRepository extends ServiceEntityRepository
 
     public function findOneByUserAndId(User $user, string $id): ?Account
     {
+        // Not a UUID is not anything of theirs (and would fail the conversion).
+        if (!Uuid::isValid($id)) {
+            return null;
+        }
+
         return $this->findOneBy(['user' => $user, 'id' => $id]);
     }
 
@@ -216,10 +222,8 @@ class AccountRepository extends ServiceEntityRepository
      * query. The free cash of an investment account: what it holds is valued
      * apart (InvestmentTransactionRepository, PositionHistory).
      *
-     * `occurred_at` is stored as a UTC instant; each one is converted into the
-     * owner's own timezone before being truncated to a calendar day, so a
-     * transaction made at (say) 00:20 local time lands in "today" rather than
-     * "yesterday" just because its UTC instant falls on the previous UTC date.
+     * A transaction's day is the date in its `occurred_at`: the clock time
+     * where it happened (App\Entity\OccursLocally), whoever looks at it.
      *
      * The opening balance is there from its date on (as in Firefly III), so an
      * account opened during the range adds nothing before; one without a date
@@ -260,7 +264,7 @@ class AccountRepository extends ServiceEntityRepository
             ),
             daily_net AS MATERIALIZED (
                 SELECT account_id, day, SUM(net) AS net FROM (
-                    SELECT account_id, CAST(occurred_at AT TIME ZONE 'UTC' AT TIME ZONE :timezone AS date) AS day, net
+                    SELECT account_id, CAST(occurred_at AS date) AS day, net
                     FROM movements
                     UNION ALL
                     -- A dated opening balance arrives on its date (already a calendar day): before it, it isn't there.
@@ -300,7 +304,6 @@ class AccountRepository extends ServiceEntityRepository
                 'ids' => array_map(static fn (Account $account) => $account->getId()->toRfc4122(), $accounts),
                 'from' => $from->format('Y-m-d'),
                 'to' => $to->format('Y-m-d'),
-                'timezone' => $accounts[0]->getUser()->getTimezone(),
             ],
             ['ids' => ArrayParameterType::STRING]
         )->fetchAllAssociative();

@@ -5,6 +5,7 @@ namespace App\Investment\PriceProvider;
 use App\Entity\InvestmentInstrument;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * Fetches daily closing prices from Yahoo Finance's public (unofficial) chart
@@ -14,10 +15,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class YahooFinancePriceProvider implements PriceProviderInterface
 {
-    private const BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+    /** A chart answer is a few hundred KB at most, even decades of daily closes. */
+    private const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
+        /** Scoped in framework.yaml: Yahoo's chart endpoint, with timeouts. */
+        private readonly HttpClientInterface $yahooClient,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -35,15 +38,12 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         $period2 = $to->modify('+1 day')->getTimestamp();
 
         try {
-            $response = $this->httpClient->request('GET', self::BASE_URL.rawurlencode($symbol), [
+            $response = $this->chart($symbol, [
                 'query' => [
                     'period1' => $period1,
                     'period2' => $period2,
                     'interval' => '1d',
                     'events' => 'history',
-                ],
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0',
                 ],
             ]);
 
@@ -73,14 +73,15 @@ class YahooFinancePriceProvider implements PriceProviderInterface
             $date = $this->localDate($timestamp, $timezone);
             $close = $closes[$index] ?? null;
 
-            if ($close === null) {
+            $price = self::price($close);
+            if ($price === null) {
                 // A real holiday has no bar at all; a bar with a null close
                 // is a trading day Yahoo simply has no daily close for.
                 $missingDates[] = $date;
                 continue;
             }
 
-            $prices[$date] = (string) round((float) $close, 4);
+            $prices[$date] = $price;
         }
 
         $prices += $this->lastIntradayCloses($symbol, $missingDates, $timezone);
@@ -98,13 +99,10 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         }
 
         try {
-            $response = $this->httpClient->request('GET', self::BASE_URL.rawurlencode($symbol), [
+            $response = $this->chart($symbol, [
                 'query' => [
                     'range' => '1d',
                     'interval' => '1d',
-                ],
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0',
                 ],
             ]);
 
@@ -124,10 +122,8 @@ class YahooFinancePriceProvider implements PriceProviderInterface
             return new LiveQuote(null, MarketState::Unknown);
         }
 
-        $price = $meta['regularMarketPrice'] ?? null;
-
         return new LiveQuote(
-            price: $price !== null ? (string) round((float) $price, 4) : null,
+            price: self::price($meta['regularMarketPrice'] ?? null),
             marketState: $this->marketStateFrom($meta),
         );
     }
@@ -157,14 +153,11 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         sort($dates);
 
         try {
-            $response = $this->httpClient->request('GET', self::BASE_URL.rawurlencode($symbol), [
+            $response = $this->chart($symbol, [
                 'query' => [
                     'period1' => (new \DateTimeImmutable($dates[0], $timezone))->getTimestamp(),
                     'period2' => (new \DateTimeImmutable(end($dates), $timezone))->modify('+1 day')->getTimestamp(),
                     'interval' => '1h',
-                ],
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0',
                 ],
             ]);
 
@@ -186,11 +179,11 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         $prices = [];
         foreach ($timestamps as $index => $timestamp) {
             $date = $this->localDate($timestamp, $timezone);
-            $close = $closes[$index] ?? null;
+            $close = self::price($closes[$index] ?? null);
 
             // Bars come in ascending order, so the last one per day wins.
             if ($close !== null && isset($wanted[$date])) {
-                $prices[$date] = (string) round((float) $close, 4);
+                $prices[$date] = $close;
             }
         }
 
@@ -271,10 +264,41 @@ class YahooFinancePriceProvider implements PriceProviderInterface
      * (including any exchange suffix, e.g. "VWCE.DE") if set, falling back
      * to the plain display ticker for symbols that need no suffix (e.g. "AAPL").
      */
+    /**
+     * A price as the database stores it (4 decimals, at most 15 digits before
+     * the point), or null for anything that isn't one: missing, not finite,
+     * zero once rounded, absurdly large. Rounding a float straight to a
+     * string would write "1.0E+15", which the column refuses.
+     */
+    private static function price(mixed $value): ?string
+    {
+        if (!is_numeric($value) || !is_finite((float) $value)) {
+            return null;
+        }
+
+        $price = number_format((float) $value, 4, '.', '');
+
+        return bccomp($price, '0', 4) > 0 && strlen(explode('.', $price)[0]) <= 15 ? $price : null;
+    }
+
+    /**
+     * A request for one symbol's chart, given up past MAX_RESPONSE_BYTES.
+     *
+     * @param array<string, mixed> $options
+     */
+    private function chart(string $symbol, array $options): ResponseInterface
+    {
+        return $this->yahooClient->request('GET', rawurlencode($symbol), $options + [
+            'on_progress' => static function (int $downloaded): void {
+                if ($downloaded > self::MAX_RESPONSE_BYTES) {
+                    throw new \RuntimeException('Yahoo Finance answer too large.');
+                }
+            },
+        ]);
+    }
+
     private function symbolFor(InvestmentInstrument $instrument): ?string
     {
-        $symbol = $instrument->getYahooTicker() ?: $instrument->getTicker();
-
-        return $symbol !== null && $symbol !== '' ? $symbol : null;
+        return $instrument->getQuoteSymbol();
     }
 }

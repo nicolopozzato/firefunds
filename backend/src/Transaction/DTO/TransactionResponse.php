@@ -15,7 +15,10 @@ final readonly class TransactionResponse
         public ?AccountRefResponse $sourceAccount,
         /** Null: money leaving the tracked accounts ("external"). */
         public ?AccountRefResponse $destinationAccount,
+        /** The clock time where it happened, without offset: show it as it is. */
         public string $occurredAt,
+        /** Where it happened (App\Entity\OccursLocally). */
+        public string $timezone,
         public string $amount,
         public string $currency,
         public ?string $foreignAmount,
@@ -50,7 +53,8 @@ final readonly class TransactionResponse
             description: $transaction->getDescription(),
             sourceAccount: AccountRefResponse::fromNullable($transaction->getSourceAccount()),
             destinationAccount: AccountRefResponse::fromNullable($transaction->getDestinationAccount()),
-            occurredAt: $transaction->getOccurredAt()->format(\DateTimeInterface::ATOM),
+            occurredAt: $transaction->getOccurredAt()->format('Y-m-d\TH:i:s'),
+            timezone: $transaction->getTimezone(),
             amount: $transaction->getAmount(),
             currency: $transaction->getCurrency(),
             foreignAmount: $transaction->getForeignAmount(),
@@ -91,7 +95,8 @@ final readonly class TransactionResponse
                 type: 'instrument',
                 instrumentType: $instrument->getType()->value,
             ),
-            occurredAt: $transaction->getOccurredAt()->format(\DateTimeInterface::ATOM),
+            occurredAt: $transaction->getOccurredAt()->format('Y-m-d\TH:i:s'),
+            timezone: $transaction->getTimezone(),
             amount: $transaction->getTotalAmount(),
             currency: $transaction->getAccount()->getCurrency()?->getCode() ?? '',
             foreignAmount: null,

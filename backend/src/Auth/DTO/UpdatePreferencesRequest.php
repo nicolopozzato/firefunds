@@ -2,6 +2,7 @@
 
 namespace App\Auth\DTO;
 
+use App\Core\Validation\Decimal;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class UpdatePreferencesRequest
@@ -31,6 +32,7 @@ final readonly class UpdatePreferencesRequest
 
         /** Percentage, 0-100. Optional: left out = unchanged. */
         #[Assert\Range(min: 0, max: 100)]
+        #[Decimal(precision: 7, scale: 4)]
         public ?string $capitalGainsTaxRate = null,
     ) {
     }

@@ -297,7 +297,8 @@ class InvestmentTransactionServiceTest extends KernelTestCase
      * wall-clock value is persisted (e.g. 06:21+02:00 stored as literal "06:21"
      * instead of "04:21").
      */
-    public function testOccurredAtIsNormalizedToUtcOnCreate(): void
+    /** An instant (with an offset) is kept as the clock time in the user's timezone. */
+    public function testAnInstantIsReadInTheUsersTimezone(): void
     {
         $saved = $this->service->create($this->user, new CreateInvestmentTransactionRequest(
             description: null,
@@ -311,14 +312,35 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         ));
         $this->entityManager->flush();
 
-        $this->assertSame('2026-09-29T04:21:00+00:00', $saved->transaction->getOccurredAt()->format(\DateTimeInterface::ATOM));
+        $this->assertSame('2026-09-29T06:21:00+02:00', $saved->transaction->getOccurredAt()->format(\DateTimeInterface::ATOM));
+        $this->assertSame('Europe/Rome', $saved->transaction->getTimezone());
+    }
+
+    /** A time without an offset is kept as written, in the zone sent with it. */
+    public function testAClockTimeIsKeptAsWrittenWithItsZone(): void
+    {
+        $saved = $this->service->create($this->user, new CreateInvestmentTransactionRequest(
+            description: null,
+            accountId: (string) $this->brokerAccount->getId(),
+            instrumentId: (string) $this->instrument->getId(),
+            type: 'buy',
+            quantity: '1',
+            unitPrice: '100.0000',
+            fees: '0',
+            occurredAt: '2026-09-29T21:15:00',
+            timezone: 'America/New_York',
+        ));
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $stored = $this->entityManager->find(\App\Entity\InvestmentTransaction::class, $saved->transaction->getId());
+        $this->assertSame('2026-09-29T21:15:00-04:00', $stored->getOccurredAt()->format(\DateTimeInterface::ATOM));
+        $this->assertSame('America/New_York', $stored->getTimezone());
     }
 
     /**
-     * Updating only the description (occurredAt unchanged, same non-UTC offset
-     * resubmitted) must not produce a spurious "occurredAt" audit log entry: the
-     * "before" snapshot reads the entity's stored (UTC) value, so the "after"
-     * value must be normalized the same way or the two never compare equal.
+     * Updating only the description (occurredAt resubmitted unchanged) must not
+     * produce a spurious "occurredAt" audit log entry, nor move the time.
      */
     public function testUpdatingUnrelatedFieldDoesNotChangeOccurredAt(): void
     {
@@ -346,14 +368,12 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         ));
         $this->entityManager->flush();
 
-        $this->assertSame('2026-09-29T04:21:00+00:00', $updated->transaction->getOccurredAt()->format(\DateTimeInterface::ATOM));
+        $this->assertSame('2026-09-29T06:21:00+02:00', $updated->transaction->getOccurredAt()->format(\DateTimeInterface::ATOM));
     }
 
     /**
-     * A BUY made late at night in the user's own timezone (e.g. 00:21 Europe/Rome
-     * on Sept 29, stored as 22:21 UTC on Sept 28) must show up as invested value
-     * on Sept 29 in the daily history, not Sept 28 - mirroring the same
-     * UTC-vs-local-day fix already applied to the cash balance history.
+     * A BUY made at 00:21 in Rome on Sept 29 (22:21 UTC on Sept 28) shows up
+     * as invested value on Sept 29, the day written where it happened.
      */
     public function testDailyInvestedValueHistoryAttributesPurchaseToTheLocalDay(): void
     {
@@ -364,7 +384,6 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         ));
         $this->entityManager->flush();
 
-        // 00:21 Europe/Rome on Sept 29 (CEST, UTC+2) = 22:21 UTC on Sept 28.
         $this->service->create($this->user, new CreateInvestmentTransactionRequest(
             description: null,
             accountId: (string) $this->brokerAccount->getId(),

@@ -30,4 +30,18 @@ i18n
     },
   });
 
+// The page's language follows the interface's: screen readers and the
+// browser's translate offer read it (index.html starts as "it").
+// The installable app's name and shortcuts too (public/manifest*.webmanifest).
+const syncDocumentLanguage = (language?: string) => {
+  if (language && typeof document !== 'undefined') {
+    document.documentElement.lang = language;
+    document
+      .querySelector('link[rel="manifest"]')
+      ?.setAttribute('href', language === 'it' ? '/manifest.webmanifest' : '/manifest.en.webmanifest');
+  }
+};
+syncDocumentLanguage(i18n.resolvedLanguage);
+i18n.on('languageChanged', syncDocumentLanguage);
+
 export default i18n;

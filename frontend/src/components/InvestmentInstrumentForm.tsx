@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatRate, rateFromWhiteListShare } from '@/lib/capital-gains-tax'
 import type { InvestmentInstrument, InvestmentInstrumentType } from '@/types/investment'
 import FormActions from '@/components/FormActions'
+import { numberFormatter } from '@/lib/utils'
 
 const INSTRUMENT_TYPES: InvestmentInstrumentType[] = ['etf', 'stock', 'bond', 'fund', 'cryptocurrency', 'other']
 
@@ -230,7 +231,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
                 min="0"
                 max="100"
                 className="tabular-nums"
-                placeholder="78,08"
+                placeholder={numberFormatter({ minimumFractionDigits: 2 }).format(78.08)}
                 value={whiteListShare}
                 onChange={(e) => handleWhiteListShareChange(e.target.value)}
               />

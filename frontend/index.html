@@ -3,22 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover: on phones the app draws under the notch and the home indicator, padding itself with env(safe-area-inset-*).
-         No zoom, as in a native app: see also touch-action in index.css and gesturestart in main.tsx. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+         Pinch zoom stays allowed (accessibility); fields are 16px on touch screens so iOS doesn't zoom into them (index.css). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="FireFunds - Personal finance & net worth tracking" />
     <meta name="theme-color" content="#ffffff" />
-    <!-- Dark mode from the first frame (src/lib/theme.ts applies the full theme a moment later): no white flash. -->
-    <script>
-      try {
-        var config = JSON.parse(localStorage.getItem('theme-config') || '{}')
-        if (config.mode === 'dark') {
-          document.documentElement.classList.add('dark')
-          document.documentElement.style.colorScheme = 'dark'
-          document.documentElement.style.backgroundColor = '#0c0c0e'
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0c0c0e')
-        }
-      } catch (e) {}
-    </script>
+    <!-- Dark mode from the first frame: no white flash (blocking on purpose). -->
+    <script src="/theme-init.js"></script>
 
     <!-- Installable as an app (PWA): Android/Chrome read the manifest, iOS the apple-* tags. -->
     <link rel="manifest" href="/manifest.webmanifest" />

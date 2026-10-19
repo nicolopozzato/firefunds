@@ -73,7 +73,7 @@ export default function More() {
 
       <Link to="/profile" className="flex items-center gap-4 rounded-2xl border bg-card p-4 transition-colors active:bg-accent">
         <Avatar className="h-12 w-12">
-          <AvatarFallback className="bg-gradient-to-br from-orange-500 to-pink-500 text-base text-white">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--series-2))] to-[hsl(var(--series-5))] text-base text-white">{initials}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function More() {
 
       <Group
         entries={[
-          { label: t('navigation.reports'), href: '/reports', icon: FileBarChart, tone: 'bg-sky-500/10 text-sky-600 dark:text-sky-400' },
+          { label: t('navigation.reports'), href: '/reports', icon: FileBarChart, tone: 'bg-[hsl(var(--series-3)/0.1)] text-[hsl(var(--series-3))]' },
           { label: t('preferences.title'), href: '/preferences', icon: Settings, tone: 'bg-muted text-muted-foreground' },
         ]}
       />

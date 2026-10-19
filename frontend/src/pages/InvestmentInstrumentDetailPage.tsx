@@ -17,11 +17,12 @@ import {
   useInvestmentInstrumentPrices,
   useInvestmentInstrumentLivePrice,
 } from '@/hooks/use-investments'
-import { cn, formatMoney, moneyColorClass } from '@/lib/utils'
+import { cn, formatMoney, formatTime24h, moneyColorClass } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatRate, whiteListShareFromRate } from '@/lib/capital-gains-tax'
 import { numberFormatter } from '@/lib/utils'
+import LoadFailed from '@/components/LoadFailed'
 
 const basePath = '/investments/instruments'
 
@@ -57,7 +58,7 @@ export default function InvestmentInstrumentDetailPage() {
   const now = new Date()
   const periodFrom = fromDateForPeriod(period, now)
 
-  const { data: instrument, isLoading } = useInvestmentInstrument(id ?? '')
+  const { data: instrument, isLoading, error, refetch } = useInvestmentInstrument(id ?? '')
   const { data: prices, isLoading: isPricesLoading } = useInvestmentInstrumentPrices(id ?? '', periodFrom)
   const { data: livePrice } = useInvestmentInstrumentLivePrice(id ?? '')
 
@@ -82,6 +83,10 @@ export default function InvestmentInstrumentDetailPage() {
   const referencePrice = showLivePoint ? latestClose?.price : previousClose?.price
   const change =
     displayPrice && referencePrice ? Number(displayPrice) - Number(referencePrice) : null
+
+  if (!instrument && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
+  }
 
   if (isLoading || !instrument) {
     return (
@@ -159,7 +164,7 @@ export default function InvestmentInstrumentDetailPage() {
                     <div className="text-sm text-muted-foreground">
                       {showLivePoint
                         ? isMarketOpen
-                          ? t('investmentInstrumentDetail.livePriceAsOf', { time: format(new Date(), 'HH:mm') })
+                          ? t('investmentInstrumentDetail.livePriceAsOf', { time: formatTime24h(livePrice?.fetchedAt ?? new Date()) })
                           : t('investmentInstrumentDetail.lastTradedPrice')
                         : t('investmentInstrumentDetail.lastPriceOn', { date: latestClose?.date })}
                     </div>

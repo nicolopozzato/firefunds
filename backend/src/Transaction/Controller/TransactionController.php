@@ -2,6 +2,7 @@
 
 namespace App\Transaction\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Pagination\PaginatedResponse;
@@ -13,7 +14,6 @@ use App\Entity\Category;
 use App\Entity\User;
 use App\Repository\AccountRepository;
 use App\Repository\CategoryRepository;
-use App\Repository\InvestmentTransactionRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\DTO\CreateTransactionRequest;
 use App\Transaction\DTO\DateRangeResponse;
@@ -21,6 +21,7 @@ use App\Transaction\DTO\DistributionEntryResponse;
 use App\Transaction\DTO\DistributionsResponse;
 use App\Transaction\DTO\TransactionAuditLogResponse;
 use App\Transaction\DTO\TransactionResponse;
+use App\Transaction\Service\TransactionListService;
 use App\Transaction\Service\TransactionService;
 use App\Repository\TransactionAuditLogRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,12 +34,14 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/transactions')]
 class TransactionController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly TransactionRepository $transactionRepository,
         private readonly TransactionService $transactionService,
+        private readonly TransactionListService $transactionList,
         private readonly AccountRepository $accountRepository,
         private readonly TransactionAuditLogRepository $transactionAuditLogRepository,
-        private readonly InvestmentTransactionRepository $investmentTransactionRepository,
         private readonly CategoryRepository $categoryRepository,
     ) {
     }
@@ -76,7 +79,7 @@ class TransactionController extends AbstractController
             return $this->json(PaginatedResponse::create($items, $total, $params));
         }
 
-        return $this->json($this->listAll($user, $filter, $params));
+        return $this->json($this->transactionList->page($user, $filter, $params));
     }
 
     /**
@@ -94,69 +97,9 @@ class TransactionController extends AbstractController
             $filter['from'],
             $filter['to'],
             $filter['account'],
-            ...$this->listHalves($filter['kind']),
+            ...TransactionListService::halves($filter['kind']),
             search: $filter['search'],
         ));
-    }
-
-    /**
-     * "All transactions" mixes plain money transactions with investment BUY/SELLs
-     * (a deliberately separate entity, see InvestmentTransaction), ordered together
-     * by date. The ids+ordering come from one SQL UNION query, then each half is
-     * hydrated via its own repository and put back in that order.
-     *
-     * @param array{kind: string, from: ?\DateTimeImmutable, to: ?\DateTimeImmutable, account: ?Account, search: ?SearchQuery} $filter
-     */
-    private function listAll(User $user, array $filter, PaginationParams $params): PaginatedResponse
-    {
-        [$rows, $total] = $this->transactionRepository->findAllKindIdsPaginated(
-            $user,
-            $filter['from'],
-            $filter['to'],
-            $params,
-            $filter['account'],
-            ...$this->listHalves($filter['kind']),
-            search: $filter['search'],
-        );
-
-        $moneyIds = array_column(array_filter($rows, static fn (array $row) => $row[1] === 'money'), 0);
-        $investmentIds = array_column(array_filter($rows, static fn (array $row) => $row[1] === 'investment'), 0);
-
-        $moneyById = [];
-        foreach ($this->transactionRepository->findWithRelationsByIds($moneyIds) as $transaction) {
-            $moneyById[(string) $transaction->getId()] = $transaction;
-        }
-
-        $investmentById = [];
-        foreach ($this->investmentTransactionRepository->findWithRelationsByIds($investmentIds) as $transaction) {
-            $investmentById[(string) $transaction->getId()] = $transaction;
-        }
-
-        $items = [];
-        foreach ($rows as [$id, $source]) {
-            $items[] = $source === 'money'
-                ? TransactionResponse::fromEntity($moneyById[$id])
-                : TransactionResponse::fromInvestmentEntity($investmentById[$id]);
-        }
-
-        return PaginatedResponse::create($items, $total, $params);
-    }
-
-    /**
-     * Which halves of the merged list a kind keeps, as the repository's
-     * includeMoney / includeInvestment / moneyKind arguments.
-     *
-     * @return array{includeMoney: bool, includeInvestment: bool, moneyKind: ?string}
-     */
-    private function listHalves(string $kind): array
-    {
-        $moneyKind = \in_array($kind, ['withdrawal', 'deposit', 'transfer'], true) ? $kind : null;
-
-        return [
-            'includeMoney' => $kind !== 'trade',
-            'includeInvestment' => \in_array($kind, ['all', 'trade'], true),
-            'moneyKind' => $moneyKind,
-        ];
     }
 
     /**
@@ -232,11 +175,16 @@ class TransactionController extends AbstractController
     #[Route('/date-range', name: 'api_transactions_date_range', methods: ['GET'])]
     public function dateRange(): JsonResponse
     {
-        [$earliest, $latest] = $this->transactionRepository->findDateRange($this->getCurrentUser());
+        $user = $this->getCurrentUser();
+        [$earliest, $latest] = $this->transactionRepository->findDateRange($user);
+
+        // "All" runs up to today, so values are today's; later only for
+        // transactions dated in the future.
+        $today = (new \DateTimeImmutable('now', new \DateTimeZone($user->getTimezone())))->format('Y-m-d');
 
         return $this->json(new DateRangeResponse(
-            earliest: $earliest?->format(\DateTimeInterface::ATOM),
-            latest: $latest?->format(\DateTimeInterface::ATOM),
+            earliest: $earliest?->format('Y-m-d'),
+            latest: max($latest?->format('Y-m-d') ?? $today, $today),
         ));
     }
 
@@ -249,11 +197,7 @@ class TransactionController extends AbstractController
     #[Route('', name: 'api_transactions_create', methods: ['POST'])]
     public function create(#[MapRequestPayload] CreateTransactionRequest $request): JsonResponse
     {
-        try {
-            $transaction = $this->transactionService->create($this->getCurrentUser(), $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $transaction = $this->transactionService->create($this->getCurrentUser(), $request);
 
         return $this->json(TransactionResponse::fromEntity($transaction), 201);
     }
@@ -263,11 +207,7 @@ class TransactionController extends AbstractController
     {
         $transaction = $this->findOwned($id);
 
-        try {
-            $transaction = $this->transactionService->update($transaction, $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $transaction = $this->transactionService->update($transaction, $request);
 
         return $this->json(TransactionResponse::fromEntity($transaction));
     }
@@ -302,16 +242,5 @@ class TransactionController extends AbstractController
         }
 
         return $transaction;
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::TransactionNotFound);
-        }
-
-        return $user;
     }
 }

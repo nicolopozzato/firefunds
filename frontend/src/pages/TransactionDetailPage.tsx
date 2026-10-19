@@ -36,6 +36,8 @@ import { currencySymbolFor, formatDateTime, formatMoney, formatTime24h } from '@
 import { useState } from 'react'
 import type { Transaction, TransactionAuditLogChange, TransactionAuditLogEntry } from '@/types/transaction'
 import EmptyValue from '@/components/EmptyValue'
+import { useAuth } from '@/contexts/AuthContext'
+import LoadFailed from '@/components/LoadFailed'
 
 /** Withdrawals show as a negative (money leaving), deposits stay positive; transfers are neutral. */
 function signedAmount(transaction: Transaction): number {
@@ -92,6 +94,8 @@ const HISTORY_FIELD_KEYS = new Set([
   'occurredAt',
   'amount',
   'currency',
+  'foreignAmount',
+  'foreignCurrency',
   'category',
   'tags',
   'notes',
@@ -107,7 +111,7 @@ function formatHistoryValue(field: string, value: unknown, t: (key: string) => s
   if (field === 'occurredAt' && typeof value === 'string') {
     return `${formatDateTime(value)} · ${formatTime24h(value)}`
   }
-  if (field === 'amount' && typeof value === 'string') {
+  if ((field === 'amount' || field === 'foreignAmount') && typeof value === 'string') {
     return formatMoney(value, null)
   }
   if (Array.isArray(value)) {
@@ -177,11 +181,12 @@ function TransactionHistoryCard({ transactionId }: { transactionId: string }) {
 }
 
 export default function TransactionDetailPage() {
+  const { user } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
-  const { data: transaction, isLoading } = useTransaction(id ?? '')
+  const { data: transaction, isLoading, error, refetch } = useTransaction(id ?? '')
   const deleteTransaction = useDeleteTransaction()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -198,6 +203,10 @@ export default function TransactionDetailPage() {
     } catch (error) {
       toast.error(handleApiError(error))
     }
+  }
+
+  if (!transaction && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
   }
 
   if (isLoading || !transaction) {
@@ -261,6 +270,10 @@ export default function TransactionDetailPage() {
               </div>
               <div className="mt-1.5 text-sm text-muted-foreground">
                 {formatDateTime(transaction.occurredAt)} · {formatTime24h(transaction.occurredAt)}
+                {/* Written in another timezone (e.g. abroad): the time is that place's. */}
+                {transaction.timezone !== user?.timezone && (
+                  <span className="text-muted-foreground"> ({transaction.timezone.replace(/_/g, ' ')})</span>
+                )}
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">

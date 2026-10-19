@@ -4,6 +4,7 @@ namespace App\Core\Validation;
 
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\Choice;
+use Symfony\Component\Validator\Constraints\Count;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -11,6 +12,7 @@ use Symfony\Component\Validator\Constraints\NotNull;
 use Symfony\Component\Validator\Constraints\Positive;
 use Symfony\Component\Validator\Constraints\PositiveOrZero;
 use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Constraints\Uuid;
 use Symfony\Component\Validator\ConstraintViolationInterface;
 
 /**
@@ -33,6 +35,13 @@ final class ViolationCode
     /** A value of the wrong type, a missing or an unexpected field (payload mapping). */
     public const INVALID_TYPE = 'invalid_type';
     public const INVALID = 'invalid';
+    /** Not a number, or more decimals or digits than the field stores (Decimal). */
+    public const INVALID_NUMBER = 'invalid_number';
+    /** Not a date that exists within the supported years (DateValue). */
+    public const INVALID_DATE = 'invalid_date';
+    /** Not the id of anything (Uuid). */
+    public const INVALID_ID = 'invalid_id';
+    public const TOO_MANY = 'too_many';
 
     // Set by the DTOs' Callback checks.
     public const CURRENCY_REQUIRED_FOR_ASSET = 'currency_required_for_asset';
@@ -51,7 +60,7 @@ final class ViolationCode
 
         return match (true) {
             $constraint === null => self::INVALID_TYPE,
-            $constraint instanceof Callback => $code ?? self::INVALID,
+            $constraint instanceof Callback, $constraint instanceof Decimal, $constraint instanceof DateValue => $code ?? self::INVALID,
             $constraint instanceof NotBlank, $constraint instanceof NotNull => self::REQUIRED,
             $constraint instanceof Length => match ($code) {
                 Length::TOO_SHORT_ERROR => self::TOO_SHORT,
@@ -64,6 +73,8 @@ final class ViolationCode
             $constraint instanceof Range => self::OUT_OF_RANGE,
             $constraint instanceof Email => self::INVALID_EMAIL,
             $constraint instanceof Choice => self::INVALID_CHOICE,
+            $constraint instanceof Uuid => self::INVALID_ID,
+            $constraint instanceof Count => Count::TOO_MANY_ERROR === $code ? self::TOO_MANY : self::INVALID,
             default => self::INVALID,
         };
     }

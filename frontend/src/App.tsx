@@ -1,42 +1,49 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { TimeframeProvider } from './contexts/TimeframeContext'
 import { Toaster } from './components/ui/sonner'
 import Layout from './components/layout/Layout'
-import Dashboard from './pages/Dashboard'
-import AssetAccounts from './pages/AssetAccounts'
-import ExpenseAccounts from './pages/ExpenseAccounts'
-import RevenueAccounts from './pages/RevenueAccounts'
-import AccountFormPage from './pages/AccountFormPage'
-import AllTransactions from './pages/AllTransactions'
-import WithdrawalTransactions from './pages/WithdrawalTransactions'
-import DepositTransactions from './pages/DepositTransactions'
-import TransferTransactions from './pages/TransferTransactions'
-import TransactionFormPage from './pages/TransactionFormPage'
-import TransactionDetailPage from './pages/TransactionDetailPage'
-import InvestmentTransactions from './pages/InvestmentTransactions'
-import InvestmentTransactionFormPage from './pages/InvestmentTransactionFormPage'
-import InvestmentTransactionDetailPage from './pages/InvestmentTransactionDetailPage'
-import AccountDetailPage from './pages/AccountDetailPage'
-import Categories from './pages/Categories'
-import Tags from './pages/Tags'
-import ClassificationFormPage from './pages/ClassificationFormPage'
-import InvestmentsOverview from './pages/InvestmentsOverview'
-import IncomeExpenseReport from './pages/reports/IncomeExpenseReport'
-import NetWorthReport from './pages/reports/NetWorthReport'
-import Search from './pages/Search'
-import More from './pages/More'
-import InvestmentInstruments from './pages/InvestmentInstruments'
-import InvestmentInstrumentFormPage from './pages/InvestmentInstrumentFormPage'
-import InvestmentInstrumentDetailPage from './pages/InvestmentInstrumentDetailPage'
-import Profile from './pages/Profile'
-import Preferences from './pages/Preferences'
-import AdminSettings from './pages/admin/AdminSettings'
-import AdminCurrencies from './pages/admin/AdminCurrencies'
-import AdminUsers from './pages/admin/AdminUsers'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import { useApplyThemePreference } from './hooks/use-theme'
+import ErrorBoundary from './components/ErrorBoundary'
+import PageLoading from './components/PageLoading'
+import NotFound from './pages/NotFound'
+
+// Each page is its own chunk, loaded when first opened: the first load on a
+// phone fetches only what it shows.
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const AssetAccounts = lazy(() => import('./pages/AssetAccounts'))
+const ExpenseAccounts = lazy(() => import('./pages/ExpenseAccounts'))
+const RevenueAccounts = lazy(() => import('./pages/RevenueAccounts'))
+const AccountFormPage = lazy(() => import('./pages/AccountFormPage'))
+const AllTransactions = lazy(() => import('./pages/AllTransactions'))
+const WithdrawalTransactions = lazy(() => import('./pages/WithdrawalTransactions'))
+const DepositTransactions = lazy(() => import('./pages/DepositTransactions'))
+const TransferTransactions = lazy(() => import('./pages/TransferTransactions'))
+const TransactionFormPage = lazy(() => import('./pages/TransactionFormPage'))
+const TransactionDetailPage = lazy(() => import('./pages/TransactionDetailPage'))
+const InvestmentTransactions = lazy(() => import('./pages/InvestmentTransactions'))
+const InvestmentTransactionFormPage = lazy(() => import('./pages/InvestmentTransactionFormPage'))
+const InvestmentTransactionDetailPage = lazy(() => import('./pages/InvestmentTransactionDetailPage'))
+const AccountDetailPage = lazy(() => import('./pages/AccountDetailPage'))
+const Categories = lazy(() => import('./pages/Categories'))
+const Tags = lazy(() => import('./pages/Tags'))
+const ClassificationFormPage = lazy(() => import('./pages/ClassificationFormPage'))
+const InvestmentsOverview = lazy(() => import('./pages/InvestmentsOverview'))
+const IncomeExpenseReport = lazy(() => import('./pages/reports/IncomeExpenseReport'))
+const NetWorthReport = lazy(() => import('./pages/reports/NetWorthReport'))
+const Search = lazy(() => import('./pages/Search'))
+const More = lazy(() => import('./pages/More'))
+const InvestmentInstruments = lazy(() => import('./pages/InvestmentInstruments'))
+const InvestmentInstrumentFormPage = lazy(() => import('./pages/InvestmentInstrumentFormPage'))
+const InvestmentInstrumentDetailPage = lazy(() => import('./pages/InvestmentInstrumentDetailPage'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Preferences = lazy(() => import('./pages/Preferences'))
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'))
+const AdminCurrencies = lazy(() => import('./pages/admin/AdminCurrencies'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -58,6 +65,17 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return user?.isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
+/** A page that failed to load or crashed shows an error, not a blank screen; moving to another page clears it. */
+function PageBoundary({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+
+  return (
+    <ErrorBoundary key={location.pathname}>
+      <Suspense fallback={<PageLoading />}>{children}</Suspense>
+    </ErrorBoundary>
+  )
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -68,6 +86,7 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <Layout>
+              <PageBoundary>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -136,7 +155,9 @@ function AppRoutes() {
                     </AdminRoute>
                   }
                 />
+                <Route path="*" element={<NotFound />} />
               </Routes>
+              </PageBoundary>
             </Layout>
           </PrivateRoute>
         }

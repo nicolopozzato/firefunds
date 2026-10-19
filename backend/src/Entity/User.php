@@ -43,9 +43,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private string $locale = 'en';
 
     /**
-     * IANA timezone identifier (e.g. "Europe/Rome"), used to bucket transactions
-     * into calendar days (balance history, etc.) by the user's own local day
-     * rather than the UTC day the underlying timestamp happens to fall on.
+     * IANA timezone identifier (e.g. "Europe/Rome"): where the user is. A new
+     * transaction is written in it unless another zone is sent (see
+     * App\Entity\OccursLocally), and "today" and "this month" follow it.
      */
     #[ORM\Column(length: 64)]
     private string $timezone = 'Europe/Rome';
@@ -129,9 +129,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /**
+     * The id, never the email: JWTs and refresh tokens carry this, and an
+     * email can change hands (a token naming an address would then let in
+     * whoever holds it next). Login still finds the user by email, through
+     * the `users_by_email` provider (security.yaml).
+     */
     public function getUserIdentifier(): string
     {
-        return $this->email;
+        return $this->id->toRfc4122();
     }
 
     public function getRoles(): array

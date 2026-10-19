@@ -110,6 +110,14 @@ class InvestmentInstrument implements SoftDeletable
         return $this->yahooTicker;
     }
 
+    /** The symbol prices are asked for: the Yahoo ticker, else the ticker; null without either. */
+    public function getQuoteSymbol(): ?string
+    {
+        $symbol = $this->yahooTicker ?: $this->ticker;
+
+        return $symbol !== null && $symbol !== '' ? $symbol : null;
+    }
+
     public function setYahooTicker(?string $yahooTicker): static
     {
         $this->yahooTicker = $yahooTicker;

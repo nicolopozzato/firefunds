@@ -10,6 +10,8 @@ It uses double-entry bookkeeping, like [Firefly III](https://www.firefly-iii.org
 
 > **Status:** personal project, used daily by its author and under active development. Only **EUR** is supported for now (see [Limitations](#limitations)). Interface in English and Italian.
 
+**Italiano:** [la descrizione e l'installazione in italiano](#in-italiano) sono in fondo alla pagina.
+
 ## Screenshots
 
 <table>
@@ -77,7 +79,7 @@ For any period (this month, this year, a range of your choice): income, expenses
 - Multi-user, every record scoped to its owner; the first user to register is the admin and can close registrations.
 - Light and dark theme (or follow the device), Italian and English, your own number format and timezone.
 - Search across descriptions, notes, accounts, categories and tags.
-- JWT login with refresh tokens and login throttling (5 failed attempts per email and IP lock it for up to 15 minutes).
+- JWT login with single-use refresh tokens (a replayed one signs the session out), logout and password changes that end sessions, and login throttling (5 failed attempts per email and IP lock it for up to 15 minutes).
 
 ## Installation
 
@@ -136,6 +138,10 @@ networks:
 
 Then `docker compose up -d` again. With another proxy (nginx, Caddy, Cloudflare Tunnel), skip the override and point it at `127.0.0.1:8080`.
 
+Login throttling counts failed attempts by the client's address, which the app reads from `X-Forwarded-For` when the request comes from a private network (`TRUSTED_PROXIES` in `.env`). Your proxy must add the client's address to that header rather than pass on what the client sent: Traefik, Caddy and nginx with `$proxy_add_x_forwarded_for` do.
+
+The register page is open until the first account exists, and that account is the administrator: create it before the app is reachable from the internet.
+
 ### Updating
 
 ```bash
@@ -174,6 +180,53 @@ Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explain
 ## Security
 
 Please don't open a public issue for a vulnerability: see [SECURITY.md](SECURITY.md).
+
+## In italiano
+
+FireFunds è un'app per le finanze personali da installare sul proprio server. Registri dove sono i tuoi soldi (conti, carte, contanti, broker), chi paghi e chi ti paga, e FireFunds ti mostra saldi, spese per categoria, tasso di risparmio, investimenti e patrimonio netto nel tempo. Gira come una sola immagine Docker, si usa dal browser e si installa sul telefono come app (PWA). I tuoi dati restano sul tuo server.
+
+Usa la partita doppia, come [Firefly III](https://www.firefly-iii.org) da cui prende ispirazione, e gestisce gli investimenti: posizioni in ETF e azioni, prezzi giornalieri, guadagni e la stima delle tasse se vendessi oggi. Interfaccia in italiano e in inglese; per ora solo in **euro**.
+
+### Cosa fa
+
+- **Entrate e uscite**: ogni transazione sposta denaro fra due conti (i tuoi conti, chi paghi, chi ti paga), con categorie, etichette e la cronologia delle modifiche. Niente viene mai cancellato davvero.
+- **Dashboard** per qualsiasi periodo: entrate, uscite, risparmio, investimenti, patrimonio netto e grafici.
+- **Investimenti**: strumenti con ticker Yahoo Finance e prezzi di chiusura scaricati in automatico, acquisti e vendite con commissioni e tasse, posizioni con prezzo medio di carico, panoramica su tutti i broker e la stima del capital gain (26% di default, o l'aliquota del singolo strumento, es. 12,5% sui titoli di Stato).
+- **Report**: entrate e uscite per mese o per anno con confronto, e il patrimonio netto mese per mese.
+- Più utenti, ognuno con i suoi dati; il primo che si registra è l'amministratore. Tema chiaro e scuro, formato dei numeri e fuso orario a scelta, ricerca.
+
+### Installazione
+
+Serve un server con Docker e Docker Compose.
+
+```bash
+mkdir firefunds && cd firefunds
+curl -O https://raw.githubusercontent.com/nicolopozzato/firefunds/main/compose.yml
+curl -O https://raw.githubusercontent.com/nicolopozzato/firefunds/main/.env
+```
+
+Apri `.env`, imposta `DOMAIN` e compila i 3 segreti (`POSTGRES_PASSWORD`, `APP_SECRET`, `JWT_PASSPHRASE`), ognuno con un valore diverso generato da `openssl rand -hex 32`. Poi avvia:
+
+```bash
+docker compose up -d
+```
+
+L'app risponde su `http://127.0.0.1:8080`. Aprila e registrati: il primo utente diventa l'amministratore, quindi crealo **prima** di rendere l'app raggiungibile da internet. Tutto quello che FireFunds salva è in `./data`.
+
+**HTTPS:** l'app parla solo HTTP su `127.0.0.1`; mettila dietro un reverse proxy (Traefik, Caddy, nginx, Cloudflare Tunnel). L'esempio per Traefik è nella sezione [HTTPS](#https-reverse-proxy). Il proxy deve aggiungere l'indirizzo del client all'header `X-Forwarded-For`, che serve al blocco dei tentativi di accesso falliti.
+
+**Aggiornare:** `docker compose pull && docker compose up -d`. Le migrazioni del database partono da sole all'avvio, quindi fai prima un backup:
+
+```bash
+docker compose exec database pg_dump -U firefunds -Fc firefunds > firefunds_$(date +%F).dump
+```
+
+### Limiti
+
+- **Solo euro**: le valute ci sono, ma nulla viene convertito. Usa strumenti quotati in euro (es. `VWCE.MI`).
+- Il prezzo attuale di uno strumento è l'ultima chiusura, non una quotazione in tempo reale.
+
+Segnalazioni e contributi sono benvenuti, in italiano o in inglese: vedi [CONTRIBUTING.md](CONTRIBUTING.md). Per le vulnerabilità, [SECURITY.md](SECURITY.md).
 
 ## License
 

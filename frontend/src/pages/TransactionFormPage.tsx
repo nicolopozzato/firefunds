@@ -25,7 +25,7 @@ import { useAllClassification, useCreateClassification } from '@/hooks/use-class
 import { useCurrencies } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, formatAccountBalance } from '@/lib/utils'
+import { cn, deviceTimezone, formatAccountBalance, fromDatetimeLocal, nowAsDatetimeLocal, toDatetimeLocal } from '@/lib/utils'
 import type { AccountType } from '@/types/account'
 import type { Transaction } from '@/types/transaction'
 import FormActions from '@/components/FormActions'
@@ -68,25 +68,7 @@ function isTransactionType(value: string | null): value is TransactionType {
   return value === 'withdrawal' || value === 'deposit' || value === 'transfer'
 }
 
-function toDatetimeLocal(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
 
-/**
- * Converts a `datetime-local` input value (naive, always in the browser's own
- * timezone) into an ISO string with an explicit UTC offset, so the backend
- * resolves the same instant regardless of its own default timezone.
- */
-function datetimeLocalToIso(value: string): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const local = new Date(value)
-  const offsetMinutes = -local.getTimezoneOffset()
-  const sign = offsetMinutes >= 0 ? '+' : '-'
-  const abs = Math.abs(offsetMinutes)
-  const offset = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
-  return `${value}:00${offset}`
-}
 
 /** Trims a raw decimal(19,4) amount from the backend down to the currency's own decimal places, e.g. "9.0000" -> "9". */
 function trimAmountToCurrency(amount: string, decimalPlaces: number | undefined): string {
@@ -144,7 +126,7 @@ export default function TransactionFormPage() {
   // A new transaction can start from an account, e.g. the dashboard's "New" on an account's box.
   const [sourceAccountId, setSourceAccountId] = useState(() => searchParams.get('sourceAccountId') ?? '')
   const [destinationAccountId, setDestinationAccountId] = useState(() => searchParams.get('destinationAccountId') ?? '')
-  const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocal(new Date()))
+  const [occurredAt, setOccurredAt] = useState(nowAsDatetimeLocal)
   const [amount, setAmount] = useState('')
   const [hasForeignAmount, setHasForeignAmount] = useState(false)
   const [foreignAmount, setForeignAmount] = useState('')
@@ -167,7 +149,7 @@ export default function TransactionFormPage() {
     setDescription(existingTransaction.description ?? '')
     setSourceAccountId(existingTransaction.sourceAccount?.id ?? '')
     setDestinationAccountId(existingTransaction.destinationAccount?.id ?? '')
-    setOccurredAt(isCloning ? toDatetimeLocal(new Date()) : toDatetimeLocal(new Date(existingTransaction.occurredAt)))
+    setOccurredAt(isCloning ? nowAsDatetimeLocal() : toDatetimeLocal(existingTransaction.occurredAt))
     const amountDecimals = currencies?.find((c) => c.code === existingTransaction.currency)?.decimalPlaces
     setAmount(trimAmountToCurrency(existingTransaction.amount, amountDecimals))
     setHasForeignAmount(existingTransaction.foreignAmount !== null)
@@ -328,7 +310,9 @@ export default function TransactionFormPage() {
         description: description || null,
         sourceAccountId: resolvedSourceId || null,
         destinationAccountId: resolvedDestinationId || null,
-        occurredAt: datetimeLocalToIso(occurredAt),
+        occurredAt: fromDatetimeLocal(occurredAt),
+        // An edit keeps where it happened; a new one happens where this device is.
+        timezone: isEditing ? undefined : deviceTimezone(),
         amount,
         foreignAmount: hasForeignAmount ? foreignAmount || null : null,
         foreignCurrency: hasForeignAmount ? foreignCurrency || null : null,

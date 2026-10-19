@@ -2,8 +2,10 @@
 
 namespace App\Account\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Core\Period\CalendarRange;
 use App\Account\DTO\AccountDistributionsResponse;
 use App\Account\DTO\AccountListQuery;
 use App\Account\DTO\AccountResponse;
@@ -20,7 +22,6 @@ use App\Core\Pagination\PaginationParams;
 use App\Core\Period\UserDayRange;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
-use App\Entity\User;
 use App\Investment\Service\OpenPositionService;
 use App\Repository\AccountRepository;
 use App\Repository\InvestmentTransactionRepository;
@@ -37,6 +38,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/accounts')]
 class AccountController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly AccountService $accountService,
@@ -76,7 +79,7 @@ class AccountController extends AbstractController
     public function balanceHistory(string $id, Request $request): JsonResponse
     {
         $account = $this->findOwnedAccount($id);
-        [$from, $to] = $this->parseDateRange($request);
+        [$from, $to] = CalendarRange::orThisMonth($request->query->get('from'), $request->query->get('to'), $this->getCurrentUser());
 
         $points = $this->accountRepository->getDailyBalanceHistory($account, $from, $to);
 
@@ -90,7 +93,7 @@ class AccountController extends AbstractController
     public function valueHistory(string $id, Request $request): JsonResponse
     {
         $account = $this->findOwnedAccount($id);
-        [$from, $to] = $this->parseDateRange($request);
+        [$from, $to] = CalendarRange::orThisMonth($request->query->get('from'), $request->query->get('to'), $this->getCurrentUser());
 
         $availableByDate = [];
         foreach ($this->accountRepository->getDailyBalanceHistory($account, $from, $to) as $point) {
@@ -148,7 +151,7 @@ class AccountController extends AbstractController
     public function positions(string $id, Request $request): JsonResponse
     {
         $account = $this->findOwnedAccount($id);
-        [$from, $to] = $this->parseDateRange($request);
+        [$from, $to] = CalendarRange::orThisMonth($request->query->get('from'), $request->query->get('to'), $this->getCurrentUser());
 
         return $this->json($this->openPositionService->forAccount($account, $from, $to));
     }
@@ -160,11 +163,7 @@ class AccountController extends AbstractController
             throw new BadRequestHttpException('Route type and payload type must match.');
         }
 
-        try {
-            $account = $this->accountService->create($this->getCurrentUser(), $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $account = $this->accountService->create($this->getCurrentUser(), $request);
 
         return $this->json($this->toResponse($account), 201);
     }
@@ -174,11 +173,7 @@ class AccountController extends AbstractController
     {
         $account = $this->findOwnedAccount($id);
 
-        try {
-            $account = $this->accountService->update($account, $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $account = $this->accountService->update($account, $request);
 
         return $this->json($this->toResponse($account));
     }
@@ -190,11 +185,7 @@ class AccountController extends AbstractController
     #[Route('/{id}/position', name: 'api_accounts_move', methods: ['PUT'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function move(string $id, #[MapRequestPayload] MoveAccountRequest $request): JsonResponse
     {
-        try {
-            $this->accountService->move($this->findOwnedAccount($id), $request->afterId, $request->beforeId);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $this->accountService->move($this->findOwnedAccount($id), $request->afterId, $request->beforeId);
 
         return $this->json(null, 204);
     }
@@ -218,11 +209,7 @@ class AccountController extends AbstractController
     {
         $account = $this->findOwnedAccount($id);
 
-        try {
-            $this->accountDeletionService->delete($account, $query->transferTo, $query->deleteTransactions);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $this->accountDeletionService->delete($account, $query->transferTo, $query->deleteTransactions);
 
         return $this->json(null, 204);
     }
@@ -267,34 +254,5 @@ class AccountController extends AbstractController
         }
 
         return $account;
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::AccountNotFound);
-        }
-
-        return $user;
-    }
-
-    /**
-     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
-     */
-    private function parseDateRange(Request $request): array
-    {
-        $from = $request->query->get('from');
-        $to = $request->query->get('to');
-
-        try {
-            return [
-                $from !== null ? new \DateTimeImmutable($from) : new \DateTimeImmutable('first day of this month'),
-                $to !== null ? new \DateTimeImmutable($to) : new \DateTimeImmutable('last day of this month'),
-            ];
-        } catch (\Exception) {
-            throw new ApiException(ErrorCode::InvalidDateRange);
-        }
     }
 }

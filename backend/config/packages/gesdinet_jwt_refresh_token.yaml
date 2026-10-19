@@ -1,12 +1,23 @@
 gesdinet_jwt_refresh_token:
-    # Refresh token class
     refresh_token_class: App\Entity\RefreshToken
 
-    # TTL for refresh token (30 days)
+    # 30 days, counted again from every refresh (single_use_ttl_update below):
+    # a session lasts as long as it is used at least once a month.
     ttl: 2592000
-
-    # Refresh token parameter name
     token_parameter_name: refresh_token
 
-    # Single use tokens (optional - set to false for multiple uses)
-    single_use: false
+    # Every refresh replaces the token it was given. A spent token sent again
+    # means it was copied: the whole chain it belongs to is revoked, so the
+    # thief and the user are both signed out. The frontend refreshes once at a
+    # time across tabs (frontend/src/lib/api.ts), so it never does this itself.
+    single_use: true
+    single_use_ttl_update: true
+    reuse_detection:
+        enabled: true
+
+    # Signed-in devices per user; the least recently used one goes first.
+    max_tokens_per_user: 10
+
+    # Not hash_tokens: in 3.0.0 it breaks reuse_detection (a spent token is
+    # remembered by its hash and looked up by its value, so a replay is never
+    # recognised). A copy of the database holds the data itself anyway.

@@ -27,9 +27,8 @@ class AccountRepositoryDailyBalanceTimezoneTest extends KernelTestCase
     }
 
     /**
-     * A transaction made at 00:20 Europe/Rome (CEST, UTC+2) on Sept 29 is stored
-     * as 22:20 UTC on Sept 28. The daily balance history must still attribute it
-     * to Sept 29 (the user's own calendar day), not Sept 28 (the UTC day).
+     * A transaction made at 00:20 in Rome on Sept 29 (22:20 UTC on Sept 28) is
+     * on Sept 29, the day written where it happened, in the daily balances too.
      */
     public function testTransactionNearMidnightLandsOnTheUsersLocalDay(): void
     {
@@ -56,9 +55,7 @@ class AccountRepositoryDailyBalanceTimezoneTest extends KernelTestCase
         $revenue = new Account($user, AccountType::Revenue, 'Salary');
         $this->entityManager->persist($revenue);
 
-        // 00:20 Europe/Rome on 2026-09-29 (CEST, UTC+2) = 22:20 UTC on 2026-09-28.
-        $occurredAt = new \DateTimeImmutable('2026-09-29T00:20:00+02:00');
-        $occurredAt = $occurredAt->setTimezone(new \DateTimeZone('UTC'));
+        $occurredAt = new \DateTimeImmutable('2026-09-29 00:20:00', new \DateTimeZone('Europe/Rome'));
 
         $transaction = new Transaction(
             user: $user,

@@ -76,7 +76,7 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
+            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[hsl(var(--series-2))] to-[hsl(var(--series-5))] flex items-center justify-center text-white font-bold text-xl">
               F
             </div>
           </div>

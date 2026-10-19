@@ -50,7 +50,7 @@ export default function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar>
-                <AvatarFallback className="bg-gradient-to-br from-orange-500 to-pink-500 text-white">
+                <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--series-2))] to-[hsl(var(--series-5))] text-white">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>

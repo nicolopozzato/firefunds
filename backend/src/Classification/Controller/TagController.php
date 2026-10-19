@@ -2,6 +2,7 @@
 
 namespace App\Classification\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Classification\DTO\NameNotesRequest;
 use App\Classification\DTO\NameNotesResponse;
 use App\Classification\Service\ClassificationDeletionService;
@@ -10,7 +11,6 @@ use App\Core\Exception\ErrorCode;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\Tag;
-use App\Entity\User;
 use App\Repository\TagRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +22,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/tags')]
 class TagController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly TagRepository $tagRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -104,16 +106,5 @@ class TagController extends AbstractController
         }
 
         return $tag;
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::TagNotFound);
-        }
-
-        return $user;
     }
 }

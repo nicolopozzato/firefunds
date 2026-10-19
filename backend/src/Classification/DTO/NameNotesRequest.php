@@ -11,6 +11,7 @@ final readonly class NameNotesRequest
         #[Assert\Length(max: 255)]
         public string $name,
 
+        #[Assert\Length(max: 10000)]
         public ?string $notes = null,
     ) {
     }

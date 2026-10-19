@@ -39,5 +39,3 @@ export function createClassificationApi(resource: ClassificationResource) {
   }
 }
 
-export const categoriesApi = createClassificationApi('categories')
-export const tagsApi = createClassificationApi('tags')

@@ -4,6 +4,7 @@ namespace App\Investment\Service;
 
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Core\Period\TransactionMoment;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
@@ -40,7 +41,7 @@ class InvestmentTransactionService
             type: $type,
             quantity: $request->quantity,
             unitPrice: $request->unitPrice,
-            occurredAt: $this->parseOccurredAt($request->occurredAt),
+            occurredAt: TransactionMoment::parse($request->occurredAt, $request->timezone ?? $user->getTimezone()),
             amount: $this->resolveAmount($request),
         );
         $transaction->setFees($request->fees);
@@ -73,7 +74,7 @@ class InvestmentTransactionService
         $transaction->setAmount($this->resolveAmount($request));
         $transaction->setFees($request->fees);
         $transaction->setTaxes($request->taxes);
-        $transaction->setOccurredAt($this->parseOccurredAt($request->occurredAt));
+        $transaction->setOccurredAt(TransactionMoment::parse($request->occurredAt, $request->timezone ?? $transaction->getTimezone()));
         $transaction->setDescription($request->description);
         $transaction->setNotes($request->notes);
 
@@ -109,18 +110,6 @@ class InvestmentTransactionService
         }
 
         return bcadd($request->amount, '0', 4);
-    }
-
-    /**
-     * The `occurred_at` column is a timestamp without time zone, so Doctrine writes
-     * whatever wall-clock components the DateTimeImmutable carries, ignoring its
-     * offset. Normalizing to UTC here keeps that literal write meaningful and
-     * matches how the value is interpreted when read back (PHP's default timezone
-     * is UTC).
-     */
-    private function parseOccurredAt(string $value): \DateTimeImmutable
-    {
-        return (new \DateTimeImmutable($value))->setTimezone(new \DateTimeZone('UTC'));
     }
 
     private function resolveBrokerAccount(User $user, string $accountId): Account

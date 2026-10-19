@@ -102,6 +102,44 @@ export function totalAccountValue(account: { currentBalance: string; investedVal
 }
 
 /** Dates spell out month names, so they follow the interface language, not the number format. */
+/**
+ * A date from the API as a Date showing the same day and time here. Days
+ * ("2026-10-01") and transaction times ("2026-10-01T00:30:00", the clock time
+ * where they happened) carry no offset and are read as local times: `new
+ * Date('2026-10-01')` would take UTC midnight, the day before west of UTC.
+ * Timestamps with an offset (createdAt, audit logs) are instants.
+ */
+export function parseDate(value: string | Date): Date {
+  if (value instanceof Date) return value
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(value)
+}
+
+/** The value of a `datetime-local` input for a transaction time from the API ("2026-10-01T00:30"). */
+export function toDatetimeLocal(occurredAt: string): string {
+  return occurredAt.slice(0, 16)
+}
+
+/** Now, as a `datetime-local` input value on this device's clock. */
+export function nowAsDatetimeLocal(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+/**
+ * A `datetime-local` value as the API takes it: the clock time as written,
+ * no offset. The zone goes alongside (deviceTimezone()).
+ */
+export function fromDatetimeLocal(value: string): string {
+  return value.length === 16 ? `${value}:00` : value
+}
+
+/** This device's timezone (IANA): where a new transaction is being written. */
+export function deviceTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
 function dateLocale(): string {
   return i18n.language?.startsWith('it') ? 'it-IT' : 'en-US'
 }
@@ -111,12 +149,12 @@ export function formatDateTime(date: string | Date): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date))
+  }).format(parseDate(date))
 }
 
 /** A day as a list heading: "sabato 3 ottobre", with the year only when it is not the current one. */
 export function formatDayHeading(date: string | Date): string {
-  const day = new Date(date)
+  const day = parseDate(date)
   return new Intl.DateTimeFormat(dateLocale(), {
     weekday: 'long',
     day: 'numeric',
@@ -130,5 +168,5 @@ export function formatTime24h(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(new Date(date))
+  }).format(parseDate(date))
 }

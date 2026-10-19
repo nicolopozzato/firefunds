@@ -10,6 +10,7 @@ use App\Entity\UserTheme;
 use App\Repository\UserRepository;
 use App\Service\SettingsService;
 use Doctrine\ORM\EntityManagerInterface;
+use Gesdinet\JWTRefreshTokenBundle\Model\RevokeRefreshTokenManagerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Validator\Exception\ValidationFailedException;
@@ -23,6 +24,7 @@ class UserService
         private UserPasswordHasherInterface $passwordHasher,
         private ValidatorInterface $validator,
         private SettingsService $settingsService,
+        private RevokeRefreshTokenManagerInterface $refreshTokens,
     ) {
     }
 
@@ -43,7 +45,7 @@ class UserService
 
     public function findByEmail(string $email): ?User
     {
-        return $this->userRepository->findOneBy(['email' => $email]);
+        return $this->userRepository->findByEmail($email);
     }
 
     public function emailExists(string $email): bool
@@ -109,10 +111,19 @@ class UserService
     }
 
     /**
-     * @throws ApiException if the email is already taken by another user
+     * A new email needs the current password: whoever holds a session for a
+     * few minutes must not be able to take the account away for good.
+     *
+     * @throws ApiException if the email is already taken by another user, or
+     *                      it changes and the current password doesn't match
      */
-    public function updateProfile(User $user, string $firstName, string $lastName, string $email): User
+    public function updateProfile(User $user, string $firstName, string $lastName, string $email, ?string $currentPassword = null): User
     {
+        if (strtolower($email) !== $user->getEmail()
+            && !$this->passwordHasher->isPasswordValid($user, $currentPassword ?? '')) {
+            throw new ApiException(ErrorCode::CurrentPasswordIncorrect);
+        }
+
         $existing = $this->findByEmail($email);
         if ($existing !== null && !$existing->getId()->equals($user->getId())) {
             throw new ApiException(ErrorCode::EmailAlreadyRegistered, [], Response::HTTP_CONFLICT);
@@ -128,6 +139,10 @@ class UserService
     }
 
     /**
+     * Signs the user out everywhere: every refresh token is revoked, so each
+     * device has to log in again with the new password once its access token
+     * (lexik token_ttl) runs out. The frontend logs this one straight back in.
+     *
      * @throws ApiException if the current password does not match
      */
     public function changePassword(User $user, string $currentPassword, string $newPassword): void
@@ -138,6 +153,8 @@ class UserService
 
         $user->setPassword($this->passwordHasher->hashPassword($user, $newPassword));
         $this->entityManager->flush();
+
+        $this->refreshTokens->revokeAllForUser($user);
     }
 
     public function updatePreferences(

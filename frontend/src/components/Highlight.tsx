@@ -8,7 +8,7 @@ export default function Highlight({ text, terms }: { text: string; terms?: strin
     <>
       {highlightParts(text, terms).map((part, index) =>
         part.match ? (
-          <mark key={index} className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/30">
+          <mark key={index} className="rounded-sm bg-warning/30 px-0.5 text-inherit">
             {part.text}
           </mark>
         ) : (

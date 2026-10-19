@@ -5,6 +5,8 @@ namespace App\Account\DTO;
 use App\Core\Validation\ViolationCode;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
+use App\Core\Validation\Decimal;
+use App\Core\Validation\DateValue;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
@@ -28,6 +30,7 @@ final readonly class CreateAccountRequest
         #[Assert\Length(max: 64)]
         public ?string $accountNumber = null,
 
+        #[Assert\Length(max: 10000)]
         public ?string $notes = null,
 
         public bool $isActive = true,
@@ -35,8 +38,10 @@ final readonly class CreateAccountRequest
         #[Assert\Length(exactly: 3)]
         public ?string $currencyCode = null,
 
+        #[Decimal]
         public ?string $openingBalance = null,
 
+        #[DateValue]
         public ?string $openingBalanceDate = null,
 
         #[Assert\Choice(choices: ['checking', 'investment'])]

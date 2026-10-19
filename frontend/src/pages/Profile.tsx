@@ -16,6 +16,8 @@ export default function Profile() {
   const [firstName, setFirstName] = useState(user?.firstName ?? '')
   const [lastName, setLastName] = useState(user?.lastName ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
+  const [emailPassword, setEmailPassword] = useState('')
+  const emailChanged = email.trim().toLowerCase() !== (user?.email ?? '')
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
@@ -34,8 +36,14 @@ export default function Profile() {
     setIsSavingProfile(true)
 
     try {
-      await authApi.updateProfile({ firstName, lastName, email })
+      await authApi.updateProfile({
+        firstName,
+        lastName,
+        email,
+        currentPassword: emailChanged ? emailPassword : undefined,
+      })
       await refreshUser()
+      setEmailPassword('')
       setProfileSuccess(true)
     } catch (error) {
       setProfileError(handleApiError(error))
@@ -58,6 +66,8 @@ export default function Profile() {
 
     try {
       await authApi.changePassword({ currentPassword, newPassword })
+      // Every session was revoked, this one included: sign straight back in.
+      await authApi.login({ email: user?.email ?? '', password: newPassword })
       setPasswordSuccess(true)
       setCurrentPassword('')
       setNewPassword('')
@@ -93,6 +103,19 @@ export default function Profile() {
                 <Label htmlFor="email">{t('common.email')}</Label>
                 <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
+              {emailChanged && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="emailPassword">{t('profile.emailPassword')}</Label>
+                  <Input
+                    id="emailPassword"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={emailPassword}
+                    onChange={(e) => setEmailPassword(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {profileError && <p className="text-sm text-destructive">{profileError}</p>}

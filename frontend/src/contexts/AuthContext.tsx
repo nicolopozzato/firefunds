@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../lib/auth-api';
 import { setNumberFormat } from '../lib/utils';
 import type { User, LoginRequest, RegisterRequest } from '../types/auth';
@@ -8,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Applies the number format before storing the user, so the re-render this
   // triggers already formats every amount with the user's separators.
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           applyUser(userData);
         } catch (error) {
           console.error('Failed to load user:', error);
-          authApi.logout();
+          await authApi.logout();
         }
       }
       setLoading(false);
@@ -44,7 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
+  // The cache holds the previous user's data: whoever logs in next in this
+  // tab must not see it.
   const login = async (credentials: LoginRequest) => {
+    queryClient.clear();
     await authApi.login(credentials);
     const userData = await authApi.getCurrentUser();
     applyUser(userData);
@@ -56,8 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login({ email: data.email, password: data.password });
   };
 
-  const logout = () => {
-    authApi.logout();
+  const logout = async () => {
+    await authApi.logout();
+    queryClient.clear();
     setUser(null);
   };
 

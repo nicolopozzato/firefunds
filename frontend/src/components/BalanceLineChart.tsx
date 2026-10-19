@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, isSameDay } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
-import { formatMoney } from '@/lib/utils'
-import { niceTicks, smoothPath, useContainerWidth, axisLeft, moneyTickLabels } from '@/lib/chart'
+import { formatMoney, parseDate } from '@/lib/utils'
+import { niceTicks, smoothPath, useContainerWidth, axisLeft, moneyTickLabels, todayLabelAnchor } from '@/lib/chart'
 import { onMouseLeave, useChartTouch } from '@/lib/chart-touch'
 import { tooltipTransform } from '@/lib/chart-tooltip'
 import type { BalancePoint } from '@/types/account'
@@ -60,7 +60,7 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
     const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${PADDING.top + innerHeight} L ${coords[0].x} ${PADDING.top + innerHeight} Z`
 
     const today = new Date()
-    const todayIndex = points.findIndex((p) => isSameDay(new Date(p.date), today))
+    const todayIndex = points.findIndex((p) => isSameDay(parseDate(p.date), today))
     const todayX = todayIndex >= 0 ? left + todayIndex * stepX : null
 
     return { left, tickLabels, coords, linePath, areaPath, innerHeight, ticks, yFor, todayX }
@@ -114,7 +114,7 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
                 strokeWidth={1}
                 strokeDasharray="4 3"
               />
-              <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor="middle" fill={TODAY_COLOR}>
+              <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor={todayLabelAnchor(chart.todayX, width)} fill={TODAY_COLOR}>
                 {t('charts.today')}
               </text>
             </g>
@@ -149,7 +149,7 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
           {chart.coords.map((c, index) =>
             index % labelEvery === 0 ? (
               <text key={`label-${c.date}`} x={c.x} y={height - 8} fontSize={10} textAnchor="middle" fill="hsl(var(--muted-foreground))">
-                {format(new Date(c.date), 'd MMM', { locale })}
+                {format(parseDate(c.date), 'd MMM', { locale })}
               </text>
             ) : null
           )}
@@ -161,7 +161,7 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
             style={{ left: hovered.x, top: hovered.y, transform: tooltipTransform(hovered.x, width, hovered.y) }}
           >
             <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {format(new Date(hovered.date), 'd MMMM yyyy', { locale })}
+              {format(parseDate(hovered.date), 'd MMMM yyyy', { locale })}
             </span>
             <span className="text-sm font-semibold text-foreground">{formatMoney(hovered.value, currency)}</span>
           </div>

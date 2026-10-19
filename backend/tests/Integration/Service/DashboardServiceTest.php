@@ -159,11 +159,11 @@ class DashboardServiceTest extends KernelTestCase
         $this->assertSame('2026-09-30', end($performanceDays));
     }
 
-    /** Days are the user's: 23:30 UTC on 31 August is already 1 September in Rome. */
-    public function testPeriodFollowsTheUsersTimezone(): void
+    /** A transaction is on the day written where it happened, midnight included. */
+    public function testThePeriodHoldsTheDaysAsWritten(): void
     {
-        $this->transfer($this->checking, $this->supermarket, '10.0000', '2026-08-31 22:30', 'Late night');
-        $this->transfer($this->checking, $this->supermarket, '20.0000', '2026-09-30 22:30', 'Already October');
+        $this->transfer($this->checking, $this->supermarket, '10.0000', '2026-09-01 00:30', 'Late night');
+        $this->transfer($this->checking, $this->supermarket, '20.0000', '2026-10-01 00:30', 'Already October');
 
         $dashboard = $this->dashboard('2026-09-01', '2026-09-30');
 
@@ -290,7 +290,7 @@ class DashboardServiceTest extends KernelTestCase
 
     private function transfer(?Account $source, ?Account $destination, string $amount, string $occurredAt, string $description, ?Category $category = null): void
     {
-        $transaction = new Transaction($this->user, $source, $destination, new \DateTimeImmutable($occurredAt, new \DateTimeZone('UTC')), $amount, 'EUR');
+        $transaction = new Transaction($this->user, $source, $destination, new \DateTimeImmutable($occurredAt, new \DateTimeZone('Europe/Rome')), $amount, 'EUR');
         $transaction->setDescription($description);
         $transaction->setCategory($category);
         $this->entityManager->persist($transaction);
@@ -315,7 +315,7 @@ class DashboardServiceTest extends KernelTestCase
             type: $type,
             quantity: $quantity,
             unitPrice: $unitPrice,
-            occurredAt: new \DateTimeImmutable($occurredAt, new \DateTimeZone('UTC')),
+            occurredAt: new \DateTimeImmutable($occurredAt, new \DateTimeZone('Europe/Rome')),
         );
         $trade->setDescription($instrument->getName());
         $trade->setFees($fees);

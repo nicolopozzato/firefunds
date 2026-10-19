@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, isSameDay } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
-import { formatMoney, cn } from '@/lib/utils'
-import { niceTicks, smoothPath, splitAtToday, useContainerWidth, axisLeft, moneyTickLabels } from '@/lib/chart'
+import { cn, formatMoney, parseDate } from '@/lib/utils'
+import { niceTicks, smoothPath, splitAtToday, useContainerWidth, axisLeft, moneyTickLabels, todayLabelAnchor } from '@/lib/chart'
 import { onMouseLeave, useChartTouch } from '@/lib/chart-touch'
 import { tooltipTransform } from '@/lib/chart-tooltip'
 import type { AccountValueHistoryPoint } from '@/types/account'
@@ -86,7 +86,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
     const yFor = (value: number) => PADDING.top + innerHeight - ((value - min) / span) * innerHeight
 
     const today = new Date()
-    const todayIndex = points.findIndex((p) => isSameDay(new Date(p.date), today))
+    const todayIndex = points.findIndex((p) => isSameDay(parseDate(p.date), today))
     const todayX = todayIndex >= 0 ? left + todayIndex * stepX : null
 
     const series = visibleSeries.map((s) => {
@@ -200,7 +200,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
                   strokeWidth={1}
                   strokeDasharray="4 3"
                 />
-                <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor="middle" fill={TODAY_COLOR}>
+                <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor={todayLabelAnchor(chart.todayX, width)} fill={TODAY_COLOR}>
                   {t('charts.today')}
                 </text>
               </g>
@@ -255,7 +255,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
                   textAnchor="middle"
                   fill="hsl(var(--muted-foreground))"
                 >
-                  {format(new Date(p.date), 'd MMM', { locale })}
+                  {format(parseDate(p.date), 'd MMM', { locale })}
                 </text>
               ) : null
             )}
@@ -267,7 +267,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
               style={tooltipStyle(chart.left + (hoveredIndex ?? 0) * chart.stepX, Math.min(...chart.series.map((s) => s.coords[hoveredIndex ?? 0].y)), width)}
             >
               <span className="whitespace-nowrap text-xs text-muted-foreground">
-                {format(new Date(hovered.date), 'd MMMM yyyy', { locale })}
+                {format(parseDate(hovered.date), 'd MMMM yyyy', { locale })}
               </span>
               {chart.series.map((s) => (
                 <span key={s.key} className="flex items-center gap-1.5 whitespace-nowrap text-xs">

@@ -35,7 +35,10 @@ export type MarketState = 'open' | 'pre_market' | 'post_market' | 'closed' | 'un
 export interface InvestmentLivePrice {
   price: string | null
   marketState: MarketState
+  /** When the backend asked the provider: it shares a quote for a few seconds. */
   fetchedAt: string
+  /** How often to ask again, in seconds (the backend's cache follows it). */
+  refreshSeconds: number
 }
 
 export type InvestmentTransactionType = 'buy' | 'sell'
@@ -64,7 +67,10 @@ export interface InvestmentTransaction {
   totalAmount: string
   /** The broker account's currency code (unit price, fees, taxes and total are in it). */
   currency: string
+  /** The clock time where it happened, no offset: show it as it is. */
   occurredAt: string
+  /** Where it happened (IANA). */
+  timezone: string
   notes: string | null
   createdAt: string
   updatedAt: string
@@ -91,6 +97,8 @@ export interface CreateInvestmentTransactionRequest {
   fees?: string
   taxes?: string
   occurredAt: string
+  /** Where it happened (IANA); left out on an edit to keep it. */
+  timezone?: string
   notes?: string | null
 }
 
@@ -102,7 +110,7 @@ export interface InvestmentTransactionAuditLogChange {
 
 export interface InvestmentTransactionAuditLogEntry {
   id: string
-  action: 'created' | 'updated'
+  action: 'created' | 'updated' | 'deleted'
   changes: InvestmentTransactionAuditLogChange[] | null
   createdAt: string
 }
@@ -121,7 +129,7 @@ export interface OpenPosition {
   quantity: string
   costBasis: string
   averageCost: string
-  /** Day (YYYY-MM-DD, user's timezone) the current holding was opened. */
+  /** Day (YYYY-MM-DD, as written where the trade happened) the current holding was opened. */
   openedOn: string | null
   currentPrice: string | null
   currentValue: string | null

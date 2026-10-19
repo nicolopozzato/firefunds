@@ -9,6 +9,7 @@ use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentPriceRepository;
 use App\Repository\InvestmentTransactionRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 class InvestmentPriceService
@@ -30,6 +31,7 @@ class InvestmentPriceService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly PriceCalendar $calendar,
+        private readonly ManagerRegistry $doctrine,
     ) {
     }
 
@@ -43,27 +45,30 @@ class InvestmentPriceService
     {
         $yesterday = $this->calendar->yesterday();
 
-        $instruments = $this->instrumentRepository->findAll();
-        $instrumentsBySymbol = [];
-
-        foreach ($instruments as $instrument) {
-            $symbol = $instrument->getYahooTicker() ?: $instrument->getTicker();
-
-            if ($symbol === null || $symbol === '') {
-                continue;
+        $idsBySymbol = [];
+        foreach ($this->instrumentRepository->findAll() as $instrument) {
+            $symbol = $instrument->getQuoteSymbol();
+            if ($symbol !== null) {
+                $idsBySymbol[$symbol][] = $instrument->getId();
             }
-
-            $instrumentsBySymbol[$symbol][] = $instrument;
         }
 
-        foreach ($instrumentsBySymbol as $symbol => $group) {
+        foreach ($idsBySymbol as $symbol => $ids) {
             try {
-                $this->backfillGroup($group, $yesterday);
+                // Loaded per symbol: after a failure the EntityManager is a new one.
+                $this->backfillGroup($this->instrumentRepository->findBy(['id' => $ids]), $yesterday);
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to update prices for symbol {symbol}: {error}', [
                     'symbol' => $symbol,
                     'error' => $e->getMessage(),
                 ]);
+
+                // A database error closes the EntityManager, which would fail
+                // every symbol after this one: start the next on a fresh one.
+                if (!$this->entityManager->isOpen()) {
+                    $this->doctrine->resetManager();
+                }
+                $this->entityManager->clear();
             }
         }
     }
@@ -224,7 +229,8 @@ class InvestmentPriceService
             return null;
         }
 
-        $firstTradeDay = $this->calendar->dayOf($firstTrade);
+        // The day as written where the trade happened (App\Entity\OccursLocally).
+        $firstTradeDay = new \DateTimeImmutable($firstTrade->format('Y-m-d'));
         if ($firstTradeDay > $this->calendar->yesterday()) {
             return null; // traded today: there is no close to have yet
         }

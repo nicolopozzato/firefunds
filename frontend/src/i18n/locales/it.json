@@ -4,55 +4,50 @@
     "password": "Password",
     "firstName": "Nome",
     "lastName": "Cognome",
-    "submit": "Invia",
     "cancel": "Annulla",
     "save": "Salva",
     "delete": "Elimina",
     "edit": "Modifica",
-    "close": "Chiudi",
     "loading": "Caricamento...",
     "refreshing": "Aggiornamento…",
-    "error": "Errore",
-    "success": "Successo",
     "profile": "Profilo",
     "admin": "Admin",
     "yes": "Sì",
     "no": "No",
-    "back": "Indietro"
+    "back": "Indietro",
+    "retry": "Riprova",
+    "reload": "Ricarica"
   },
   "auth": {
     "login": "Accedi",
-    "register": "Registrati",
     "logout": "Esci",
     "loginTitle": "Accedi a FireFunds",
-    "registerTitle": "Crea il tuo account",
     "alreadyHaveAccount": "Hai già un account?",
     "dontHaveAccount": "Non hai un account?",
     "noUsersFound": "Nessun utente trovato. Registrati per iniziare.",
     "freshInstallation": "Sembra una nuova installazione. Crea il tuo account amministratore per iniziare.",
-    "createAdminAccount": "Crea Account Amministratore",
-    "createAccount": "Crea Account",
-    "signingIn": "Accesso in corso...",
+    "createAdminAccount": "Crea account amministratore",
+    "createAccount": "Crea account",
     "creatingAccount": "Creazione account...",
     "adminAccountSetup": "Configura il tuo account amministratore per iniziare",
     "joinFireFunds": "Unisciti a FireFunds per gestire le tue finanze",
     "adminAccountInfo": "Questo sarà il tuo account amministratore. La registrazione verrà disabilitata automaticamente dopo la configurazione.",
-    "registrationDisabled": "Registrazione Disabilitata",
+    "registrationDisabled": "Registrazione disabilitata",
     "registrationNotAvailable": "La registrazione non è al momento disponibile.",
     "contactAdmin": "Contatta un amministratore se hai bisogno di accesso.",
-    "backToLogin": "Torna al Login",
-    "confirmPassword": "Conferma Password"
+    "backToLogin": "Torna al login",
+    "confirmPassword": "Conferma password"
   },
   "navigation": {
     "dashboard": "Dashboard",
     "accounts": "Conti",
-    "assetAccounts": "Conti Attività",
-    "expenseAccounts": "Conti Uscite",
-    "revenueAccounts": "Conti Entrate",
+    "assetAccounts": "Conti attività",
+    "expenseAccounts": "Conti uscite",
+    "revenueAccounts": "Conti entrate",
     "transactions": "Transazioni",
     "allTransactions": "Tutte",
-    "withdrawalTransactions": "Spese - Uscite",
-    "depositTransactions": "Redditi - Entrate",
+    "withdrawalTransactions": "Spese - uscite",
+    "depositTransactions": "Redditi - entrate",
     "transferTransactions": "Trasferimenti",
     "classification": "Classificazione",
     "categories": "Categorie",
@@ -109,7 +104,7 @@
     "noCashAccountsShown": "Nessun conto corrente da mostrare: i conti titoli sono nella vista Investimenti."
   },
   "transactionsCommon": {
-    "add": "Aggiungi Transazione",
+    "add": "Aggiungi transazione",
     "date": "Data",
     "description": "Descrizione",
     "source": "Origine",
@@ -129,31 +124,30 @@
     "yesterday": "Ieri"
   },
   "transactionForm": {
-    "title": "Nuova Transazione",
-    "editTitle": "Modifica Transazione",
+    "title": "Nuova transazione",
+    "editTitle": "Modifica transazione",
     "description": "Registra un movimento di denaro tra due conti",
-    "type": "Tipo di Transazione",
     "typeWithdrawalDescription": "Da un conto attività a un conto uscita",
     "typeDepositDescription": "Da un conto entrata a un conto attività",
     "typeTransferDescription": "Tra due conti attività",
     "descriptionField": "Descrizione",
-    "sourceAsset": "Conto di Origine (Attività)",
-    "sourceRevenue": "Conto di Origine (Entrata)",
-    "destinationExpense": "Conto di Destinazione (Uscita)",
-    "destinationAsset": "Conto di Destinazione (Attività)",
+    "sourceAsset": "Conto di origine (attività)",
+    "sourceRevenue": "Conto di origine (entrata)",
+    "destinationExpense": "Conto di destinazione (uscita)",
+    "destinationAsset": "Conto di destinazione (attività)",
     "selectAccount": "Seleziona un conto",
-    "occurredAt": "Data e Ora",
+    "occurredAt": "Data e ora",
     "amount": "Importo",
     "hasForeignAmount": "Importo anche in un'altra valuta (solo informativo)",
-    "foreignCurrency": "Valuta Estera",
-    "foreignAmount": "Importo in Valuta Estera",
+    "foreignCurrency": "Valuta estera",
+    "foreignAmount": "Importo in valuta estera",
     "category": "Categoria",
     "selectCategory": "Seleziona una categoria (opzionale)",
     "tags": "Etichette",
     "pendingNew": "{{name}} (nuovo, creato al salvataggio)"
   },
   "transactionDetail": {
-    "title": "Dettaglio Transazione",
+    "title": "Dettaglio transazione",
     "noDescription": "Transazione senza descrizione",
     "history": "Cronologia modifiche",
     "historyEmpty": "Nessuna modifica registrata.",
@@ -165,6 +159,8 @@
       "occurredAt": "Data",
       "amount": "Importo",
       "currency": "Valuta",
+      "foreignAmount": "Importo in valuta estera",
+      "foreignCurrency": "Valuta estera",
       "category": "Categoria",
       "tags": "Etichette",
       "notes": "Note"
@@ -172,7 +168,7 @@
     "historyEmptyValue": "vuoto"
   },
   "accountDetail": {
-    "title": "Dettaglio Conto",
+    "title": "Dettaglio conto",
     "currentBalance": "Saldo attuale",
     "balanceTrend": "Andamento del saldo",
     "valueTrend": "Andamento del valore",
@@ -184,7 +180,7 @@
     "investments": "Investimenti",
     "total": "Totale",
     "gain": "Guadagno",
-    "openPositions": "Posizioni Aperte",
+    "openPositions": "Posizioni aperte",
     "positionQuantity": "Quantità",
     "positionCostBasis": "Capitale investito",
     "positionAverageCost": "Prezzo medio di carico",
@@ -200,19 +196,19 @@
     "transactionsFilter_cash": "Liquidità"
   },
   "transactionsAll": {
-    "title": "Tutte le Transazioni",
+    "title": "Tutte le transazioni",
     "description": "Visualizza e gestisci tutte le tue transazioni finanziarie",
     "empty": "Nessuna transazione ancora",
     "emptyDescription": "Inizia a registrare entrate e uscite per avere una visione della tua situazione finanziaria"
   },
   "transactionsWithdrawal": {
-    "title": "Spese - Uscite",
+    "title": "Spese - uscite",
     "description": "Transazioni in cui i soldi escono da un conto attività verso un conto uscita",
     "empty": "Nessuna spesa ancora",
     "emptyDescription": "Registra la tua prima spesa per iniziare"
   },
   "transactionsDeposit": {
-    "title": "Redditi - Entrate",
+    "title": "Redditi - entrate",
     "description": "Transazioni in cui i soldi entrano in un conto attività da un conto entrata",
     "empty": "Nessuna entrata ancora",
     "emptyDescription": "Registra la tua prima entrata per iniziare"
@@ -224,24 +220,23 @@
     "emptyDescription": "Registra il tuo primo trasferimento per iniziare"
   },
   "accountsCommon": {
-    "add": "Aggiungi Conto",
+    "add": "Aggiungi conto",
     "name": "Nome",
-    "accountNumber": "Numero Conto",
-    "currentBalance": "Saldo Corrente",
+    "accountNumber": "Numero conto",
+    "currentBalance": "Saldo corrente",
     "active": "Attivo",
-    "lastActivity": "Ultima Attività",
+    "lastActivity": "Ultima attività",
     "actions": "Azioni",
     "iban": "IBAN",
     "bic": "BIC/SWIFT",
     "notes": "Note",
     "currency": "Valuta",
     "selectCurrency": "Seleziona una valuta",
-    "openingBalance": "Saldo di Apertura",
-    "openingBalanceDate": "Data Saldo di Apertura",
+    "openingBalance": "Saldo di apertura",
+    "openingBalanceDate": "Data saldo di apertura",
     "assetKind": "Tipologia",
-    "selectAssetKind": "Seleziona una tipologia",
-    "assetKind_checking": "Conto Corrente",
-    "assetKind_investment": "Conto Titoli",
+    "assetKind_checking": "Conto corrente",
+    "assetKind_investment": "Conto titoli",
     "assetKindImmutableHint": "Non modificabile dopo la creazione del conto.",
     "sectionGeneral": "Generale",
     "sectionBankDetails": "Coordinate bancarie",
@@ -273,33 +268,33 @@
     "filterAll": "Tutti",
     "status_active": "Attivi",
     "status_inactive": "Disattivati",
-    "kindFilter_checking": "Conti Correnti",
-    "kindFilter_investment": "Conti Titoli",
+    "kindFilter_checking": "Conti correnti",
+    "kindFilter_investment": "Conti titoli",
     "noFilteredTitle": "Nessun conto con questi filtri",
     "noFilteredDescription": "Cambia i filtri sopra la tabella per vedere gli altri conti.",
     "dragToReorder": "Trascina per riordinare"
   },
   "assetAccounts": {
-    "title": "Conti Attività",
+    "title": "Conti attività",
     "description": "Gestisci i tuoi conti finanziari: banche, broker e contanti",
-    "add": "Aggiungi Conto Attività",
-    "editTitle": "Modifica Conto Attività",
+    "add": "Aggiungi conto attività",
+    "editTitle": "Modifica conto attività",
     "empty": "Nessun conto attività ancora",
     "emptyDescription": "Crea il tuo primo conto (es. banca, broker, contanti) per iniziare"
   },
   "expenseAccounts": {
-    "title": "Conti Uscite",
+    "title": "Conti uscite",
     "description": "Gestisci i conti dove destini le tue spese: negozi, servizi, fornitori",
-    "add": "Aggiungi Conto Uscita",
-    "editTitle": "Modifica Conto Uscita",
+    "add": "Aggiungi conto uscita",
+    "editTitle": "Modifica conto uscita",
     "empty": "Nessun conto uscita ancora",
-    "emptyDescription": "Crea un conto uscita (es. Amazon, Obi, Leroy Merlin) per iniziare"
+    "emptyDescription": "Crea un conto uscita (es. supermercato, ferramenta, abbigliamento) per iniziare"
   },
   "revenueAccounts": {
-    "title": "Conti Entrate",
+    "title": "Conti entrate",
     "description": "Gestisci i conti da cui provengono le tue entrate: lavoro, extra, welfare",
-    "add": "Aggiungi Conto Entrata",
-    "editTitle": "Modifica Conto Entrata",
+    "add": "Aggiungi conto entrata",
+    "editTitle": "Modifica conto entrata",
     "empty": "Nessun conto entrata ancora",
     "emptyDescription": "Crea un conto entrata (es. Lavoro, Extra, Welfare) per iniziare"
   },
@@ -318,16 +313,16 @@
   "categories": {
     "title": "Categorie",
     "description": "Classifica le tue transazioni indipendentemente da dove nascono o finiscono i soldi",
-    "add": "Aggiungi Categoria",
-    "editTitle": "Modifica Categoria",
+    "add": "Aggiungi categoria",
+    "editTitle": "Modifica categoria",
     "empty": "Nessuna categoria ancora",
     "emptyDescription": "Crea la tua prima categoria (es. Casa, Tech, Regali) per iniziare"
   },
   "tags": {
     "title": "Etichette",
     "description": "Etichette libere per marcare le transazioni con criteri trasversali",
-    "add": "Aggiungi Etichetta",
-    "editTitle": "Modifica Etichetta",
+    "add": "Aggiungi etichetta",
+    "editTitle": "Modifica etichetta",
     "empty": "Nessuna etichetta ancora",
     "emptyDescription": "Crea la tua prima etichetta per iniziare"
   },
@@ -344,11 +339,11 @@
     "other": "Altro",
     "uncategorized": "Senza categoria",
     "categories": "Categorie",
-    "sourceAccounts": "Conti di Origine",
-    "destinationAccounts": "Conti di Destinazione",
+    "sourceAccounts": "Conti di origine",
+    "destinationAccounts": "Conti di destinazione",
     "noData": "Nessun dato per questo periodo",
     "today": "oggi",
-    "instrumentTypes": "Tipologie di Strumento",
+    "instrumentTypes": "Tipologie di strumento",
     "instruments": "Strumenti",
     "accounts": "Conti",
     "showAll": "Mostra tutte ({{count}})",
@@ -382,24 +377,20 @@
     "other": "Altro",
     "instrument": "Strumento"
   },
-  "settings": {
-    "title": "Impostazioni",
-    "language": "Lingua",
-    "changeLanguage": "Cambia Lingua"
-  },
   "profile": {
     "title": "Profilo",
     "description": "Gestisci le informazioni del tuo account",
-    "personalInfo": "Informazioni Personali",
+    "personalInfo": "Informazioni personali",
     "personalInfoDescription": "Modifica il tuo nome, cognome ed email",
     "saved": "Modifiche salvate con successo",
-    "changePassword": "Cambia Password",
+    "emailPassword": "Password attuale, per cambiare l'email",
+    "changePassword": "Cambia password",
     "changePasswordDescription": "Aggiorna la password del tuo account",
-    "currentPassword": "Password Attuale",
-    "newPassword": "Nuova Password",
-    "confirmNewPassword": "Conferma Nuova Password",
+    "currentPassword": "Password attuale",
+    "newPassword": "Nuova password",
+    "confirmNewPassword": "Conferma nuova password",
     "passwordMismatch": "Le password non coincidono",
-    "passwordChanged": "Password aggiornata con successo"
+    "passwordChanged": "Password aggiornata. Sugli altri dispositivi dovrai accedere di nuovo."
   },
   "preferences": {
     "title": "Preferenze",
@@ -411,7 +402,7 @@
     "themeDark": "Scuro",
     "themeSystem": "Come il dispositivo",
     "pageSize": "Righe per pagina",
-    "timezone": "Fuso Orario",
+    "timezone": "Fuso orario",
     "selectTimezone": "Seleziona un fuso orario",
     "saved": "Preferenze salvate con successo",
     "capitalGainsTaxRate": "Aliquota plusvalenze (%)",
@@ -426,7 +417,7 @@
   "admin": {
     "title": "Amministrazione",
     "settings": {
-      "title": "Impostazioni Server",
+      "title": "Impostazioni server",
       "description": "Configura il comportamento generale dell'applicazione",
       "registration": "Registrazione",
       "registrationDescription": "Consenti a nuovi utenti di registrarsi",
@@ -446,8 +437,8 @@
     "currencies": {
       "title": "Valute",
       "description": "Gestisci le valute disponibili sul server per tutti gli utenti",
-      "add": "Aggiungi Valuta",
-      "editTitle": "Modifica Valuta",
+      "add": "Aggiungi valuta",
+      "editTitle": "Modifica valuta",
       "code": "Codice",
       "symbol": "Simbolo",
       "decimalPlaces": "Decimali",
@@ -466,13 +457,7 @@
     "serverError": "Errore del server. Riprova più tardi.",
     "validationError": "Controlla i dati del modulo.",
     "invalidCredentials": "Email o password non valide.",
-    "emailRequired": "L'email è obbligatoria.",
-    "emailInvalid": "Inserisci un indirizzo email valido.",
-    "passwordRequired": "La password è obbligatoria.",
     "passwordTooShort": "La password deve contenere almeno 8 caratteri.",
-    "firstNameRequired": "Il nome è obbligatorio.",
-    "lastNameRequired": "Il cognome è obbligatorio.",
-    "sessionExpired": "La tua sessione è scaduta. Effettua nuovamente l'accesso.",
     "conflict": "L'operazione non è possibile con i dati attuali.",
     "tooManyRequests": "Troppe richieste. Riprova tra poco.",
     "accountSide": {
@@ -508,7 +493,8 @@
       "currency_code_taken": "Esiste già una valuta con questo codice.",
       "currency_in_use": "Impossibile eliminare: la valuta è in uso da uno o più conti.",
       "invalid_date_range": "Intervallo di date non valido.",
-      "date_range_inverted": "La data di inizio deve essere uguale o precedente alla data di fine."
+      "date_range_inverted": "La data di inizio deve essere uguale o precedente alla data di fine.",
+      "date_range_too_long": "Un intervallo di date può coprire al massimo {{years}} anni."
     },
     "validation": {
       "required": "campo obbligatorio.",
@@ -522,6 +508,10 @@
       "invalid_choice": "valore non consentito.",
       "invalid_type": "valore mancante o non valido.",
       "invalid": "valore non valido.",
+      "invalid_number": "numero non valido, o con troppe cifre decimali.",
+      "invalid_date": "data non valida.",
+      "invalid_id": "elemento non valido.",
+      "too_many": "può contenere al massimo {{limit}} elementi.",
       "currency_required_for_asset": "La valuta è obbligatoria per i conti attività.",
       "kind_required_for_asset": "Il tipo di conto è obbligatorio per i conti attività.",
       "transaction_account_required": "Indica almeno uno tra conto di origine e conto di destinazione.",
@@ -578,7 +568,9 @@
       "unitPrice": "Prezzo unitario",
       "visibleAccountIds": "Conti",
       "yahooTicker": "Ticker Yahoo"
-    }
+    },
+    "loadFailed": "Non è stato possibile caricare questa pagina.",
+    "pageCrashed": "Qualcosa è andato storto in questa pagina."
   },
   "pagination": {
     "range": "{{first}}-{{last}} di {{total}}",
@@ -586,14 +578,8 @@
     "next": "Successiva",
     "pageOf": "Pagina {{page}} di {{pageCount}}"
   },
-  "validation": {
-    "required": "Questo campo è obbligatorio",
-    "email": "Inserisci un indirizzo email valido",
-    "minLength": "Deve contenere almeno {{min}} caratteri",
-    "maxLength": "Deve contenere al massimo {{max}} caratteri"
-  },
   "investmentsOverview": {
-    "title": "Panoramica Investimenti",
+    "title": "Panoramica investimenti",
     "description": "Tutti i tuoi investimenti, da ogni conto titoli",
     "marketValue": "Valore del portafoglio",
     "costBasis": "Capitale investito",
@@ -615,8 +601,6 @@
     "flowNet": "Netto"
   },
   "reports": {
-    "title": "Report",
-    "description": "Analisi e riepiloghi delle tue finanze",
     "incomeExpenses": {
       "title": "Entrate e uscite",
       "description": "Entrate, uscite e categorie nel periodo scelto"
@@ -713,14 +697,14 @@
   "investmentTransactions": {
     "title": "Investimenti",
     "description": "Registra e gestisci le tue operazioni di acquisto e vendita",
-    "add": "Aggiungi Transazione di Investimento",
+    "add": "Aggiungi transazione di investimento",
     "empty": "Nessuna transazione di investimento",
     "emptyDescription": "Inizia a registrare le tue operazioni di acquisto e vendita per monitorare il tuo portafoglio",
     "instrument": "Strumento",
     "account": "Conto",
     "date": "Data",
     "quantity": "Quantità",
-    "unitPrice": "Prezzo Unitario",
+    "unitPrice": "Prezzo unitario",
     "fees": "Commissioni",
     "taxes": "Tasse",
     "countervalue": "Controvalore",
@@ -732,29 +716,29 @@
     "operation": "Operazione"
   },
   "investmentTransactionForm": {
-    "title": "Nuova Transazione di Investimento",
-    "editTitle": "Modifica Transazione di Investimento",
+    "title": "Nuova transazione di investimento",
+    "editTitle": "Modifica transazione di investimento",
     "description": "Registra un'operazione di acquisto o vendita su un conto titoli",
-    "typeBuyDescription": "Acquista quote di uno strumento, riducendo la liquidità del conto",
-    "typeSellDescription": "Vendi quote di uno strumento, aumentando la liquidità del conto",
     "descriptionField": "Descrizione",
-    "account": "Conto Titoli",
+    "account": "Conto titoli",
     "selectAccount": "Seleziona un conto titoli",
     "instrument": "Strumento",
     "selectInstrument": "Seleziona uno strumento",
-    "occurredAt": "Data e Ora",
+    "occurredAt": "Data e ora",
     "quantity": "Quantità",
-    "unitPrice": "Prezzo Unitario",
+    "unitPrice": "Prezzo unitario",
     "amount": "Controvalore",
     "amountHint": "Quote × prezzo: {{value}}",
     "amountImplausible": "Troppo lontano da quote × prezzo ({{value}}): controlla i valori",
     "fees": "Commissioni",
     "taxes": "Tasse",
     "total": "Totale",
-    "pricesIncompleteWarning": "Non è stato possibile recuperare tutti i valori di chiusura mancanti per {{instrument}}. Riprova manualmente dalla sezione Strumenti per avere grafici e report corretti."
+    "pricesIncompleteWarning": "Non è stato possibile recuperare tutti i valori di chiusura mancanti per {{instrument}}. Riprova manualmente dalla sezione Strumenti per avere grafici e report corretti.",
+    "heldToday": "Oggi su questo conto ne hai {{quantity}}.",
+    "sellExceedsHolding": "Più di quanti ne hai oggi su questo conto ({{quantity}}): controlla la quantità."
   },
   "investmentTransactionDetail": {
-    "title": "Dettaglio Transazione di Investimento",
+    "title": "Dettaglio transazione di investimento",
     "history": "Cronologia modifiche",
     "historyEmpty": "Nessuna modifica registrata.",
     "historyCreated": "Transazione creata",
@@ -774,10 +758,10 @@
     "historyEmptyValue": "vuoto"
   },
   "investmentInstruments": {
-    "title": "Strumenti Finanziari",
+    "title": "Strumenti finanziari",
     "description": "Gestisci il catalogo di ETF, azioni e altri strumenti che utilizzi per investire",
-    "add": "Aggiungi Strumento",
-    "editTitle": "Modifica Strumento",
+    "add": "Aggiungi strumento",
+    "editTitle": "Modifica strumento",
     "name": "Nome",
     "type": "Tipologia",
     "selectType": "Seleziona una tipologia",
@@ -811,7 +795,7 @@
     "whiteListShareHint": "Se hai solo la quota (es. 78,08% sul tuo broker), scrivila qui: l'aliquota si calcola da sola."
   },
   "investmentInstrumentDetail": {
-    "title": "Dettaglio Strumento",
+    "title": "Dettaglio strumento",
     "lastPriceOn": "Ultimo prezzo del {{date}}",
     "noPriceYet": "Nessun prezzo ancora disponibile",
     "priceTrend": "Andamento del prezzo",
@@ -880,5 +864,10 @@
     "emptyDescription": "Nessuna transazione contiene tutte le parole cercate. Prova con meno parole, con una parte di parola o togliendo i filtri.",
     "noQuery": "Cosa vuoi cercare?",
     "noQueryDescription": "Scrivi nella casella in alto: una parola della descrizione o delle note, il nome di un conto, una categoria, un'etichetta o uno strumento. Ci arrivi da ogni pagina con / oppure Ctrl+K."
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "Questo indirizzo non corrisponde a nessuna pagina.",
+    "back": "Torna alla dashboard"
   }
 }

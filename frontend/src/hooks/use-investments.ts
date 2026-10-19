@@ -16,6 +16,8 @@ export function useInvestmentInstruments(page = 1) {
  */
 export function useInvestmentPortfolio(from?: string, to?: string) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['accounts', 'portfolio', from, to],
     queryFn: () => investmentPortfolioApi.get(from, to),
   })
@@ -31,6 +33,8 @@ export function useAllInvestmentInstruments() {
 
 export function useInvestmentInstrument(id: string) {
   return useQuery({
+    // The page shows its own error (LoadFailed).
+    meta: { quietError: true },
     queryKey: ['investment-instruments', 'detail', id],
     queryFn: () => investmentInstrumentsApi.get(id),
     enabled: !!id,
@@ -45,14 +49,17 @@ export function useInvestmentInstrumentPrices(id: string, from?: string, to?: st
   })
 }
 
-const LIVE_PRICE_POLL_INTERVAL_MS = 30_000
+/** Until the first answer says otherwise (refreshSeconds). */
+const DEFAULT_LIVE_PRICE_POLL_SECONDS = 30
 
 export function useInvestmentInstrumentLivePrice(id: string) {
   return useQuery({
+    // Polled: a failed poll just keeps the last close on screen.
+    meta: { quietError: true },
     queryKey: ['investment-instruments', 'live-price', id],
     queryFn: () => investmentInstrumentsApi.livePrice(id),
     enabled: !!id,
-    refetchInterval: LIVE_PRICE_POLL_INTERVAL_MS,
+    refetchInterval: (query) => (query.state.data?.refreshSeconds ?? DEFAULT_LIVE_PRICE_POLL_SECONDS) * 1000,
     refetchIntervalInBackground: false,
   })
 }

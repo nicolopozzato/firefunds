@@ -14,19 +14,21 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 
 /**
- * A list's `from` / `to` dates are calendar days in the user's timezone, as on
- * the dashboard: a payment on 1 October at 00:00 in Rome, stored as 30
- * September 22:00 UTC, belongs to October.
+ * A list's `from` / `to` dates are calendar days, and a transaction is on the
+ * day written where it happened (App\Entity\OccursLocally): a payment on 1
+ * October at 00:00 in Rome belongs to October, even for a user who has since
+ * moved to New York.
  */
 class TransactionListUserDayTest extends WebTestCaseBase
 {
     private KernelBrowser $client;
+    private User $user;
     private Account $checking;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-        $user = static::createUser();
+        $user = $this->user = static::createUser();
         $user->setTimezone('Europe/Rome');
         static::authenticate($this->client, $user);
 
@@ -50,7 +52,7 @@ class TransactionListUserDayTest extends WebTestCaseBase
             user: $user,
             sourceAccount: $this->checking,
             destinationAccount: $internet,
-            occurredAt: new \DateTimeImmutable('2026-09-30 22:00:00', new \DateTimeZone('UTC')),
+            occurredAt: new \DateTimeImmutable('2026-10-01 00:00:00', new \DateTimeZone('Europe/Rome')),
             amount: '29.9000',
             currency: 'EUR',
         );
@@ -64,6 +66,25 @@ class TransactionListUserDayTest extends WebTestCaseBase
     {
         $this->assertSame([], $this->listed('?from=2026-09-01&to=2026-09-30'));
         $this->assertSame(['Fibre'], $this->listed('?from=2026-10-01&to=2026-10-31'));
+    }
+
+    /** In New York it was still 30 September: the day stays the written one. */
+    public function testTheDayDoesNotMoveWithTheUsersTimezone(): void
+    {
+        $this->user->setTimezone('America/New_York');
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $this->assertSame([], $this->listed('?from=2026-09-01&to=2026-09-30'));
+        $this->assertSame(['Fibre'], $this->listed('?from=2026-10-01&to=2026-10-31'));
+    }
+
+    public function testItIsSentAsWrittenWithItsTimezone(): void
+    {
+        $this->client->request('GET', '/api/transactions?from=2026-10-01&to=2026-10-31');
+        $item = json_decode((string) $this->client->getResponse()->getContent(), true)['items'][0];
+
+        $this->assertSame('2026-10-01T00:00:00', $item['occurredAt']);
+        $this->assertSame('Europe/Rome', $item['timezone']);
     }
 
     public function testTotalsAndDistributionsFollowTheSameDays(): void

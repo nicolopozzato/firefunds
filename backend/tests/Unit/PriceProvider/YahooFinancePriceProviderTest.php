@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 class YahooFinancePriceProviderTest extends TestCase
 {
@@ -39,9 +40,9 @@ class YahooFinancePriceProviderTest extends TestCase
             ->getClosingPrices($this->instrument(), new \DateTimeImmutable('2026-09-25'), new \DateTimeImmutable('2026-09-29'));
 
         $this->assertSame([
-            '2026-09-25' => '169.77',
-            '2026-09-28' => '169.14',
-            '2026-09-29' => '169.27',
+            '2026-09-25' => '169.7700',
+            '2026-09-28' => '169.1400',
+            '2026-09-29' => '169.2700',
         ], $prices);
         $this->assertCount(2, $requests);
     }
@@ -58,7 +59,7 @@ class YahooFinancePriceProviderTest extends TestCase
         $prices = (new YahooFinancePriceProvider($client, new NullLogger()))
             ->getClosingPrices($this->instrument(), new \DateTimeImmutable('2026-09-25'), new \DateTimeImmutable('2026-09-28'));
 
-        $this->assertSame(['2026-09-25' => '169.77', '2026-09-28' => '169.14'], $prices);
+        $this->assertSame(['2026-09-25' => '169.7700', '2026-09-28' => '169.1400'], $prices);
         $this->assertSame(1, $requests);
     }
 
@@ -71,7 +72,38 @@ class YahooFinancePriceProviderTest extends TestCase
         $prices = (new YahooFinancePriceProvider($client, new NullLogger()))
             ->getClosingPrices($this->instrument(), new \DateTimeImmutable('2026-10-06'), new \DateTimeImmutable('2026-10-06'));
 
-        $this->assertSame(['2026-10-06' => '100'], $prices);
+        $this->assertSame(['2026-10-06' => '100.0000'], $prices);
+    }
+
+    /**
+     * What the database couldn't store is left out, as a day without a close:
+     * prices that are zero once rounded, too large, or not numbers.
+     */
+    public function testPricesTheColumnCannotHoldAreLeftOut(): void
+    {
+        $daily = $this->chart([
+            ['2026-10-05 17:30', 0.00001],
+            ['2026-10-06 17:30', 1.0e16],
+            ['2026-10-07 17:30', 12.345678],
+        ]);
+        $client = new MockHttpClient(static fn () => $daily, 'https://query1.finance.yahoo.com/v8/finance/chart/');
+
+        $prices = (new YahooFinancePriceProvider($client, new NullLogger()))
+            ->getClosingPrices($this->instrument(), new \DateTimeImmutable('2026-10-07'), new \DateTimeImmutable('2026-10-07'));
+
+        $this->assertSame(['2026-10-07' => '12.3457'], $prices);
+    }
+
+    public function testAnOversizedAnswerIsDropped(): void
+    {
+        $client = new MockHttpClient(
+            static fn () => new MockResponse(str_repeat(' ', 6 * 1024 * 1024).'{}'),
+            'https://query1.finance.yahoo.com/v8/finance/chart/',
+        );
+
+        $quote = (new YahooFinancePriceProvider($client, new NullLogger()))->getLiveQuote($this->instrument());
+
+        $this->assertNull($quote->price);
     }
 
     /**

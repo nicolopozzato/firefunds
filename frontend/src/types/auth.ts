@@ -23,6 +23,8 @@ export interface UpdateProfileRequest {
   firstName: string
   lastName: string
   email: string
+  /** Needed only when the email changes. */
+  currentPassword?: string
 }
 
 export interface ChangePasswordRequest {

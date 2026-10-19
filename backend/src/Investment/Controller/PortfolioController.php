@@ -4,6 +4,7 @@ namespace App\Investment\Controller;
 
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Core\Period\CalendarRange;
 use App\Entity\User;
 use App\Investment\Service\PortfolioService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,26 +34,8 @@ class PortfolioController extends AbstractController
             throw ApiException::notFound(ErrorCode::UserNotFound);
         }
 
-        [$from, $to] = $this->parseDateRange($request);
+        [$from, $to] = CalendarRange::orThisMonth($request->query->get('from'), $request->query->get('to'), $user);
 
         return $this->json($this->portfolioService->forUser($user, $from, $to));
-    }
-
-    /**
-     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
-     */
-    private function parseDateRange(Request $request): array
-    {
-        $from = $request->query->get('from');
-        $to = $request->query->get('to');
-
-        try {
-            return [
-                $from !== null ? new \DateTimeImmutable($from) : new \DateTimeImmutable('first day of this month'),
-                $to !== null ? new \DateTimeImmutable($to) : new \DateTimeImmutable('last day of this month'),
-            ];
-        } catch (\Exception) {
-            throw new ApiException(ErrorCode::InvalidDateRange);
-        }
     }
 }

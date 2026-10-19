@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, isSameDay } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
-import { cn, formatMoney, moneyColorClass } from '@/lib/utils'
-import { niceTicks, smoothPath, splitAtToday, useContainerWidth, axisLeft, moneyTickLabels } from '@/lib/chart'
+import { cn, formatMoney, moneyColorClass, parseDate } from '@/lib/utils'
+import { niceTicks, smoothPath, splitAtToday, useContainerWidth, axisLeft, moneyTickLabels, todayLabelAnchor } from '@/lib/chart'
 import { onMouseLeave, useChartTouch } from '@/lib/chart-touch'
 import { tooltipTransform } from '@/lib/chart-tooltip'
 import type { PositionHistoryPoint } from '@/types/investment'
@@ -70,7 +70,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
     const stepX = innerWidth / (points.length - 1)
     const yFor = (value: number) => PADDING.top + innerHeight - ((value - min) / span) * innerHeight
 
-    const todayIndex = points.findIndex((p) => isSameDay(new Date(p.date), new Date()))
+    const todayIndex = points.findIndex((p) => isSameDay(parseDate(p.date), new Date()))
     const todayX = todayIndex >= 0 ? left + todayIndex * stepX : null
 
     const lines = series.map((s) => {
@@ -156,7 +156,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
                     strokeWidth={1}
                     strokeDasharray="4 3"
                   />
-                  <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor="middle" fill={TODAY_COLOR}>
+                  <text x={chart.todayX} y={PADDING.top - 4} fontSize={10} textAnchor={todayLabelAnchor(chart.todayX, width)} fill={TODAY_COLOR}>
                     {t('charts.today')}
                   </text>
                 </g>
@@ -213,7 +213,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
                     textAnchor="middle"
                     fill="hsl(var(--muted-foreground))"
                   >
-                    {format(new Date(p.date), 'd MMM', { locale })}
+                    {format(parseDate(p.date), 'd MMM', { locale })}
                   </text>
                 ) : null
               )}
@@ -225,7 +225,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
                 style={{ left: hoveredX, top: hoveredY, transform: tooltipTransform(hoveredX, width, hoveredY) }}
               >
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {format(new Date(hovered.date), 'd MMMM yyyy', { locale })}
+                  {format(parseDate(hovered.date), 'd MMMM yyyy', { locale })}
                 </span>
                 {chart.lines.map((line) => (
                   <span key={line.key} className="flex items-center gap-1.5 whitespace-nowrap text-xs">

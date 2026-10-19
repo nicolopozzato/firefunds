@@ -16,6 +16,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 class Transaction implements SoftDeletable
 {
+    use OccursLocally;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
@@ -44,8 +46,6 @@ class Transaction implements SoftDeletable
     #[ORM\JoinColumn(name: 'destination_account_id', nullable: true, onDelete: 'RESTRICT')]
     private ?Account $destinationAccount;
 
-    #[ORM\Column]
-    private \DateTimeImmutable $occurredAt;
 
     #[ORM\Column(type: 'decimal', precision: 19, scale: 4)]
     #[Assert\Positive]
@@ -95,7 +95,7 @@ class Transaction implements SoftDeletable
         $this->user = $user;
         $this->sourceAccount = $sourceAccount;
         $this->destinationAccount = $destinationAccount;
-        $this->occurredAt = $occurredAt;
+        $this->setOccurredAt($occurredAt);
         $this->amount = $amount;
         $this->currency = $currency;
         $this->tags = new ArrayCollection();
@@ -143,17 +143,6 @@ class Transaction implements SoftDeletable
     public function setDestinationAccount(?Account $destinationAccount): static
     {
         $this->destinationAccount = $destinationAccount;
-        return $this;
-    }
-
-    public function getOccurredAt(): \DateTimeImmutable
-    {
-        return $this->occurredAt;
-    }
-
-    public function setOccurredAt(\DateTimeImmutable $occurredAt): static
-    {
-        $this->occurredAt = $occurredAt;
         return $this;
     }
 

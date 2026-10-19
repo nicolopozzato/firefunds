@@ -1,4 +1,5 @@
-import { api, setTokens, clearTokens, getAccessToken } from './api';
+import axios from 'axios';
+import { api, setTokens, clearTokens, getAccessToken, getRefreshToken } from './api';
 import type {
   LoginRequest,
   LoginResponse,
@@ -48,8 +49,19 @@ export const authApi = {
     return response.data;
   },
 
-  logout(): void {
+  /**
+   * Revokes the refresh token on the server, then forgets both tokens. Sent
+   * without the access token, which may have expired; signs out locally even
+   * when the server can't be reached.
+   */
+  async logout(): Promise<void> {
+    const refreshToken = getRefreshToken();
     clearTokens();
+    if (refreshToken) {
+      await axios
+        .post(`${api.defaults.baseURL ?? ''}/api/auth/logout`, { refresh_token: refreshToken })
+        .catch(() => undefined);
+    }
   },
 
   isAuthenticated(): boolean {

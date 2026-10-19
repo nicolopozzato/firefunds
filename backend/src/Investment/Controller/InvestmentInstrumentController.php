@@ -2,26 +2,26 @@
 
 namespace App\Investment\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Core\Period\CalendarRange;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentPrice;
-use App\Entity\User;
 use App\Investment\DTO\ImportPricesRequest;
 use App\Investment\DTO\InvestmentInstrumentRequest;
 use App\Investment\DTO\InvestmentInstrumentResponse;
 use App\Investment\DTO\InvestmentLivePriceResponse;
 use App\Investment\DTO\InvestmentPriceResponse;
-use App\Investment\PriceProvider\PriceProviderInterface;
 use App\Investment\Service\InstrumentDeletionService;
+use App\Investment\Service\InvestmentInstrumentService;
 use App\Investment\Service\InvestmentPriceService;
+use App\Investment\Service\LiveQuoteService;
 use App\Investment\Service\PriceCalendar;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentPriceRepository;
-use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,13 +31,14 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/investment-instruments')]
 class InvestmentInstrumentController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly InvestmentInstrumentRepository $instrumentRepository,
         private readonly InstrumentDeletionService $instrumentDeletionService,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly InvestmentInstrumentService $instrumentService,
         private readonly InvestmentPriceService $priceService,
         private readonly PriceCalendar $priceCalendar,
-        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -67,7 +68,7 @@ class InvestmentInstrumentController extends AbstractController
     public function prices(string $id, Request $request, InvestmentPriceRepository $priceRepository): JsonResponse
     {
         $instrument = $this->findOwned($id);
-        [$from, $to] = $this->parseDateRange($request);
+        [$from, $to] = CalendarRange::optional($request->query->get('from'), $request->query->get('to'));
 
         $prices = $priceRepository->findByInstrumentInRange($instrument, $from, $to);
 
@@ -86,20 +87,16 @@ class InvestmentInstrumentController extends AbstractController
     {
         $instrument = $this->findOwned($id);
 
-        try {
-            $from = new \DateTimeImmutable($request->from);
-            $to = new \DateTimeImmutable($request->to);
-        } catch (\Exception) {
-            throw new ApiException(ErrorCode::InvalidDateRange);
-        }
+        [$from, $to] = CalendarRange::checked(CalendarRange::day($request->from), CalendarRange::day($request->to));
 
-        if ($from > $to) {
-            throw new ApiException(ErrorCode::DateRangeInverted);
-        }
-
+        // Clamped before anything else is decided: a range entirely in the
+        // future has nothing to import and says so.
         $yesterday = $this->priceCalendar->yesterday();
         if ($to > $yesterday) {
             $to = $yesterday;
+        }
+        if ($from > $to) {
+            throw new ApiException(ErrorCode::DateRangeInverted);
         }
 
         $this->priceService->importRange($instrument, $from, $to);
@@ -108,39 +105,22 @@ class InvestmentInstrumentController extends AbstractController
     }
 
     #[Route('/{id}/live-price', name: 'api_investment_instruments_live_price', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
-    public function livePrice(string $id, PriceProviderInterface $priceProvider): JsonResponse
+    public function livePrice(string $id, LiveQuoteService $liveQuotes): JsonResponse
     {
-        $instrument = $this->findOwned($id);
-        $quote = $priceProvider->getLiveQuote($instrument);
+        $quote = $liveQuotes->quote($this->findOwned($id));
 
         return $this->json(new InvestmentLivePriceResponse(
             price: $quote->price,
             marketState: $quote->marketState->value,
-            fetchedAt: (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            fetchedAt: $quote->fetchedAt->format(\DateTimeInterface::ATOM),
+            refreshSeconds: LiveQuoteService::POLL_SECONDS,
         ));
     }
 
     #[Route('', name: 'api_investment_instruments_create', methods: ['POST'])]
     public function create(#[MapRequestPayload] InvestmentInstrumentRequest $request): JsonResponse
     {
-        $instrument = new InvestmentInstrument($this->getCurrentUser(), $request->name, $request->getInstrumentType());
-        $instrument->setTicker($request->ticker);
-        $instrument->setYahooTicker($request->yahooTicker);
-        $instrument->setIsin($request->isin);
-        $instrument->setCapitalGainsTaxRate($request->capitalGainsTaxRate !== null && $request->capitalGainsTaxRate !== '' ? $request->capitalGainsTaxRate : null);
-
-        $this->entityManager->persist($instrument);
-        $this->entityManager->flush();
-
-        try {
-            $this->priceService->seedInitialPrice($instrument);
-        } catch (\Throwable $e) {
-            // Best-effort: the daily cron will pick this instrument up regardless.
-            $this->logger->warning('Failed to seed initial price for instrument {id}: {error}', [
-                'id' => (string) $instrument->getId(),
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $instrument = $this->instrumentService->create($this->getCurrentUser(), $request);
 
         return $this->json(InvestmentInstrumentResponse::fromEntity($instrument), 201);
     }
@@ -148,15 +128,7 @@ class InvestmentInstrumentController extends AbstractController
     #[Route('/{id}', name: 'api_investment_instruments_update', methods: ['PUT', 'PATCH'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function update(string $id, #[MapRequestPayload] InvestmentInstrumentRequest $request): JsonResponse
     {
-        $instrument = $this->findOwned($id);
-        $instrument->setName($request->name);
-        $instrument->setType($request->getInstrumentType());
-        $instrument->setTicker($request->ticker);
-        $instrument->setYahooTicker($request->yahooTicker);
-        $instrument->setIsin($request->isin);
-        $instrument->setCapitalGainsTaxRate($request->capitalGainsTaxRate !== null && $request->capitalGainsTaxRate !== '' ? $request->capitalGainsTaxRate : null);
-
-        $this->entityManager->flush();
+        $instrument = $this->instrumentService->update($this->findOwned($id), $request);
 
         return $this->json(InvestmentInstrumentResponse::fromEntity($instrument));
     }
@@ -191,34 +163,5 @@ class InvestmentInstrumentController extends AbstractController
         }
 
         return $instrument;
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::InstrumentNotFound);
-        }
-
-        return $user;
-    }
-
-    /**
-     * @return array{0: ?\DateTimeImmutable, 1: ?\DateTimeImmutable}
-     */
-    private function parseDateRange(Request $request): array
-    {
-        $from = $request->query->get('from');
-        $to = $request->query->get('to');
-
-        try {
-            return [
-                $from !== null ? new \DateTimeImmutable($from) : null,
-                $to !== null ? new \DateTimeImmutable($to) : null,
-            ];
-        } catch (\Exception) {
-            throw new ApiException(ErrorCode::InvalidDateRange);
-        }
     }
 }

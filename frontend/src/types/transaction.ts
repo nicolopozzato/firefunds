@@ -25,7 +25,10 @@ export interface Transaction {
   sourceAccount: AccountRef | null
   /** null: money leaving the tracked accounts ("external"). */
   destinationAccount: AccountRef | null
+  /** The clock time where it happened, no offset: show it as it is. */
   occurredAt: string
+  /** Where it happened (IANA). */
+  timezone: string
   amount: string
   currency: string
   foreignAmount: string | null
@@ -69,7 +72,7 @@ export interface TransactionAuditLogChange {
 
 export interface TransactionAuditLogEntry {
   id: string
-  action: 'created' | 'updated'
+  action: 'created' | 'updated' | 'deleted'
   changes: TransactionAuditLogChange[] | null
   createdAt: string
 }
@@ -79,6 +82,8 @@ export interface CreateTransactionRequest {
   sourceAccountId: string | null
   destinationAccountId: string | null
   occurredAt: string
+  /** Where it happened (IANA); left out on an edit to keep it. */
+  timezone?: string
   amount: string
   foreignAmount?: string | null
   foreignCurrency?: string | null

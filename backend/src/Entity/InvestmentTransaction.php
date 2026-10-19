@@ -14,6 +14,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 class InvestmentTransaction implements SoftDeletable
 {
+    use OccursLocally;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
@@ -61,8 +63,6 @@ class InvestmentTransaction implements SoftDeletable
     #[ORM\Column(type: 'decimal', precision: 19, scale: 4, options: ['default' => '0.0000'])]
     private string $taxes = '0.0000';
 
-    #[ORM\Column]
-    private \DateTimeImmutable $occurredAt;
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
@@ -94,7 +94,7 @@ class InvestmentTransaction implements SoftDeletable
         $this->quantity = $quantity;
         $this->unitPrice = $unitPrice;
         $this->amount = $amount ?? self::grossAmount($quantity, $unitPrice);
-        $this->occurredAt = $occurredAt;
+        $this->setOccurredAt($occurredAt);
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
     }
@@ -246,17 +246,6 @@ class InvestmentTransaction implements SoftDeletable
         return $this->type === InvestmentTransactionType::Buy
             ? bcadd($this->amount, $this->getCosts(), 4)
             : bcsub($this->amount, $this->getCosts(), 4);
-    }
-
-    public function getOccurredAt(): \DateTimeImmutable
-    {
-        return $this->occurredAt;
-    }
-
-    public function setOccurredAt(\DateTimeImmutable $occurredAt): static
-    {
-        $this->occurredAt = $occurredAt;
-        return $this;
     }
 
     public function getNotes(): ?string

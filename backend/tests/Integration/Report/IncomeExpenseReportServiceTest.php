@@ -210,14 +210,24 @@ class IncomeExpenseReportServiceTest extends KernelTestCase
         );
     }
 
-    /** Months are the user's: 22:30 UTC on 31 August is already September in Rome. */
-    public function testMonthsFollowTheUsersTimezone(): void
+    /** A transaction is in the month written where it happened (App\Entity\OccursLocally). */
+    public function testMonthsAreTheWrittenOnes(): void
     {
-        $this->transfer($this->checking, $this->supermarket, '10.0000', '2026-08-31 22:30', 'Late night');
+        $this->transfer($this->checking, $this->supermarket, '10.0000', '2026-09-01 00:30', 'Just after midnight');
 
         $report = $this->report('2026-08-01', '2026-09-30');
 
         $this->assertSame(['0.0000', '10.0000'], array_map(static fn ($p) => $p->expenses, $report->periods));
+    }
+
+    /** 31 August, 22:30 in New York was already September in Rome: it stays in August. */
+    public function testATransactionAbroadKeepsItsOwnDay(): void
+    {
+        $this->transfer($this->checking, $this->supermarket, '10.0000', '2026-08-31 22:30', 'Dinner in New York', timezone: 'America/New_York');
+
+        $report = $this->report('2026-08-01', '2026-09-30');
+
+        $this->assertSame(['10.0000', '0.0000'], array_map(static fn ($p) => $p->expenses, $report->periods));
     }
 
     /** Averages divide by the months gone by, not by those still to come. */
@@ -312,9 +322,9 @@ class IncomeExpenseReportServiceTest extends KernelTestCase
         return $category;
     }
 
-    private function transfer(?Account $source, ?Account $destination, string $amount, string $occurredAt, string $description, ?Category $category = null): void
+    private function transfer(?Account $source, ?Account $destination, string $amount, string $occurredAt, string $description, ?Category $category = null, string $timezone = 'Europe/Rome'): void
     {
-        $transaction = new Transaction($this->user, $source, $destination, new \DateTimeImmutable($occurredAt, new \DateTimeZone('UTC')), $amount, 'EUR');
+        $transaction = new Transaction($this->user, $source, $destination, new \DateTimeImmutable($occurredAt, new \DateTimeZone($timezone)), $amount, 'EUR');
         $transaction->setDescription($description);
         $transaction->setCategory($category);
         $this->entityManager->persist($transaction);
@@ -339,7 +349,7 @@ class IncomeExpenseReportServiceTest extends KernelTestCase
             type: $type,
             quantity: $quantity,
             unitPrice: $unitPrice,
-            occurredAt: new \DateTimeImmutable($occurredAt, new \DateTimeZone('UTC')),
+            occurredAt: new \DateTimeImmutable($occurredAt, new \DateTimeZone('Europe/Rome')),
         );
         $trade->setDescription($instrument->getName());
         $trade->setFees($fees);

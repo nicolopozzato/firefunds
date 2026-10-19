@@ -104,5 +104,15 @@ RUN rm -rf var/* config/jwt/*.pem .env.local .env.*.local \
 
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 
+# Runs as `app`, not root: docker-entrypoint starts as root only to hand the
+# data volumes (config/jwt, var/share) to it, then drops to it. The code stays
+# root's, readable by all (a checkout may have private file modes).
+RUN groupadd -g 1000 app \
+    && useradd -u 1000 -g 1000 -M -d /app -s /usr/sbin/nologin app \
+    && chmod -R a+rX /app \
+    && chown -R app:app /data/caddy /config/caddy /app/backend/var
+
+ENV APP_USER=app
+
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}

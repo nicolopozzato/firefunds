@@ -15,6 +15,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<Transaction>
@@ -177,10 +178,10 @@ class TransactionRepository extends ServiceEntityRepository
             $queryParams['accountId'] = $account->getId()->toRfc4122();
         }
         if ($from !== null) {
-            $queryParams['from'] = $from->format('Y-m-d H:i:s');
+            $queryParams['from'] = $from->format('Y-m-d H:i:s.u');
         }
         if ($to !== null) {
-            $queryParams['to'] = $to->format('Y-m-d H:i:s');
+            $queryParams['to'] = $to->format('Y-m-d H:i:s.u');
         }
 
         $dateFilter = static function (string $alias) use ($from, $to): string {
@@ -293,8 +294,8 @@ class TransactionRepository extends ServiceEntityRepository
             $sql,
             [
                 'ids' => array_map(static fn (Account $account) => $account->getId()->toRfc4122(), $accounts),
-                'from' => $from->format('Y-m-d H:i:s'),
-                'to' => $to->format('Y-m-d H:i:s'),
+                'from' => $from->format('Y-m-d H:i:s.u'),
+                'to' => $to->format('Y-m-d H:i:s.u'),
                 'limit' => $limit,
             ],
             ['ids' => ArrayParameterType::STRING, 'limit' => ParameterType::INTEGER]
@@ -335,6 +336,11 @@ class TransactionRepository extends ServiceEntityRepository
 
     public function findOneByUserAndId(User $user, string $id): ?Transaction
     {
+        // Not a UUID is not anything of theirs (and would fail the conversion).
+        if (!Uuid::isValid($id)) {
+            return null;
+        }
+
         return $this->findOneBy(['user' => $user, 'id' => $id]);
     }
 
@@ -401,33 +407,38 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Earliest and latest occurredAt across all of the user's transactions (regardless of kind),
-     * used to bound the "All" timeframe preset. Both null when the user has no transactions yet.
+     * The first and last day the user has anything on: money transactions,
+     * trades and the opening balances of their accounts (deleted ones left
+     * out). Bounds the "All" timeframe. Both null when there is nothing yet.
      *
-     * @return array{0: ?\DateTimeImmutable, 1: ?\DateTimeImmutable}
+     * @return array{0: ?\DateTimeImmutable, 1: ?\DateTimeImmutable} days (midnight)
      */
     public function findDateRange(User $user): array
     {
-        $result = $this->createQueryBuilder('t')
-            ->select('MIN(t.occurredAt) AS earliest', 'MAX(t.occurredAt) AS latest')
-            ->andWhere('t.user = :user')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getOneOrNullResult();
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            <<<SQL
+                SELECT MIN(day) AS earliest, MAX(day) AS latest FROM (
+                    SELECT CAST(occurred_at AS date) AS day FROM transaction WHERE user_id = :user AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT CAST(occurred_at AS date) FROM investment_transaction WHERE user_id = :user AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT opening_balance_date FROM account
+                    WHERE user_id = :user AND deleted_at IS NULL AND opening_balance_date IS NOT NULL
+                ) days
+                SQL,
+            ['user' => $user->getId()->toRfc4122()],
+        );
 
-        if ($result === null || $result['earliest'] === null) {
+        if ($row === false || $row['earliest'] === null) {
             return [null, null];
         }
 
-        return [
-            new \DateTimeImmutable($result['earliest']),
-            new \DateTimeImmutable($result['latest']),
-        ];
+        return [new \DateTimeImmutable($row['earliest']), new \DateTimeImmutable($row['latest'])];
     }
 
     /**
-     * What the reports add up, per flow, category and calendar month (in the
-     * user's timezone) over [from, to]. Flows:
+     * What the reports add up, per flow, category and calendar month (as
+     * written in `occurred_at`) over [from, to]. Flows:
      * - `income`: a deposit (from a revenue account or from nobody to an asset account);
      * - `expense`: a withdrawal (from an asset account to an expense account or to nobody);
      * - `invested` / `divested`: a transfer from a non-investment asset account
@@ -454,10 +465,9 @@ class TransactionRepository extends ServiceEntityRepository
                     END AS flow,
                     t.category_id,
                     c.name AS category_name,
-                    to_char(t.occurred_at AT TIME ZONE 'UTC' AT TIME ZONE u.timezone, 'YYYY-MM') AS month,
+                    to_char(t.occurred_at, 'YYYY-MM') AS month,
                     t.amount
                 FROM transaction t
-                JOIN "user" u ON u.id = t.user_id
                 LEFT JOIN account src ON src.id = t.source_account_id
                 LEFT JOIN account dst ON dst.id = t.destination_account_id
                 LEFT JOIN category c ON c.id = t.category_id
@@ -470,8 +480,8 @@ class TransactionRepository extends ServiceEntityRepository
 
         return $this->getEntityManager()->getConnection()->executeQuery($sql, [
             'user' => $user->getId()->toRfc4122(),
-            'from' => $from->format('Y-m-d H:i:s'),
-            'to' => $to->format('Y-m-d H:i:s'),
+            'from' => $from->format('Y-m-d H:i:s.u'),
+            'to' => $to->format('Y-m-d H:i:s.u'),
         ])->fetchAllAssociative();
     }
 

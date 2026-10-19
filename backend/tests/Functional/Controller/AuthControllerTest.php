@@ -7,45 +7,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthControllerTest extends WebTestCase
 {
-    public function testRegisterEndpointExists(): void
-    {
-        $client = static::createClient();
-
-        $userData = [
-            'firstName' => 'Test' . uniqid(),
-            'lastName' => 'User',
-            'email' => 'test' . uniqid() . '@example.com',
-            'password' => 'SecurePassword123!',
-        ];
-
-        $client->request(
-            'POST',
-            '/api/auth/register',
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json'],
-            json_encode($userData)
-        );
-
-        // Should return 201 (created) or 403 (registration disabled after first user)
-        $statusCode = $client->getResponse()->getStatusCode();
-        $this->assertContains(
-            $statusCode,
-            [Response::HTTP_CREATED, Response::HTTP_FORBIDDEN],
-            "Expected 201 or 403 for register endpoint, got {$statusCode}"
-        );
-    }
-
     public function testRegisterRequiresJsonContent(): void
     {
         $client = static::createClient();
 
         $client->request('POST', '/api/auth/register');
 
-        // Should return 400 or 415 (bad request or unsupported media type)
-        $this->assertTrue(
-            $client->getResponse()->getStatusCode() >= 400
-        );
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
     }
 
     public function testMeEndpointRequiresAuthentication(): void
@@ -127,12 +95,8 @@ class AuthControllerTest extends WebTestCase
             json_encode($invalidEmailData)
         );
 
-        // Should return 400 (bad request) or 422 (unprocessable entity) for invalid email
-        $statusCode = $client->getResponse()->getStatusCode();
-        $this->assertContains(
-            $statusCode,
-            [Response::HTTP_BAD_REQUEST, Response::HTTP_UNPROCESSABLE_ENTITY],
-            "Expected 400 or 422 for invalid email, got {$statusCode}"
-        );
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $violations = json_decode($client->getResponse()->getContent(), true)['violations'];
+        $this->assertSame([['email', 'invalid_email']], array_map(static fn (array $v) => [$v['propertyPath'], $v['code']], $violations));
     }
 }

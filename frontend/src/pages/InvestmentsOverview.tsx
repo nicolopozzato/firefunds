@@ -19,6 +19,7 @@ import { useTimeframe } from '@/contexts/TimeframeContext'
 import { cn, formatMoney, formatPercent, formatQuantity, moneyColorClass } from '@/lib/utils'
 import type { PortfolioPosition } from '@/types/investment'
 import type { DistributionEntry } from '@/types/transaction'
+import LoadFailed from '@/components/LoadFailed'
 
 function Figure({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
@@ -131,7 +132,7 @@ export default function InvestmentsOverview() {
   const { timeframe } = useTimeframe()
   const from = format(timeframe.from, 'yyyy-MM-dd')
   const to = format(timeframe.to, 'yyyy-MM-dd')
-  const { data: portfolio, isLoading } = useInvestmentPortfolio(from, to)
+  const { data: portfolio, isLoading, error, refetch } = useInvestmentPortfolio(from, to)
 
   const header = (
     <>
@@ -139,6 +140,10 @@ export default function InvestmentsOverview() {
       <InvestmentSectionTabs />
     </>
   )
+
+  if (!portfolio && error) {
+    return <LoadFailed error={error} onRetry={() => void refetch()} />
+  }
 
   if (isLoading || !portfolio) {
     return (

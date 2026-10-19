@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { cn, formatMoney, moneyColorClass } from '@/lib/utils'
+import { cn, formatMoney, moneyColorClass, parseDate } from '@/lib/utils'
 import type { DashboardAccount } from '@/types/dashboard'
 import type { Transaction } from '@/types/transaction'
 
@@ -74,7 +74,7 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
                 <li key={transaction.id}>
                   <Link to={detailPath(transaction)} className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent/50">
                     <span className="w-12 shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {format(new Date(transaction.occurredAt), 'd MMM', { locale })}
+                      {format(parseDate(transaction.occurredAt), 'd MMM', { locale })}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{transaction.description ?? '—'}</span>
                     <span className={cn('shrink-0 text-sm font-medium tabular-nums', moneyColorClass(amount))}>

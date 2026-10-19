@@ -4,16 +4,21 @@
 #
 #   RUN_MIGRATIONS=1   apply pending Doctrine migrations before starting
 #                      (only the web container sets it, so they run once)
-#   APP_USER=app       (dev image) drop from root to this user first
+#   APP_USER=app       drop from root to this user first (dev: the host
+#                      user's twin; prod: the image's unprivileged user)
 set -e
 
-# Dev: started as root, run everything as the host user's twin.
-if [ -n "$APP_USER" ] && [ "$(id -u)" = 0 ]; then
-	exec setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups \
-		env HOME="/home/$APP_USER" "$0" "$@"
-fi
-
 cd /app/backend
+
+if [ -n "$APP_USER" ] && [ "$(id -u)" = 0 ]; then
+	# Prod: the volumes may come from an older image that ran as root.
+	if [ "$APP_ENV" = 'prod' ]; then
+		mkdir -p config/jwt var/share
+		chown -R "$APP_USER:$APP_USER" config/jwt var/share
+	fi
+	exec setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups \
+		env HOME="$(getent passwd "$APP_USER" | cut -d: -f6)" "$0" "$@"
+fi
 
 # Only for the app's own commands, not for `docker compose exec ... sh`.
 if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
@@ -23,8 +28,18 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		composer install --prefer-dist --no-progress --no-interaction
 	fi
 
+	# Prod: never with the placeholders from backend/.env.
+	if [ "$APP_ENV" = 'prod' ]; then
+		if [ -z "$APP_SECRET" ] || [ "$JWT_PASSPHRASE" = 'dev-only-passphrase' ] || [ -z "$JWT_PASSPHRASE" ]; then
+			echo 'APP_SECRET and JWT_PASSPHRASE must be set (see the README): refusing to start.'
+			exit 1
+		fi
+	fi
+
 	# JWT keypair: kept on a volume (prod) or in config/jwt (dev, git-ignored).
-	if [ ! -f config/jwt/private.pem ]; then
+	# Only the web container makes it: the scheduler starting at the same
+	# moment could otherwise write half of a second pair.
+	if [ "$1" = 'frankenphp' ] && [ ! -f config/jwt/private.pem ]; then
 		mkdir -p config/jwt
 		php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
 	fi

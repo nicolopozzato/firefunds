@@ -33,6 +33,7 @@ const paramFormatters: Record<string, (value: string | number) => string> = {
 const FIELD_CODES = new Set([
   'required', 'too_short', 'too_long', 'wrong_length', 'must_be_positive', 'must_not_be_negative',
   'out_of_range', 'invalid_email', 'invalid_choice', 'invalid_type', 'invalid',
+  'invalid_number', 'invalid_date', 'invalid_id', 'too_many',
 ]);
 
 function formatParams(params: Record<string, string | number> = {}): Record<string, string | number> {

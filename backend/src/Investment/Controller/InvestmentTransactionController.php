@@ -2,13 +2,13 @@
 
 namespace App\Investment\Controller;
 
+use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Core\Period\UserDayRange;
 use App\Entity\InvestmentTransaction;
-use App\Entity\User;
 use App\Investment\DTO\CreateInvestmentTransactionRequest;
 use App\Investment\DTO\InvestmentDistributionsResponse;
 use App\Investment\DTO\InvestmentTransactionAuditLogResponse;
@@ -23,12 +23,13 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/investment-transactions')]
 class InvestmentTransactionController extends AbstractController
 {
+    use ResolvesCurrentUser;
+
     public function __construct(
         private readonly InvestmentTransactionRepository $investmentTransactionRepository,
         private readonly InvestmentTransactionService $investmentTransactionService,
@@ -101,11 +102,7 @@ class InvestmentTransactionController extends AbstractController
     #[Route('', name: 'api_investment_transactions_create', methods: ['POST'])]
     public function create(#[MapRequestPayload] CreateInvestmentTransactionRequest $request): JsonResponse
     {
-        try {
-            $saved = $this->investmentTransactionService->create($this->getCurrentUser(), $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $saved = $this->investmentTransactionService->create($this->getCurrentUser(), $request);
 
         return $this->json(InvestmentTransactionResponse::fromEntity($saved->transaction, $saved->pricesIncomplete), 201);
     }
@@ -115,11 +112,7 @@ class InvestmentTransactionController extends AbstractController
     {
         $transaction = $this->findOwned($id);
 
-        try {
-            $saved = $this->investmentTransactionService->update($transaction, $request);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
+        $saved = $this->investmentTransactionService->update($transaction, $request);
 
         return $this->json(InvestmentTransactionResponse::fromEntity($saved->transaction, $saved->pricesIncomplete));
     }
@@ -154,16 +147,5 @@ class InvestmentTransactionController extends AbstractController
         }
 
         return $transaction;
-    }
-
-    private function getCurrentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw ApiException::notFound(ErrorCode::InvestmentTransactionNotFound);
-        }
-
-        return $user;
     }
 }

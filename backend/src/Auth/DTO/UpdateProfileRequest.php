@@ -18,6 +18,9 @@ final readonly class UpdateProfileRequest
         #[Assert\NotBlank(message: 'Email is required')]
         #[Assert\Email(message: 'Invalid email address')]
         public string $email,
+
+        /** Needed only when the email changes. */
+        public ?string $currentPassword = null,
     ) {
     }
 }
