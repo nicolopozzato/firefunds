@@ -1,0 +1,59 @@
+# FireFunds, self-hosted. Next to this file you need its .env (see README):
+#
+#   docker compose up -d                          start
+#   docker compose pull && docker compose up -d   update
+#
+# Database migrations run when the new `app` container starts.
+# Data lives in ./data (database, JWT keys, scheduler state): back it up.
+
+x-app: &app
+  image: ghcr.io/nicolopozzato/firefunds:${FIREFUNDS_TAG:-latest}
+  restart: unless-stopped
+  environment: &app-env
+    APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
+    JWT_PASSPHRASE: ${JWT_PASSPHRASE:?set JWT_PASSPHRASE in .env}
+    DATABASE_URL: postgresql://firefunds:${POSTGRES_PASSWORD}@database:5432/firefunds?serverVersion=16&charset=utf8
+    CORS_ALLOW_ORIGIN: ^https?://${DOMAIN:-localhost}(:[0-9]+)?$$
+    APP_TIMEZONE: ${TIMEZONE:-Europe/Rome}
+  volumes:
+    - ./data/jwt:/app/backend/config/jwt
+    - ./data/share:/app/backend/var/share
+  depends_on:
+    database:
+      condition: service_healthy
+
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: firefunds
+      POSTGRES_USER: firefunds
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firefunds -d firefunds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FrankenPHP: the React app on /, the Symfony API on /api.
+  app:
+    <<: *app
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "1"
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8000"
+
+  # Symfony Scheduler (daily investment prices): exits every hour and is restarted.
+  scheduler:
+    <<: *app
+    command: php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=128M -v
+    # The image's healthcheck is FrankenPHP's, which doesn't run here.
+    healthcheck:
+      disable: true
+    depends_on:
+      app:
+        condition: service_started

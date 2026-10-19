@@ -1,0 +1,20 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+
+    # Requests arrive through a reverse proxy on a Docker network: take the
+    # client IP from X-Forwarded-For, which login throttling counts attempts by.
+    trusted_proxies: '127.0.0.1,172.16.0.0/12'
+    trusted_headers: ['x-forwarded-for']
+
+    # Note that the session will be started ONLY if you read or write from it.
+    session: true
+
+    #esi: true
+    #fragments: true
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

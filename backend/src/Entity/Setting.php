@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Entity;
+
+use App\Repository\SettingRepository;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Uuid;
+
+#[ORM\Entity(repositoryClass: SettingRepository::class)]
+#[ORM\Table(name: 'setting')]
+#[ORM\HasLifecycleCallbacks]
+class Setting
+{
+    public const KEY_REGISTRATION_ENABLED = 'registration_enabled';
+    public const KEY_APP_NAME = 'app_name';
+
+    #[ORM\Id]
+    #[ORM\Column(type: 'uuid', unique: true)]
+    private Uuid $id;
+
+    #[ORM\Column(length: 100, unique: true)]
+    private string $key;
+
+    #[ORM\Column(type: 'text')]
+    private string $value;
+
+    #[ORM\Column]
+    private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column]
+    private \DateTimeImmutable $updatedAt;
+
+    public function __construct(string $key, string $value)
+    {
+        $this->id = Uuid::v7();
+        $this->key = $key;
+        $this->value = $value;
+        $this->createdAt = new \DateTimeImmutable();
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function getId(): Uuid
+    {
+        return $this->id;
+    }
+
+    public function getKey(): string
+    {
+        return $this->key;
+    }
+
+    public function getValue(): string
+    {
+        return $this->value;
+    }
+
+    public function setValue(string $value): static
+    {
+        $this->value = $value;
+        return $this;
+    }
+
+    public function getBoolValue(): bool
+    {
+        return filter_var($this->value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    public function setUpdatedAtValue(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+}

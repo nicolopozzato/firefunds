@@ -1,0 +1,134 @@
+# Local dev environment. Every service is plain Docker Compose config (type
+# lando = compose, with paths relative to this folder): the backend image is
+# ./Dockerfile's `dev` target, service configs live in docker/. Lando adds the
+# *.lndo.site proxy with HTTPS and the commands under `tooling`.
+#
+#   https://firefunds.lndo.site       the app (Vite, hot reload; /api → backend)
+#   https://api.firefunds.lndo.site   the Symfony backend directly (profiler)
+#   localhost:54320                   PostgreSQL (app / app, database firefunds)
+#
+# The repository is mounted on /app in every container.
+name: firefunds
+
+# Don't mount your SSH keys into the containers (Lando does by default).
+keys: false
+
+x-backend-env: &backend-env
+  APP_ENV: dev
+  DATABASE_URL: postgresql://app:app@database:5432/firefunds?serverVersion=16&charset=utf8
+  CORS_ALLOW_ORIGIN: '^https?://([a-z0-9-]+\.)*(lndo\.site|localhost)(:[0-9]+)?$'
+  XDEBUG_MODE: ${XDEBUG_MODE:-off}
+
+services:
+  database:
+    type: lando
+    services:
+      image: postgres:16-alpine
+      # Lando runs its own entrypoint first, then this command.
+      command: docker-entrypoint.sh postgres
+      environment:
+        POSTGRES_DB: firefunds
+        POSTGRES_USER: app
+        POSTGRES_PASSWORD: app
+      volumes:
+        - database_data:/var/lib/postgresql/data
+      ports:
+        - "127.0.0.1:54320:5432"
+    volumes:
+      database_data:
+
+  backend:
+    type: lando
+    # HTTPS on the proxy (certificate signed by the Lando CA).
+    ssl: true
+    sslExpose: false
+    services:
+      build:
+        context: .
+        target: dev
+      image: firefunds-dev
+      # Lando runs its own entrypoint first (as root), then this command: the
+      # image's entrypoint switches to the `app` user (your uid), installs
+      # vendor/, makes the JWT keys, waits for the database, runs migrations.
+      command: docker-entrypoint frankenphp run --config /etc/frankenphp/Caddyfile
+      environment:
+        <<: *backend-env
+        RUN_MIGRATIONS: "1"
+      extra_hosts:
+        - host.docker.internal:host-gateway
+
+  # Symfony Scheduler (src/Schedule.php). Exits every hour and is restarted,
+  # so it also picks up code changes.
+  scheduler:
+    type: lando
+    services:
+      # Same image as backend (built once, from cache).
+      build:
+        context: .
+        target: dev
+      image: firefunds-dev
+      # Waits for the backend's composer install on a fresh checkout.
+      command: docker-entrypoint sh -c "until [ -f vendor/autoload_runtime.php ]; do sleep 2; done; exec php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=128M -v"
+      restart: unless-stopped
+      # The image's healthcheck is FrankenPHP's, which doesn't run here.
+      healthcheck:
+        disable: true
+      environment: *backend-env
+
+  frontend:
+    type: lando
+    ssl: true
+    sslExpose: false
+    services:
+      image: node:22-alpine
+      working_dir: /app/frontend
+      # As `node` (uid 1000, like you) so node_modules/ stays yours.
+      command: su node -s /bin/sh -c "npm install && npm run dev"
+
+proxy:
+  frontend:
+    - firefunds.lndo.site:5173
+  backend:
+    - api.firefunds.lndo.site:8000
+
+tooling:
+  php:
+    service: backend
+    user: app
+    dir: /app/backend
+  composer:
+    service: backend
+    user: app
+    dir: /app/backend
+  console:
+    service: backend
+    user: app
+    dir: /app/backend
+    cmd: php bin/console
+  phpunit:
+    service: backend
+    user: app
+    dir: /app/backend
+    cmd: php bin/phpunit
+  npm:
+    service: frontend
+    user: node
+    dir: /app/frontend
+  npx:
+    service: frontend
+    user: node
+    dir: /app/frontend
+  psql:
+    service: database
+    user: postgres
+    cmd: psql -U app firefunds
+  db-import:
+    service: database
+    user: root
+    description: "Replace the dev database with a dump: lando db-import var/dumps/<file>"
+    cmd: sh /app/docker/postgres/db-import.sh
+  db-dump:
+    service: database
+    user: root
+    description: Dump the dev database to var/dumps/
+    cmd: sh /app/docker/postgres/db-dump.sh

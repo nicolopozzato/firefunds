@@ -1,0 +1,88 @@
+export type TransactionKind = 'all' | 'withdrawal' | 'deposit' | 'transfer'
+/** Lists only: also `trade` (investment BUY/SELLs only) and `cash` (money transactions only, any kind). */
+export type TransactionListKind = TransactionKind | 'trade' | 'cash'
+
+export interface AccountRef {
+  id: string
+  name: string
+  type: 'asset' | 'expense' | 'revenue' | 'instrument'
+  /** Only for an instrument standing in as a side: etf, stock… (its name is then the ticker). */
+  instrumentType?: string | null
+}
+
+export interface TagRef {
+  id: string
+  name: string
+}
+
+/** 'money' is a plain Transaction; 'investmentBuy'/'investmentSell' stand in for an InvestmentTransaction in the merged "all transactions" list. */
+export type TransactionRowKind = 'money' | 'investmentBuy' | 'investmentSell'
+
+export interface Transaction {
+  id: string
+  description: string | null
+  /** null: money coming from outside the tracked accounts ("external"). */
+  sourceAccount: AccountRef | null
+  /** null: money leaving the tracked accounts ("external"). */
+  destinationAccount: AccountRef | null
+  occurredAt: string
+  amount: string
+  currency: string
+  foreignAmount: string | null
+  foreignCurrency: string | null
+  categoryId: string | null
+  categoryName: string | null
+  tags: TagRef[]
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  kind: TransactionRowKind
+  /** Investment BUY/SELL only; null for a money transaction. */
+  quantity: string | null
+  unitPrice: string | null
+  fees: string | null
+  taxes: string | null
+}
+
+export interface DateRange {
+  earliest: string | null
+  latest: string | null
+}
+
+export interface DistributionEntry {
+  id: string | null
+  name: string | null
+  total: string
+}
+
+export interface Distributions {
+  categories: DistributionEntry[]
+  sourceAccounts: DistributionEntry[]
+  destinationAccounts: DistributionEntry[]
+}
+
+export interface TransactionAuditLogChange {
+  field: string
+  oldValue: unknown
+  newValue: unknown
+}
+
+export interface TransactionAuditLogEntry {
+  id: string
+  action: 'created' | 'updated'
+  changes: TransactionAuditLogChange[] | null
+  createdAt: string
+}
+
+export interface CreateTransactionRequest {
+  description?: string | null
+  sourceAccountId: string | null
+  destinationAccountId: string | null
+  occurredAt: string
+  amount: string
+  foreignAmount?: string | null
+  foreignCurrency?: string | null
+  categoryId?: string | null
+  tagIds?: string[]
+  notes?: string | null
+}

@@ -1,0 +1,52 @@
+# FrankenPHP (Caddy) config, shared by dev and prod.
+# TLS is never handled here: Lando's proxy (dev) and Traefik (prod) do it.
+{
+	auto_https off
+	# Admin API on localhost:2019 only: the image's healthcheck reads its
+	# /metrics, and Traefik/Lando skip a container that isn't healthy.
+	{$CADDY_GLOBAL_OPTIONS}
+
+	frankenphp {
+		{$FRANKENPHP_CONFIG}
+	}
+}
+
+{$SERVER_NAME::8000} {
+	log {
+		output stderr
+		format console
+		level {$CADDY_LOG_LEVEL:WARN}
+	}
+
+	encode zstd br gzip
+
+	# Symfony: the API, plus the profiler in dev.
+	@symfony path /api /api/* /_profiler* /_wdt* /bundles/*
+	handle @symfony {
+		root * /app/backend/public
+		request_body {
+			max_size 20MB
+		}
+		php_server
+	}
+
+	# The built React app (frontend/dist). In dev Vite serves it instead.
+	handle {
+		root * /app/frontend/dist
+
+		# Hashed file names: a new build gets new names, so cache them for good.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# index.html, the manifest and icons are always revalidated, so a
+		# new release reaches the browser (and the installed app) on next load.
+		@revalidate not path /assets/*
+		header @revalidate Cache-Control "no-cache"
+
+		@manifest path /manifest.webmanifest
+		header @manifest Content-Type "application/manifest+json"
+
+		try_files {path} /index.html
+		file_server
+	}
+}

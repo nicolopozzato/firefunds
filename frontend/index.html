@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: on phones the app draws under the notch and the home indicator, padding itself with env(safe-area-inset-*).
+         No zoom, as in a native app: see also touch-action in index.css and gesturestart in main.tsx. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="description" content="FireFunds - Personal finance & net worth tracking" />
+    <meta name="theme-color" content="#ffffff" />
+    <!-- Dark mode from the first frame (src/lib/theme.ts applies the full theme a moment later): no white flash. -->
+    <script>
+      try {
+        var config = JSON.parse(localStorage.getItem('theme-config') || '{}')
+        if (config.mode === 'dark') {
+          document.documentElement.classList.add('dark')
+          document.documentElement.style.colorScheme = 'dark'
+          document.documentElement.style.backgroundColor = '#0c0c0e'
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0c0c0e')
+        }
+      } catch (e) {}
+    </script>
+
+    <!-- Installable as an app (PWA): Android/Chrome read the manifest, iOS the apple-* tags. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FireFunds" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <title>FireFunds</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

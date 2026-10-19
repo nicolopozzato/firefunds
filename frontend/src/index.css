@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Geist Font Faces */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* Light mode */
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 221.2 83.2% 53.3%;
+
+    /* 0.75rem (12px) instead of the usual 0.5rem (8px) */
+    --radius: 0.75rem;
+
+    /* Colours with a meaning and chart series: src/lib/theme.ts (SEMANTIC) sets
+       them for the mode on screen; these are the light ones, before it runs. */
+    --positive: 142.1 76.2% 36.3%;
+    --negative: 0 72.2% 50.6%;
+    --info: 221.2 83.2% 53.3%;
+    --invest: 262.1 83.3% 57.8%;
+    --warning: 32.1 94.6% 43.7%;
+    --series-1: 212.8 67.7% 50.2%;
+    --series-2: 17 82.1% 56.3%;
+    --series-3: 158.5 73.3% 39.6%;
+    --series-4: 40.8 100% 46.5%;
+    --series-5: 337.4 70.3% 69.6%;
+    --series-6: 120 100% 25.7%;
+    --series-7: 248.8 48.4% 44.1%;
+    --series-8: 0.4 73.5% 58.6%;
+    --series-other: 55 9.1% 74.1%;
+
+    /* Chart colors for data visualization */
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 212 95% 68%;
+    --chart-3: 216 92% 60%;
+    --chart-4: 210 98% 78%;
+    --chart-5: 212 97% 87%;
+  }
+
+  /* Density variants */
+  [data-density="compact"] {
+    --spacing-unit: 0.75;
+  }
+
+  [data-density="comfortable"] {
+    --spacing-unit: 1;
+  }
+
+  [data-density="spacious"] {
+    --spacing-unit: 1.25;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Touch screens: no grey flash on whatever is tapped, the app gives its own feedback (active: states);
+     no double-tap zoom (the app doesn't zoom, see the viewport in index.html). */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* Phones: iOS zooms into a field whose text is smaller than 16px when it gets the focus.
+     A field drawn larger on purpose (e.g. a form's amount) opts out with data-large. */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']):not([data-large]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Phones' bars over the page (top bar, bottom navigation, form buttons):
+     frosted glass with the page scrolling under it, a CSS take on iOS "Liquid
+     Glass" (its refraction can't be done on the web): strong blur, a bit more
+     colour from what is under it, a faint sheen and a thin light edge.
+     Nearly opaque where the browser can't blur. */
+  .glass-bar {
+    background-color: hsl(var(--background) / 0.95);
+  }
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-bar {
+      background-color: hsl(var(--background) / 0.62);
+      background-image: linear-gradient(to bottom, hsl(0 0% 100% / 0.3), hsl(0 0% 100% / 0.05));
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+    }
+    .dark .glass-bar {
+      background-image: linear-gradient(to bottom, hsl(0 0% 100% / 0.06), transparent);
+    }
+  }
+  /* The edge facing the page: a hairline and a soft shadow. */
+  .glass-bar-top {
+    box-shadow: 0 1px 0 hsl(var(--border) / 0.8), 0 4px 16px hsl(0 0% 0% / 0.04);
+  }
+  /* A bar at the bottom also catches the light on its top edge. */
+  .glass-bar-bottom {
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.65), 0 -1px 0 hsl(var(--border) / 0.8), 0 -4px 16px hsl(0 0% 0% / 0.05);
+  }
+  .dark .glass-bar-bottom {
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08), 0 -1px 0 hsl(var(--border) / 0.8), 0 -4px 16px hsl(0 0% 0% / 0.3);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}

@@ -1,0 +1,21 @@
+# Environment files
+.env.local
+.env.*.local
+
+# A self-hosted install's data and local overrides (compose.yml)
+/data/
+/compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local runtime data (database dumps, …)
+/var/
+
+# Lando per-machine overrides
+.lando.local.yml
