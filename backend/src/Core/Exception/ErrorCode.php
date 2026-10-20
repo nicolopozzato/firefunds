@@ -42,6 +42,10 @@ enum ErrorCode: string
     case InvestmentAccountRequired = 'investment_account_required';
     case AmountFarFromQuantityTimesPrice = 'amount_far_from_quantity_times_price';
     case InstrumentInUse = 'instrument_in_use';
+    case PriceNotFound = 'price_not_found';
+    case PriceDateInFuture = 'price_date_in_future';
+    case PriceWithoutProviderValue = 'price_without_provider_value';
+    case PriceFromProvider = 'price_from_provider';
 
     // Currencies (admin)
     case CurrencyCodeTaken = 'currency_code_taken';
@@ -80,6 +84,10 @@ enum ErrorCode: string
             self::InvestmentAccountRequired => 'Investment transactions require an investment asset account.',
             self::AmountFarFromQuantityTimesPrice => 'The amount {amount} is too far from quantity × unit price ({expected}): check the figures.',
             self::InstrumentInUse => 'This instrument has {transactions} investment transaction(s): confirm deleting them too.',
+            self::PriceNotFound => 'No price recorded on that day.',
+            self::PriceDateInFuture => 'A price can only be recorded for today or a day before.',
+            self::PriceWithoutProviderValue => 'This price was entered by hand: there is no imported value to restore.',
+            self::PriceFromProvider => 'An imported price cannot be removed: restore the imported value instead.',
             self::CurrencyCodeTaken => 'A currency with this code already exists.',
             self::CurrencyInUse => 'This currency is in use by one or more accounts and cannot be deleted.',
             self::InvalidDateRange => 'Invalid date range.',

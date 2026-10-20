@@ -101,13 +101,30 @@ class InvestmentPriceServiceTest extends KernelTestCase
         $this->importThrough('2026-09-28');
 
         $monday = $this->priceRepository->findOneByInstrumentAndDate($this->instrument, new \DateTimeImmutable('2026-09-28'));
-        $monday->setPrice('150.0000');
+        $monday->setManualPrice('150.0000');
         $this->entityManager->flush();
 
         $this->marketPrices['2026-09-28'] = '169.1400';
         $this->importThrough('2026-09-28');
 
         $this->assertPrice('2026-09-28', '150.0000');
+        // The provider's newer close is kept, for when the user restores it.
+        $monday->restoreProviderPrice();
+        $this->assertSame(['169.1400', 'market'], [$monday->getPrice(), $monday->getSource()->value]);
+    }
+
+    /** Days without a close (the weekend) are carried over, and say so. */
+    public function testCarriedOverDaysAreMarkedAsSuch(): void
+    {
+        $this->marketPrices = ['2026-09-25' => '169.7700', '2026-09-28' => '170.0000'];
+        $this->importThrough('2026-09-28');
+
+        $sources = [];
+        foreach (['2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28'] as $day) {
+            $sources[$day] = $this->priceRepository->findOneByInstrumentAndDate($this->instrument, new \DateTimeImmutable($day))->getSource()->value;
+        }
+
+        $this->assertSame(['2026-09-25' => 'market', '2026-09-26' => 'filled', '2026-09-27' => 'filled', '2026-09-28' => 'market'], $sources);
     }
 
     /**

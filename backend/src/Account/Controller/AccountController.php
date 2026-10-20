@@ -7,6 +7,7 @@ use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Period\CalendarRange;
 use App\Account\DTO\AccountDistributionsResponse;
+use App\Account\DTO\AccountAuditLogResponse;
 use App\Account\DTO\AccountListQuery;
 use App\Account\DTO\AccountResponse;
 use App\Account\DTO\AccountValueHistoryPointResponse;
@@ -23,6 +24,8 @@ use App\Core\Period\UserDayRange;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
 use App\Investment\Service\OpenPositionService;
+use App\Repository\AccountAdjustmentRepository;
+use App\Repository\AccountAuditLogRepository;
 use App\Repository\AccountRepository;
 use App\Repository\InvestmentTransactionRepository;
 use App\Repository\TransactionRepository;
@@ -47,6 +50,8 @@ class AccountController extends AbstractController
         private readonly TransactionRepository $transactionRepository,
         private readonly InvestmentTransactionRepository $investmentTransactionRepository,
         private readonly OpenPositionService $openPositionService,
+        private readonly AccountAdjustmentRepository $accountAdjustmentRepository,
+        private readonly AccountAuditLogRepository $accountAuditLogRepository,
     ) {
     }
 
@@ -64,15 +69,25 @@ class AccountController extends AbstractController
             $filter->assetKind(),
         );
 
-        $items = $this->toResponseBatch($accounts);
+        $items = $this->toResponseBatch($accounts, $this->balanceDay($request));
 
         return $this->json(PaginatedResponse::create($items, $total, $params));
     }
 
     #[Route('/{id}', name: 'api_accounts_get', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
-    public function get(string $id): JsonResponse
+    public function get(string $id, Request $request): JsonResponse
     {
-        return $this->json($this->toResponse($this->findOwnedAccount($id)));
+        return $this->json($this->toResponse($this->findOwnedAccount($id), $this->balanceDay($request)));
+    }
+
+    /** The account's history: created, what each update changed, deleted. Newest first. */
+    #[Route('/{id}/audit-log', name: 'api_accounts_audit_log', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function auditLog(string $id): JsonResponse
+    {
+        return $this->json(array_map(
+            AccountAuditLogResponse::fromEntity(...),
+            $this->accountAuditLogRepository->findByAccount($this->findOwnedAccount($id)),
+        ));
     }
 
     #[Route('/{id}/balance-history', name: 'api_accounts_balance_history', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -214,22 +229,43 @@ class AccountController extends AbstractController
         return $this->json(null, 204);
     }
 
-    private function toResponse(\App\Entity\Account $account): AccountResponse
+    /**
+     * The day the balances are read at: `?on=Y-m-d` (the app sends the last
+     * day of the selected period), else today in the user's timezone.
+     */
+    private function balanceDay(Request $request): \DateTimeImmutable
     {
-        return $this->toResponseBatch([$account])[0];
+        $on = $request->query->get('on');
+        if ($on !== null) {
+            return CalendarRange::day((string) $on);
+        }
+
+        return $this->today();
+    }
+
+    private function today(): \DateTimeImmutable
+    {
+        return CalendarRange::day((new \DateTimeImmutable('now', new \DateTimeZone($this->getCurrentUser()->getTimezone())))->format('Y-m-d'));
+    }
+
+    private function toResponse(\App\Entity\Account $account, ?\DateTimeImmutable $on = null): AccountResponse
+    {
+        return $this->toResponseBatch([$account], $on)[0];
     }
 
     /**
      * @param \App\Entity\Account[] $accounts
      * @return AccountResponse[]
      */
-    private function toResponseBatch(array $accounts): array
+    private function toResponseBatch(array $accounts, ?\DateTimeImmutable $on = null): array
     {
-        $balances = $this->accountRepository->getCurrentBalances($accounts);
+        $on ??= $this->today();
+        $balances = $this->accountRepository->getBalancesOn($accounts, $on);
         $lastActivityDates = $this->accountRepository->getLastActivityDates($accounts);
-        $investedSummaries = $this->openPositionService->investedSummaries($accounts);
+        $investedSummaries = $this->openPositionService->investedSummaries($accounts, $on);
+        $adjustments = $this->accountAdjustmentRepository->findByAccounts($accounts);
 
-        return array_map(function (\App\Entity\Account $account) use ($balances, $lastActivityDates, $investedSummaries) {
+        return array_map(function (\App\Entity\Account $account) use ($balances, $lastActivityDates, $investedSummaries, $adjustments, $on) {
             $id = (string) $account->getId();
             $invested = $investedSummaries[$id] ?? null;
 
@@ -241,6 +277,8 @@ class AccountController extends AbstractController
                 $invested['gainAmount'] ?? null,
                 $invested['gainPercent'] ?? null,
                 $invested['estimatedTax'] ?? null,
+                $adjustments[$id] ?? [],
+                $on,
             );
         }, $accounts);
     }

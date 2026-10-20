@@ -44,6 +44,16 @@ final readonly class CreateAccountRequest
         #[DateValue]
         public ?string $openingBalanceDate = null,
 
+        /**
+         * Asset accounts: their other changes (AccountAdjustment), all of
+         * them. Those not sent any more are deleted, those with an id updated,
+         * the others created; null leaves them as they are.
+         *
+         * @var ?array<array{id?: ?string, date: string, amount: string, description?: ?string}>
+         */
+        #[AdjustmentList]
+        public ?array $adjustments = null,
+
         #[Assert\Choice(choices: ['checking', 'investment'])]
         public ?string $assetKind = null,
     ) {

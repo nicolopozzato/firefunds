@@ -64,19 +64,6 @@ export interface Distributions {
   destinationAccounts: DistributionEntry[]
 }
 
-export interface TransactionAuditLogChange {
-  field: string
-  oldValue: unknown
-  newValue: unknown
-}
-
-export interface TransactionAuditLogEntry {
-  id: string
-  action: 'created' | 'updated' | 'deleted'
-  changes: TransactionAuditLogChange[] | null
-  createdAt: string
-}
-
 export interface CreateTransactionRequest {
   description?: string | null
   sourceAccountId: string | null
@@ -90,4 +77,13 @@ export interface CreateTransactionRequest {
   categoryId?: string | null
   tagIds?: string[]
   notes?: string | null
+  /**
+   * Written in the form instead of picked (a side's id is then null): the
+   * server finds the user's one with that name, any case, or creates it in
+   * the same save. Source: a revenue account, destination: an expense account.
+   */
+  newSourceAccountName?: string | null
+  newDestinationAccountName?: string | null
+  newCategoryName?: string | null
+  newTagNames?: string[]
 }

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -15,6 +14,7 @@ import { TransactionSectionTabs } from '@/components/layout/SectionTabs'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 import type { TransactionKind } from '@/types/transaction'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 interface TransactionsTableProps {
   kind: TransactionKind
@@ -35,15 +35,11 @@ export default function TransactionsTable({
   const navigate = useNavigate()
   const { timeframe } = useTimeframe()
   const isMobile = useIsMobile()
-  const [page, setPage] = useState(1)
-  const [showAll, setShowAll] = useState(false)
-  const { data, isLoading } = useTransactions(kind, page, showAll)
+  const { page, setPage, showAll, setShowAll } = useListPage([timeframe.from.getTime(), timeframe.to.getTime()])
+  const { data, isLoading, isPlaceholderData } = useTransactions(kind, page, showAll)
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const transactions = data?.items
   const { data: distributions } = useTransactionDistributions(kind, !showAll)
-
-  useEffect(() => {
-    setPage(1)
-  }, [kind, timeframe.from, timeframe.to, showAll])
 
   const locale = i18n.language === 'it' ? it : enUS
   const rangeLabel = t('transactionsCommon.rangeSuffix', {
@@ -115,7 +111,7 @@ export default function TransactionsTable({
         </div>
         <button
           type="button"
-          onClick={() => setShowAll((current) => !current)}
+          onClick={() => setShowAll(!showAll)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ListFilter className="h-4 w-4" />

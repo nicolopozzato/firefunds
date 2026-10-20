@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -35,6 +35,7 @@ import { handleApiError } from '@/lib/error-handler'
 import type { ClassificationResource } from '@/lib/classification-api'
 import type { Classification } from '@/types/classification'
 import EmptyValue from '@/components/EmptyValue'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 interface ClassificationTableProps {
   resource: ClassificationResource
@@ -55,16 +56,13 @@ export default function ClassificationTable({
 }: ClassificationTableProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [page, setPage] = useState(1)
-  const { data, isLoading } = useClassificationList(resource, page)
+  const { page, setPage } = useListPage()
+  const { data, isLoading, isPlaceholderData } = useClassificationList(resource, page)
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const items = data?.items
   const deleteItem = useDeleteClassification(resource)
   const [itemToDelete, setItemToDelete] = useState<Classification | null>(null)
   const { data: deletionPreview, isLoading: isPreviewLoading } = useClassificationDeletionPreview(resource, itemToDelete?.id ?? null)
-
-  useEffect(() => {
-    setPage(1)
-  }, [resource])
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return

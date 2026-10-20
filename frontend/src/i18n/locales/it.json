@@ -16,7 +16,13 @@
     "no": "No",
     "back": "Indietro",
     "retry": "Riprova",
-    "reload": "Ricarica"
+    "reload": "Ricarica",
+    "moreActions": "Altre azioni"
+  },
+  "history": {
+    "title": "Cronologia modifiche",
+    "empty": "Nessuna modifica registrata.",
+    "emptyValue": "vuoto"
   },
   "auth": {
     "login": "Accedi",
@@ -121,7 +127,12 @@
     "showCurrentRange": "Mostra il periodo e la panoramica corrente",
     "notes": "Note",
     "today": "Oggi",
-    "yesterday": "Ieri"
+    "yesterday": "Ieri",
+    "kindOne_withdrawal": "Uscita",
+    "kindOne_deposit": "Entrata",
+    "kindOne_transfer": "Trasferimento",
+    "flowFrom": "Da",
+    "flowTo": "A"
   },
   "transactionForm": {
     "title": "Nuova transazione",
@@ -144,13 +155,13 @@
     "category": "Categoria",
     "selectCategory": "Seleziona una categoria (opzionale)",
     "tags": "Etichette",
-    "pendingNew": "{{name}} (nuovo, creato al salvataggio)"
+    "pendingNew": "{{name}} (nuovo, creato al salvataggio)",
+    "sectionTransaction": "Movimento",
+    "sectionClassification": "Classificazione"
   },
   "transactionDetail": {
     "title": "Dettaglio transazione",
     "noDescription": "Transazione senza descrizione",
-    "history": "Cronologia modifiche",
-    "historyEmpty": "Nessuna modifica registrata.",
     "historyCreated": "Transazione creata",
     "historyField": {
       "description": "Descrizione",
@@ -164,12 +175,26 @@
       "category": "Categoria",
       "tags": "Etichette",
       "notes": "Note"
-    },
-    "historyEmptyValue": "vuoto"
+    }
   },
   "accountDetail": {
     "title": "Dettaglio conto",
-    "currentBalance": "Saldo attuale",
+    "historyCreated": "Conto creato",
+    "historyAdjustmentAdded": "Aggiunta altra operazione",
+    "historyAdjustmentRemoved": "Rimossa altra operazione",
+    "historyAdjustmentChanged": "Altra operazione modificata",
+    "historyField": {
+      "name": "Nome",
+      "iban": "IBAN",
+      "bic": "BIC/SWIFT",
+      "accountNumber": "Numero conto",
+      "notes": "Note",
+      "isActive": "Attivo",
+      "currency": "Valuta",
+      "openingBalance": "Saldo di apertura",
+      "openingBalanceDate": "Data saldo di apertura"
+    },
+    "balanceOn": "Saldo al {{date}}",
     "balanceTrend": "Andamento del saldo",
     "valueTrend": "Andamento del valore",
     "expensesByCategory": "Uscite per categoria",
@@ -223,7 +248,7 @@
     "add": "Aggiungi conto",
     "name": "Nome",
     "accountNumber": "Numero conto",
-    "currentBalance": "Saldo corrente",
+    "balanceOn": "Saldo al {{date}}",
     "active": "Attivo",
     "lastActivity": "Ultima attività",
     "actions": "Azioni",
@@ -234,11 +259,26 @@
     "selectCurrency": "Seleziona una valuta",
     "openingBalance": "Saldo di apertura",
     "openingBalanceDate": "Data saldo di apertura",
+    "sectionAdjustments": "Altre operazioni",
+    "adjustmentsHint": "Denaro che cambia il saldo senza essere un'entrata o un'uscita, ad esempio contanti che c'erano già o una correzione. Non compaiono tra le transazioni né nei conti di entrate e uscite.",
+    "adjustmentsEmpty": "Nessuna.",
+    "adjustmentDate": "Data",
+    "adjustmentAmount": "Importo",
+    "adjustmentAmountHint": "Negativo per togliere denaro.",
+    "adjustmentDescription": "Descrizione",
+    "addAdjustment": "Aggiungi operazione",
+    "removeAdjustment": "Rimuovi questa operazione",
+    "adjustmentIncomplete": "Inserisci data e importo.",
+    "adjustmentDone": "Fatto",
+    "editAdjustment": "Modifica questa operazione",
+    "adjustmentNoDescription": "Senza descrizione",
+    "adjustmentOpen": "Conferma o annulla l'operazione aperta prima di salvare.",
     "assetKind": "Tipologia",
     "assetKind_checking": "Conto corrente",
     "assetKind_investment": "Conto titoli",
     "assetKindImmutableHint": "Non modificabile dopo la creazione del conto.",
     "sectionGeneral": "Generale",
+    "sectionBalance": "Saldo",
     "sectionBankDetails": "Coordinate bancarie",
     "optional": "facoltative",
     "assetKindDescription_checking": "Soldi che spendi e ricevi ogni giorno",
@@ -253,6 +293,8 @@
     "deleteInUse": "\"{{name}}\" è ancora usato da:",
     "deleteTransactionsCount_one": "{{count}} transazione",
     "deleteTransactionsCount_other": "{{count}} transazioni",
+    "deleteAdjustmentsCount_one": "{{count}} altra operazione sul saldo",
+    "deleteAdjustmentsCount_other": "{{count}} altre operazioni sul saldo",
     "deleteInvestmentTransactionsCount_one": "{{count}} operazione d'investimento",
     "deleteInvestmentTransactionsCount_other": "{{count}} operazioni d'investimento",
     "deleteOpenPositionsCount_one": "{{count}} posizione aperta",
@@ -263,7 +305,7 @@
     "deleteAllOption": "Elimina il conto insieme a tutte le sue transazioni",
     "deleteAllWarning": "Le transazioni spariranno anche dagli altri conti coinvolti (es. il conto spesa o il conto di un trasferimento), e i loro saldi cambieranno.",
     "deleteOpeningBalance": "un saldo iniziale di {{amount}}",
-    "deleteTransferOpeningBalanceHint": "Il saldo iniziale diventa un movimento \"{{name}}\" sul conto scelto.",
+    "deleteTransferOpeningBalanceHint": "Il saldo iniziale diventa un'altra operazione \"{{name}}\" sul conto scelto: si somma al suo saldo, ma non è un'entrata né un'uscita e non compare tra le transazioni.",
     "filterStatus": "Stato",
     "filterAll": "Tutti",
     "status_active": "Attivi",
@@ -494,7 +536,11 @@
       "currency_in_use": "Impossibile eliminare: la valuta è in uso da uno o più conti.",
       "invalid_date_range": "Intervallo di date non valido.",
       "date_range_inverted": "La data di inizio deve essere uguale o precedente alla data di fine.",
-      "date_range_too_long": "Un intervallo di date può coprire al massimo {{years}} anni."
+      "date_range_too_long": "Un intervallo di date può coprire al massimo {{years}} anni.",
+      "price_not_found": "Nessun prezzo registrato in quel giorno.",
+      "price_date_in_future": "Si può registrare un prezzo solo per oggi o per un giorno passato.",
+      "price_without_provider_value": "Questo prezzo è stato inserito a mano: non c'è un valore importato da ripristinare.",
+      "price_from_provider": "Un prezzo importato non si può togliere: ripristina il valore importato."
     },
     "validation": {
       "required": "campo obbligatorio.",
@@ -521,10 +567,13 @@
     "fields": {
       "accountId": "Conto",
       "accountNumber": "Numero di conto",
+      "adjustments[amount]": "Altra operazione: importo",
+      "adjustments[date]": "Altra operazione: data",
+      "adjustments[description]": "Altra operazione: descrizione",
       "afterId": "Posizione",
-      "beforeId": "Posizione",
       "amount": "Importo",
       "assetKind": "Tipo di conto",
+      "beforeId": "Posizione",
       "bic": "BIC",
       "capitalGainsTaxRate": "Aliquota sulle plusvalenze",
       "categoryId": "Categoria",
@@ -547,7 +596,11 @@
       "lastName": "Cognome",
       "locale": "Lingua",
       "name": "Nome",
+      "newCategoryName": "Categoria",
+      "newDestinationAccountName": "Conto di destinazione",
       "newPassword": "Nuova password",
+      "newSourceAccountName": "Conto di origine",
+      "newTagNames": "Etichette",
       "notes": "Note",
       "numberFormat": "Formato dei numeri",
       "occurredAt": "Data",
@@ -732,15 +785,20 @@
     "amountImplausible": "Troppo lontano da quote × prezzo ({{value}}): controlla i valori",
     "fees": "Commissioni",
     "taxes": "Tasse",
-    "total": "Totale",
     "pricesIncompleteWarning": "Non è stato possibile recuperare tutti i valori di chiusura mancanti per {{instrument}}. Riprova manualmente dalla sezione Strumenti per avere grafici e report corretti.",
     "heldToday": "Oggi su questo conto ne hai {{quantity}}.",
-    "sellExceedsHolding": "Più di quanti ne hai oggi su questo conto ({{quantity}}): controlla la quantità."
+    "sellExceedsHolding": "Più di quanti ne hai oggi su questo conto ({{quantity}}): controlla la quantità.",
+    "sectionTrade": "Operazione",
+    "sectionAmounts": "Importi",
+    "summary": "Riepilogo",
+    "totalDebited": "Addebitato sul conto",
+    "totalCredited": "Accreditato sul conto",
+    "amountFollows": "Il controvalore segue quote × prezzo: correggilo se il broker ha addebitato un importo diverso.",
+    "typeBuyDescription": "Compri quote: il denaro esce dal conto titoli",
+    "typeSellDescription": "Vendi quote: il denaro torna sul conto titoli"
   },
   "investmentTransactionDetail": {
     "title": "Dettaglio transazione di investimento",
-    "history": "Cronologia modifiche",
-    "historyEmpty": "Nessuna modifica registrata.",
     "historyCreated": "Transazione creata",
     "historyField": {
       "description": "Descrizione",
@@ -754,8 +812,7 @@
       "taxes": "Tasse",
       "occurredAt": "Data",
       "notes": "Note"
-    },
-    "historyEmptyValue": "vuoto"
+    }
   },
   "investmentInstruments": {
     "title": "Strumenti finanziari",
@@ -805,7 +862,30 @@
     "marketState_pre_market": "Pre-market",
     "marketState_post_market": "Post-market",
     "marketState_closed": "Mercato chiuso",
-    "marketState_unknown": "Stato sconosciuto"
+    "marketState_unknown": "Stato sconosciuto",
+    "viewLabel": "Come mostrare i prezzi",
+    "viewChart": "Grafico",
+    "viewList": "Elenco"
+  },
+  "instrumentPrices": {
+    "date": "Giorno",
+    "price": "Prezzo",
+    "add": "Aggiungi prezzo",
+    "edit": "Modifica il prezzo",
+    "remove": "Togli questo prezzo",
+    "showFilled": "Mostra i giorni senza chiusura",
+    "empty": "Nessun prezzo in questo periodo.",
+    "manualHint": "Un prezzo inserito a mano non viene più sovrascritto dall'importazione.",
+    "dayExists": "Per questo giorno c'è già un prezzo ({{price}}): verrà corretto.",
+    "imported": "importato: {{price}}",
+    "source_market": "Importato",
+    "source_filled": "Copiato dal giorno prima",
+    "source_manual": "Manuale",
+    "source": "Origine",
+    "previousMonth": "Mese precedente",
+    "nextMonth": "Mese successivo",
+    "restoreTo": "Ripristina importato ({{price}})",
+    "change": "Variazione"
   },
   "pricePeriod": {
     "label": "Periodo",
@@ -820,7 +900,7 @@
   "importPrices": {
     "button": "Importa prezzi",
     "title": "Importa prezzi",
-    "description": "Recupera i prezzi di chiusura giorno per giorno da Yahoo Finance per l'intervallo scelto. I giorni già presenti non vengono sovrascritti.",
+    "description": "Recupera i prezzi di chiusura giorno per giorno da Yahoo Finance per l'intervallo scelto. I prezzi già importati si aggiornano se Yahoo li ha cambiati; quelli inseriti o corretti a mano restano come sono.",
     "from": "Dal",
     "to": "Al",
     "import": "Importa"

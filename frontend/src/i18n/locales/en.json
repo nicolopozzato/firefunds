@@ -16,7 +16,13 @@
     "no": "No",
     "back": "Back",
     "retry": "Try again",
-    "reload": "Reload"
+    "reload": "Reload",
+    "moreActions": "More actions"
+  },
+  "history": {
+    "title": "Change history",
+    "empty": "No changes recorded.",
+    "emptyValue": "empty"
   },
   "auth": {
     "login": "Log in",
@@ -121,7 +127,12 @@
     "showCurrentRange": "Show the current period and overview",
     "notes": "Notes",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "kindOne_withdrawal": "Withdrawal",
+    "kindOne_deposit": "Deposit",
+    "kindOne_transfer": "Transfer",
+    "flowFrom": "From",
+    "flowTo": "To"
   },
   "transactionForm": {
     "title": "New Transaction",
@@ -144,13 +155,13 @@
     "category": "Category",
     "selectCategory": "Select a category (optional)",
     "tags": "Tags",
-    "pendingNew": "{{name}} (new, created on save)"
+    "pendingNew": "{{name}} (new, created on save)",
+    "sectionTransaction": "Transaction",
+    "sectionClassification": "Classification"
   },
   "transactionDetail": {
     "title": "Transaction Detail",
     "noDescription": "Transaction without a description",
-    "history": "Change history",
-    "historyEmpty": "No changes recorded.",
     "historyCreated": "Transaction created",
     "historyField": {
       "description": "Description",
@@ -164,12 +175,26 @@
       "category": "Category",
       "tags": "Tags",
       "notes": "Notes"
-    },
-    "historyEmptyValue": "empty"
+    }
   },
   "accountDetail": {
     "title": "Account Detail",
-    "currentBalance": "Current balance",
+    "historyCreated": "Account created",
+    "historyAdjustmentAdded": "Other balance change added",
+    "historyAdjustmentRemoved": "Other balance change removed",
+    "historyAdjustmentChanged": "Other balance change edited",
+    "historyField": {
+      "name": "Name",
+      "iban": "IBAN",
+      "bic": "BIC/SWIFT",
+      "accountNumber": "Account number",
+      "notes": "Notes",
+      "isActive": "Active",
+      "currency": "Currency",
+      "openingBalance": "Opening balance",
+      "openingBalanceDate": "Opening balance date"
+    },
+    "balanceOn": "Balance on {{date}}",
     "balanceTrend": "Balance trend",
     "valueTrend": "Value trend",
     "expensesByCategory": "Expenses by category",
@@ -223,7 +248,7 @@
     "add": "Add Account",
     "name": "Name",
     "accountNumber": "Account Number",
-    "currentBalance": "Current Balance",
+    "balanceOn": "Balance on {{date}}",
     "active": "Active",
     "lastActivity": "Last Activity",
     "actions": "Actions",
@@ -234,11 +259,26 @@
     "selectCurrency": "Select a currency",
     "openingBalance": "Opening Balance",
     "openingBalanceDate": "Opening Balance Date",
+    "sectionAdjustments": "Other balance changes",
+    "adjustmentsHint": "Money that changes the balance without being income or an expense, e.g. cash that was already there or a correction. They don't show among the transactions or in the income and expenses figures.",
+    "adjustmentsEmpty": "None.",
+    "adjustmentDate": "Date",
+    "adjustmentAmount": "Amount",
+    "adjustmentAmountHint": "Negative to take money off.",
+    "adjustmentDescription": "Description",
+    "addAdjustment": "Add a change",
+    "removeAdjustment": "Remove this change",
+    "adjustmentIncomplete": "Enter the date and the amount.",
+    "adjustmentDone": "Done",
+    "editAdjustment": "Edit this change",
+    "adjustmentNoDescription": "No description",
+    "adjustmentOpen": "Confirm or cancel the open change before saving.",
     "assetKind": "Kind",
     "assetKind_checking": "Checking Account",
     "assetKind_investment": "Investment Account",
     "assetKindImmutableHint": "Cannot be changed after the account is created.",
     "sectionGeneral": "General",
+    "sectionBalance": "Balance",
     "sectionBankDetails": "Bank details",
     "optional": "optional",
     "assetKindDescription_checking": "Money you spend and receive day to day",
@@ -253,6 +293,8 @@
     "deleteInUse": "\"{{name}}\" is still used by:",
     "deleteTransactionsCount_one": "{{count}} transaction",
     "deleteTransactionsCount_other": "{{count}} transactions",
+    "deleteAdjustmentsCount_one": "{{count}} other balance change",
+    "deleteAdjustmentsCount_other": "{{count}} other balance changes",
     "deleteInvestmentTransactionsCount_one": "{{count}} investment transaction",
     "deleteInvestmentTransactionsCount_other": "{{count}} investment transactions",
     "deleteOpenPositionsCount_one": "{{count}} open position",
@@ -263,7 +305,7 @@
     "deleteAllOption": "Delete the account together with all its transactions",
     "deleteAllWarning": "The transactions will also disappear from the other accounts involved (e.g. the expense account, or the other side of a transfer), and their balances will change.",
     "deleteOpeningBalance": "an opening balance of {{amount}}",
-    "deleteTransferOpeningBalanceHint": "The opening balance becomes a \"{{name}}\" transaction on the chosen account.",
+    "deleteTransferOpeningBalanceHint": "The opening balance becomes an other change named \"{{name}}\" on the chosen account: it adds to its balance, but it isn't income or an expense and doesn't show among the transactions.",
     "filterStatus": "Status",
     "filterAll": "All",
     "status_active": "Active",
@@ -494,7 +536,11 @@
       "currency_in_use": "Cannot delete: the currency is used by one or more accounts.",
       "invalid_date_range": "Invalid date range.",
       "date_range_inverted": "The start date must be on or before the end date.",
-      "date_range_too_long": "A date range can span at most {{years}} years."
+      "date_range_too_long": "A date range can span at most {{years}} years.",
+      "price_not_found": "No price recorded on that day.",
+      "price_date_in_future": "A price can only be recorded for today or a past day.",
+      "price_without_provider_value": "This price was entered by hand: there is no imported value to restore.",
+      "price_from_provider": "An imported price can't be removed: restore the imported value instead."
     },
     "validation": {
       "required": "required.",
@@ -521,10 +567,13 @@
     "fields": {
       "accountId": "Account",
       "accountNumber": "Account number",
+      "adjustments[amount]": "Other balance change: amount",
+      "adjustments[date]": "Other balance change: date",
+      "adjustments[description]": "Other balance change: description",
       "afterId": "Position",
-      "beforeId": "Position",
       "amount": "Amount",
       "assetKind": "Account kind",
+      "beforeId": "Position",
       "bic": "BIC",
       "capitalGainsTaxRate": "Capital gains tax rate",
       "categoryId": "Category",
@@ -547,7 +596,11 @@
       "lastName": "Last name",
       "locale": "Language",
       "name": "Name",
+      "newCategoryName": "Category",
+      "newDestinationAccountName": "Destination account",
       "newPassword": "New password",
+      "newSourceAccountName": "Source account",
+      "newTagNames": "Tags",
       "notes": "Notes",
       "numberFormat": "Number format",
       "occurredAt": "Date",
@@ -732,15 +785,20 @@
     "amountImplausible": "Too far from quantity × price ({{value}}): check the figures",
     "fees": "Fees",
     "taxes": "Taxes",
-    "total": "Total",
     "pricesIncompleteWarning": "Couldn't fetch all missing closing prices for {{instrument}}. Retry manually from the Instruments section for correct charts and reports.",
     "heldToday": "You hold {{quantity}} in this account today.",
-    "sellExceedsHolding": "More than you hold in this account today ({{quantity}}): check the quantity."
+    "sellExceedsHolding": "More than you hold in this account today ({{quantity}}): check the quantity.",
+    "sectionTrade": "Trade",
+    "sectionAmounts": "Amounts",
+    "summary": "Summary",
+    "totalDebited": "Charged to the account",
+    "totalCredited": "Credited to the account",
+    "amountFollows": "The amount follows units × price: change it if the broker charged a different one.",
+    "typeBuyDescription": "You buy units: money leaves the investment account",
+    "typeSellDescription": "You sell units: money comes back to the investment account"
   },
   "investmentTransactionDetail": {
     "title": "Investment Transaction Detail",
-    "history": "Change history",
-    "historyEmpty": "No changes recorded.",
     "historyCreated": "Transaction created",
     "historyField": {
       "description": "Description",
@@ -754,8 +812,7 @@
       "taxes": "Taxes",
       "occurredAt": "Date",
       "notes": "Notes"
-    },
-    "historyEmptyValue": "empty"
+    }
   },
   "investmentInstruments": {
     "title": "Financial Instruments",
@@ -805,7 +862,30 @@
     "marketState_pre_market": "Pre-market",
     "marketState_post_market": "Post-market",
     "marketState_closed": "Market closed",
-    "marketState_unknown": "Unknown state"
+    "marketState_unknown": "Unknown state",
+    "viewLabel": "How to show the prices",
+    "viewChart": "Chart",
+    "viewList": "List"
+  },
+  "instrumentPrices": {
+    "date": "Day",
+    "price": "Price",
+    "add": "Add a price",
+    "edit": "Edit the price",
+    "remove": "Remove this price",
+    "showFilled": "Show days without a close",
+    "empty": "No prices in this period.",
+    "manualHint": "A price entered by hand is never overwritten by the import again.",
+    "dayExists": "This day already has a price ({{price}}): it will be corrected.",
+    "imported": "imported: {{price}}",
+    "source_market": "Imported",
+    "source_filled": "Carried over from the day before",
+    "source_manual": "Manual",
+    "source": "Source",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "restoreTo": "Restore imported ({{price}})",
+    "change": "Change"
   },
   "pricePeriod": {
     "label": "Period",
@@ -820,7 +900,7 @@
   "importPrices": {
     "button": "Import prices",
     "title": "Import prices",
-    "description": "Fetches day-by-day closing prices from Yahoo Finance for the chosen range. Days already recorded are never overwritten.",
+    "description": "Fetches day-by-day closing prices from Yahoo Finance for the chosen range. Prices already imported are updated if Yahoo changed them; the ones entered or corrected by hand stay as they are.",
     "from": "From",
     "to": "To",
     "import": "Import"

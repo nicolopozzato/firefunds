@@ -66,6 +66,20 @@ const refreshTokens = async (): Promise<string> => {
   return navigator.locks ? navigator.locks.request('firefunds-token-refresh', run) : run();
 };
 
+/**
+ * Whether a failed refresh means the session is over: the server rejected
+ * the refresh token (expired, revoked, already used), or there is none. No
+ * answer (offline, a restart during a release) or a 5xx/429 is not: the
+ * session stays, and the next request tries again.
+ */
+export const isSessionRejected = (error: unknown): boolean => {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    return status === 400 || status === 401 || status === 403;
+  }
+  return error instanceof Error && error.message === 'No refresh token';
+};
+
 // Response interceptor to handle token refresh
 let refreshing: Promise<string> | null = null;
 
@@ -102,8 +116,11 @@ api.interceptors.response.use(
       }
       return api(originalRequest);
     } catch (refreshError) {
-      clearTokens();
-      window.location.href = '/login';
+      if (isSessionRejected(refreshError)) {
+        clearTokens();
+        window.location.href = '/login';
+      }
+      // Otherwise the server couldn't be reached: the error is shown, the session kept.
       return Promise.reject(refreshError);
     }
   }

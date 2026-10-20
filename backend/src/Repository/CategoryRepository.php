@@ -50,4 +50,18 @@ class CategoryRepository extends ServiceEntityRepository
 
         return $this->findOneBy(['user' => $user, 'id' => $id]);
     }
+
+    /** The user's category with that name, ignoring case (the oldest, if several). */
+    public function findOneByUserAndName(User $user, string $name): ?Category
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.user = :user')
+            ->andWhere('LOWER(c.name) = LOWER(:name)')
+            ->setParameter('user', $user)
+            ->setParameter('name', $name)
+            ->orderBy('c.createdAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

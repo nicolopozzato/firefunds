@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import PageHeader from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import Combobox from '@/components/Combobox'
 import DashboardPreferences from '@/components/DashboardPreferences'
 import { useAuth } from '@/contexts/AuthContext'
 import { authApi } from '@/lib/auth-api'
+import { dataChanged } from '@/lib/data-changed'
 import { cn, numberFormatter } from '@/lib/utils'
 import type { NumberFormat, UserTheme } from '@/types/auth'
 
@@ -47,6 +49,7 @@ function listTimezones(): string[] {
 function GeneralPreferences() {
   const { t, i18n } = useTranslation()
   const { user, refreshUser } = useAuth()
+  const queryClient = useQueryClient()
 
   const [locale, setLocale] = useState(user?.locale ?? 'en')
   const [theme, setTheme] = useState<UserTheme>(user?.theme ?? 'system')
@@ -78,6 +81,8 @@ function GeneralPreferences() {
       })
       i18n.changeLanguage(locale)
       await refreshUser()
+      // Rows per page, the tax rate, the timezone ("today") change what the lists and totals show.
+      void dataChanged(queryClient)
       setSaved(true)
     } finally {
       setIsSaving(false)

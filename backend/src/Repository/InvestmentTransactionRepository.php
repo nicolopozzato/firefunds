@@ -7,7 +7,6 @@ use App\Core\Pagination\Paginator;
 use App\Entity\Account;
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentTransaction;
-use App\Entity\InvestmentTransactionType;
 use App\Entity\User;
 use App\Investment\Position\AverageCostPosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -146,8 +145,8 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * Every open position (instrument still held) on an account: quantity, cost
      * basis and average cost, folded from the ordered BUY/SELL history using the
      * running average-cost method (see AverageCostPosition). `openedOn` is the
-     * day (as written where it happened) the current holding was opened, i.e. the BUY
-     * that last took the quantity up from zero.
+     * day (as written where it happened) the current holding was opened, i.e. the trade
+     * that last took the quantity away from zero (or across it).
      *
      * @return array<array{instrumentId: string, instrumentName: string, instrumentTicker: ?string, quantity: string, costBasis: string, averageCost: string, openedOn: ?string, taxRate: ?string}>
      */
@@ -258,9 +257,9 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * [from, to]: for each instrument, the running quantity held as of that day
      * (cumulative BUYs minus SELLs up to and including that day, trades before
      * `from` included) times the
-     * instrument's closing price on or before that day (its price history is
-     * itself forward-filled through weekends/holidays, so this only falls back
-     * further for a day before the instrument's first recorded price).
+     * instrument's price on or before that day (InvestmentPriceRepository::
+     * EFFECTIVE_PRICES; the history is itself carried over weekends and
+     * holidays, so this only falls back further for a day before the first).
      *
      * A trade's day is the date in its `occurred_at`, the clock time where it
      * happened (App\Entity\OccursLocally).
@@ -271,6 +270,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
     {
         $connection = $this->getEntityManager()->getConnection();
         $id = $account->getId()->toRfc4122();
+        $prices = InvestmentPriceRepository::EFFECTIVE_PRICES;
 
         $sql = <<<SQL
             WITH RECURSIVE days AS (
@@ -280,6 +280,10 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             ),
             instruments AS (
                 SELECT DISTINCT instrument_id FROM investment_transaction WHERE account_id = :id AND deleted_at IS NULL
+            ),
+            -- The instruments' prices as everywhere else (InvestmentPriceRepository::EFFECTIVE_PRICES).
+            effective_price AS MATERIALIZED (
+                SELECT * FROM ({$prices}) prices WHERE instrument_id IN (SELECT instrument_id FROM instruments)
             ),
             quantity_changes AS (
                 SELECT instrument_id, day, SUM(delta) AS delta FROM (
@@ -318,7 +322,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
                     dq.day,
                     dq.quantity,
                     (
-                        SELECT ip.price FROM investment_price ip
+                        SELECT ip.price FROM effective_price ip
                         WHERE ip.instrument_id = dq.instrument_id AND ip.date <= dq.day
                         ORDER BY ip.date DESC
                         LIMIT 1
@@ -350,11 +354,16 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
         $openedOn = null;
 
         foreach ($rows as $row) {
-            if ($row['type'] === InvestmentTransactionType::Buy->value && $position->isClosed()) {
+            $before = bccomp($position->quantity(), '0', 10);
+            $position->apply($row['type'], $row['quantity'], $row['amount'], $row['costs']);
+            $after = bccomp($position->quantity(), '0', 10);
+
+            // The position as it stands began on the trade that opened it, or turned it to the other side.
+            if ($after === 0) {
+                $openedOn = null;
+            } elseif ($after !== $before) {
                 $openedOn = $row['day'] ?? null;
             }
-
-            $position->apply($row['type'], $row['quantity'], $row['amount'], $row['costs']);
         }
 
         return ['quantity' => $position->quantity(), 'costBasis' => $position->costBasis(), 'openedOn' => $openedOn];

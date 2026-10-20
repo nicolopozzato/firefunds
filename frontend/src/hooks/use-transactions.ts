@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { transactionsApi } from '@/lib/transactions-api'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import type { CreateTransactionRequest, TransactionKind, TransactionListKind } from '@/types/transaction'
+import { dataChanged } from '@/lib/data-changed'
 
 export function useTransactions(kind: TransactionListKind, page = 1, showAll = false, accountId?: string) {
   const { timeframe } = useTimeframe()
@@ -68,10 +69,7 @@ export function useCreateTransaction() {
   return useMutation({
     mutationFn: (data: CreateTransactionRequest) => transactionsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -83,10 +81,7 @@ export function useUpdateTransaction() {
     mutationFn: ({ id, data }: { id: string; data: CreateTransactionRequest }) =>
       transactionsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -97,10 +92,7 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => transactionsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }

@@ -1,3 +1,4 @@
+import type { AuditLogEntry } from '@/types/audit-log'
 import { api } from './api'
 import type {
   Account,
@@ -20,16 +21,25 @@ export const accountsApi = {
     type: AccountType,
     page = 1,
     pageSize?: number,
-    filters: AccountListFilters = {}
+    filters: AccountListFilters = {},
+    /** The day the balances are at (yyyy-MM-dd); today when left out. */
+    on?: string
   ): Promise<PaginatedResponse<Account>> {
     const response = await api.get<PaginatedResponse<Account>>(`/api/accounts/${type}`, {
-      params: { page, pageSize, status: filters.status, kind: filters.kind },
+      params: { page, pageSize, status: filters.status, kind: filters.kind, on },
     })
     return response.data
   },
 
-  async get(id: string): Promise<Account> {
-    const response = await api.get<Account>(`/api/accounts/${id}`)
+  /** `on`: the day the balance is at (yyyy-MM-dd); today when left out. */
+  async get(id: string, on?: string): Promise<Account> {
+    const response = await api.get<Account>(`/api/accounts/${id}`, { params: { on } })
+    return response.data
+  },
+
+  /** What each save changed, newest first. */
+  async auditLog(id: string): Promise<AuditLogEntry[]> {
+    const response = await api.get<AuditLogEntry[]>(`/api/accounts/${id}/audit-log`)
     return response.data
   },
 

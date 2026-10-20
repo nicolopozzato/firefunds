@@ -54,6 +54,23 @@ export const investmentInstrumentsApi = {
     return response.data
   },
 
+  /** The user's price for a day: a new one, or a correction of the imported one (one per day). */
+  async setPrice(id: string, date: string, price: string): Promise<InvestmentPrice> {
+    const response = await api.put<InvestmentPrice>(`/api/investment-instruments/${id}/prices/${date}`, { price })
+    return response.data
+  },
+
+  /** Back to the imported value of a day the user corrected. */
+  async restorePrice(id: string, date: string): Promise<InvestmentPrice> {
+    const response = await api.post<InvestmentPrice>(`/api/investment-instruments/${id}/prices/${date}/restore`)
+    return response.data
+  },
+
+  /** Removes a day only the user entered. */
+  async removePrice(id: string, date: string): Promise<void> {
+    await api.delete(`/api/investment-instruments/${id}/prices/${date}`)
+  },
+
   async importPrices(id: string, from: string, to: string): Promise<void> {
     await api.post(`/api/investment-instruments/${id}/prices/import`, { from, to })
   },

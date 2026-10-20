@@ -10,7 +10,16 @@ import { handleApiError } from '@/lib/error-handler'
  * network error), instead of a skeleton that never ends. Its query is marked
  * `meta: { quietError: true }`, so the global error toast (main.tsx) stays out.
  */
-export default function LoadFailed({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+export default function LoadFailed({
+  error,
+  onRetry,
+  canGoBack = true,
+}: {
+  error: unknown
+  onRetry: () => void
+  /** False when there is no page to go back to (e.g. the app couldn't reach the server on opening). */
+  canGoBack?: boolean
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
@@ -21,9 +30,11 @@ export default function LoadFailed({ error, onRetry }: { error: unknown; onRetry
         <p className="font-medium">{t('errors.loadFailed')}</p>
         <p className="text-sm text-muted-foreground">{handleApiError(error)}</p>
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            {t('common.back')}
-          </Button>
+          {canGoBack && (
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              {t('common.back')}
+            </Button>
+          )}
           <Button onClick={onRetry}>{t('common.retry')}</Button>
         </div>
       </CardContent>

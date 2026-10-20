@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import PageActions from '@/components/PageActions'
 import BalanceLineChart from '@/components/BalanceLineChart'
 import AccountValueHistoryChart from '@/components/AccountValueHistoryChart'
 import AccountOpenPositionsSection from '@/components/AccountOpenPositionsSection'
@@ -10,7 +11,6 @@ import PieChart from '@/components/PieChart'
 import AccountTransactionsTable from '@/components/AccountTransactionsTable'
 import DeleteAccountDialog from '@/components/DeleteAccountDialog'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -21,7 +21,7 @@ import {
   useAccountTypeFromPath,
 } from '@/hooks/use-accounts'
 import { useTimeframe } from '@/contexts/TimeframeContext'
-import { cn, formatMoney, formatPercent, moneyColorClass, totalAccountValue } from '@/lib/utils'
+import { cn, formatDateTime, formatMoney, formatPercent, moneyColorClass, totalAccountValue } from '@/lib/utils'
 import { useState } from 'react'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
 import LoadFailed from '@/components/LoadFailed'
@@ -37,7 +37,8 @@ export default function AccountDetailPage() {
   const from = format(timeframe.from, 'yyyy-MM-dd')
   const to = format(timeframe.to, 'yyyy-MM-dd')
 
-  const { data: account, isLoading, error, refetch } = useAccount(id ?? '')
+  // Balance, invested value and gain at the end of the selected period, like the dashboard's boxes.
+  const { data: account, isLoading, error, refetch } = useAccount(id ?? '', to)
   const isInvestmentAccount = account?.assetKind === 'investment'
   const { data: history, isLoading: isHistoryLoading } = useAccountBalanceHistory(id ?? '', from, to)
   const { data: valueHistory, isLoading: isValueHistoryLoading } = useAccountValueHistory(
@@ -74,21 +75,19 @@ export default function AccountDetailPage() {
       <PageHeader
         title={account.name}
         description={t('accountDetail.title')}
+        compactActions
         actions={
-          <>
-            <Button variant="outline" onClick={() => navigate(`/accounts/${type}/${account.id}/edit`)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              {t('common.edit')}
-            </Button>
-            <Button
-              variant="outline"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t('common.delete')}
-            </Button>
-          </>
+          <PageActions
+            actions={[
+              {
+                label: t('common.edit'),
+                icon: Pencil,
+                primary: true,
+                onClick: () => navigate(`/accounts/${type}/${account.id}/edit`),
+              },
+              { label: t('common.delete'), icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true) },
+            ]}
+          />
         }
       />
 
@@ -116,7 +115,7 @@ export default function AccountDetailPage() {
                     formatMoney(account.currentBalance, account.currencySymbol)
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground">{t('accountDetail.currentBalance')}</div>
+                <div className="text-sm text-muted-foreground">{t('accountDetail.balanceOn', { date: formatDateTime(account.balanceDate) })}</div>
               </div>
 
               {isInvestmentAccount && (

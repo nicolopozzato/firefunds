@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -48,6 +48,7 @@ import { TransactionSectionTabs } from '@/components/layout/SectionTabs'
 import { MobileListCard, MobileListIcon, MobileListRow, MobileListSection, MobileListSkeleton } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { groupByDay, useDayLabel } from '@/hooks/use-day-groups'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 const basePath = '/transactions/investments'
 
@@ -69,17 +70,13 @@ export default function InvestmentTransactionsTable() {
   const { timeframe } = useTimeframe()
   const isMobile = useIsMobile()
   const dayLabel = useDayLabel()
-  const [page, setPage] = useState(1)
-  const [showAll, setShowAll] = useState(false)
-  const { data, isLoading } = useInvestmentTransactions(page, showAll)
+  const { page, setPage, showAll, setShowAll } = useListPage([timeframe.from.getTime(), timeframe.to.getTime()])
+  const { data, isLoading, isPlaceholderData } = useInvestmentTransactions(page, showAll)
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const transactions = data?.items
   const { data: distributions } = useInvestmentTransactionDistributions(!showAll)
   const deleteTransaction = useDeleteInvestmentTransaction()
   const [transactionToDelete, setTransactionToDelete] = useState<InvestmentTransaction | null>(null)
-
-  useEffect(() => {
-    setPage(1)
-  }, [timeframe.from, timeframe.to, showAll])
 
   const locale = i18n.language === 'it' ? it : enUS
   const rangeLabel = t('transactionsCommon.rangeSuffix', {
@@ -196,7 +193,7 @@ export default function InvestmentTransactionsTable() {
         </div>
         <button
           type="button"
-          onClick={() => setShowAll((current) => !current)}
+          onClick={() => setShowAll(!showAll)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ListFilter className="h-4 w-4" />

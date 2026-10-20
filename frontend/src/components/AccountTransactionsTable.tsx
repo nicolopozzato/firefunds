@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -46,6 +46,7 @@ import { isDeposit, isWithdrawal } from '@/lib/transaction-sides'
 import { cn, currencySymbolFor, formatMoney, formatQuantity } from '@/lib/utils'
 import type { Transaction, TransactionListKind } from '@/types/transaction'
 import EmptyValue from '@/components/EmptyValue'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 /** Investment accounts: every transaction, only the trades, or only the money moving in and out. */
 type InvestmentListFilter = Extract<TransactionListKind, 'all' | 'trade' | 'cash'>
@@ -118,22 +119,18 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
   const { timeframe } = useTimeframe()
   const isMobile = useIsMobile()
   const dayLabel = useDayLabel()
-  const [page, setPage] = useState(1)
-  const [showAll, setShowAll] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   // In the URL, so it survives opening a transaction and coming back.
   const listFilter: InvestmentListFilter = isInvestmentAccount
     ? (INVESTMENT_LIST_FILTERS.find((value) => value === searchParams.get('transactions')) ?? 'all')
     : 'all'
-  const { data, isLoading } = useTransactions(listFilter, page, showAll, accountId)
+  const { page, setPage, showAll, setShowAll } = useListPage([timeframe.from.getTime(), timeframe.to.getTime(), listFilter])
+  const { data, isLoading, isPlaceholderData } = useTransactions(listFilter, page, showAll, accountId)
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const transactions = data?.items
   const deleteTransaction = useDeleteTransaction()
   const deleteInvestmentTransaction = useDeleteInvestmentTransaction()
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
-
-  useEffect(() => {
-    setPage(1)
-  }, [accountId, timeframe.from, timeframe.to, showAll, listFilter])
 
   const setListFilter = (value: InvestmentListFilter) => {
     const next = new URLSearchParams(searchParams)
@@ -180,7 +177,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
             )}
             <button
               type="button"
-              onClick={() => setShowAll((current) => !current)}
+              onClick={() => setShowAll(!showAll)}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <ListFilter className="h-4 w-4" />

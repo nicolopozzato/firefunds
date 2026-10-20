@@ -1,9 +1,9 @@
+import type { AuditLogEntry } from '@/types/audit-log'
 import { api } from './api'
 import type {
   CreateInvestmentTransactionRequest,
   InvestmentDistributions,
   InvestmentTransaction,
-  InvestmentTransactionAuditLogEntry,
 } from '@/types/investment'
 import type { PaginatedResponse } from '@/types/pagination'
 
@@ -49,8 +49,8 @@ export const investmentTransactionsApi = {
     await api.delete(`/api/investment-transactions/${id}`)
   },
 
-  async auditLog(id: string): Promise<InvestmentTransactionAuditLogEntry[]> {
-    const response = await api.get<InvestmentTransactionAuditLogEntry[]>(`/api/investment-transactions/${id}/audit-log`)
+  async auditLog(id: string): Promise<AuditLogEntry[]> {
+    const response = await api.get<AuditLogEntry[]>(`/api/investment-transactions/${id}/audit-log`)
     return response.data
   },
 }

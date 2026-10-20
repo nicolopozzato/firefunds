@@ -9,16 +9,17 @@ use App\Core\Period\CalendarRange;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\InvestmentInstrument;
-use App\Entity\InvestmentPrice;
 use App\Investment\DTO\ImportPricesRequest;
 use App\Investment\DTO\InvestmentInstrumentRequest;
 use App\Investment\DTO\InvestmentInstrumentResponse;
 use App\Investment\DTO\InvestmentLivePriceResponse;
 use App\Investment\DTO\InvestmentPriceResponse;
+use App\Investment\DTO\ManualPriceRequest;
 use App\Investment\Service\InstrumentDeletionService;
 use App\Investment\Service\InvestmentInstrumentService;
 use App\Investment\Service\InvestmentPriceService;
 use App\Investment\Service\LiveQuoteService;
+use App\Investment\Service\ManualPriceService;
 use App\Investment\Service\PriceCalendar;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentPriceRepository;
@@ -39,6 +40,7 @@ class InvestmentInstrumentController extends AbstractController
         private readonly InvestmentInstrumentService $instrumentService,
         private readonly InvestmentPriceService $priceService,
         private readonly PriceCalendar $priceCalendar,
+        private readonly ManualPriceService $manualPriceService,
     ) {
     }
 
@@ -59,9 +61,11 @@ class InvestmentInstrumentController extends AbstractController
     }
 
     #[Route('/{id}', name: 'api_investment_instruments_get', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
-    public function get(string $id): JsonResponse
+    public function get(string $id, InvestmentPriceRepository $priceRepository): JsonResponse
     {
-        return $this->json(InvestmentInstrumentResponse::fromEntity($this->findOwned($id)));
+        $instrument = $this->findOwned($id);
+
+        return $this->json(InvestmentInstrumentResponse::fromEntity($instrument, $priceRepository->findLatestRecorded($instrument)));
     }
 
     #[Route('/{id}/prices', name: 'api_investment_instruments_prices', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -72,14 +76,34 @@ class InvestmentInstrumentController extends AbstractController
 
         $prices = $priceRepository->findByInstrumentInRange($instrument, $from, $to);
 
-        return $this->json(array_map(
-            static fn (InvestmentPrice $price) => new InvestmentPriceResponse(
-                date: $price->getDate()->format('Y-m-d'),
-                price: $price->getPrice(),
-                originalPrice: $price->getOriginalPrice(),
-            ),
-            $prices
-        ));
+        return $this->json(array_map(InvestmentPriceResponse::fromEntity(...), $prices));
+    }
+
+    /** The user's price for a day (Y-m-d): a new one, or a correction of the imported one. One per day. */
+    #[Route('/{id}/prices/{date}', name: 'api_investment_instruments_price_set', methods: ['PUT'], requirements: ['id' => '[0-9a-fA-F-]{36}', 'date' => '\\d{4}-\\d{2}-\\d{2}'])]
+    public function setPrice(string $id, string $date, #[MapRequestPayload] ManualPriceRequest $request): JsonResponse
+    {
+        $price = $this->manualPriceService->set($this->findOwned($id), CalendarRange::day($date), $request->price, $this->getCurrentUser());
+
+        return $this->json(InvestmentPriceResponse::fromEntity($price));
+    }
+
+    /** Back to the imported value for a day the user corrected. */
+    #[Route('/{id}/prices/{date}/restore', name: 'api_investment_instruments_price_restore', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}', 'date' => '\\d{4}-\\d{2}-\\d{2}'])]
+    public function restorePrice(string $id, string $date): JsonResponse
+    {
+        $price = $this->manualPriceService->restore($this->findOwned($id), CalendarRange::day($date));
+
+        return $this->json(InvestmentPriceResponse::fromEntity($price));
+    }
+
+    /** Removes a day only the user entered (marked deleted). */
+    #[Route('/{id}/prices/{date}', name: 'api_investment_instruments_price_delete', methods: ['DELETE'], requirements: ['id' => '[0-9a-fA-F-]{36}', 'date' => '\\d{4}-\\d{2}-\\d{2}'])]
+    public function deletePrice(string $id, string $date): JsonResponse
+    {
+        $this->manualPriceService->discard($this->findOwned($id), CalendarRange::day($date));
+
+        return $this->json(null, 204);
     }
 
     #[Route('/{id}/prices/import', name: 'api_investment_instruments_import_prices', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]

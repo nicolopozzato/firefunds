@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { investmentInstrumentsApi, investmentPortfolioApi } from '@/lib/investments-api'
 import type { InvestmentInstrumentRequest } from '@/types/investment'
+import { dataChanged } from '@/lib/data-changed'
 
 export function useInvestmentInstruments(page = 1) {
   return useQuery({
@@ -70,9 +71,7 @@ export function useCreateInvestmentInstrument() {
   return useMutation({
     mutationFn: (data: InvestmentInstrumentRequest) => investmentInstrumentsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-instruments'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -84,9 +83,7 @@ export function useUpdateInvestmentInstrument() {
     mutationFn: ({ id, data }: { id: string; data: InvestmentInstrumentRequest }) =>
       investmentInstrumentsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-instruments'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -107,12 +104,7 @@ export function useDeleteInvestmentInstrument() {
     mutationFn: ({ id, deleteTransactions }: { id: string; deleteTransactions: boolean }) =>
       investmentInstrumentsApi.remove(id, deleteTransactions),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-instruments'] })
-      queryClient.invalidateQueries({ queryKey: ['investment-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -124,9 +116,22 @@ export function useImportInvestmentPrices(id: string) {
     mutationFn: ({ from, to }: { from: string; to: string }) =>
       investmentInstrumentsApi.importPrices(id, from, to),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-instruments', 'prices', id] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
+}
+
+/** The user's own prices of an instrument: set (new or correcting the imported one), restore, remove. */
+export function useManualPrices(id: string) {
+  const queryClient = useQueryClient()
+  const onSuccess = () => void dataChanged(queryClient)
+
+  return {
+    set: useMutation({
+      mutationFn: ({ date, price }: { date: string; price: string }) => investmentInstrumentsApi.setPrice(id, date, price),
+      onSuccess,
+    }),
+    restore: useMutation({ mutationFn: (date: string) => investmentInstrumentsApi.restorePrice(id, date), onSuccess }),
+    remove: useMutation({ mutationFn: (date: string) => investmentInstrumentsApi.removePrice(id, date), onSuccess }),
+  }
 }

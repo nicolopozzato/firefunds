@@ -178,7 +178,8 @@ class PortfolioService
             'instrumentTicker' => $holdings[0]['instrumentTicker'],
             'quantity' => $quantity,
             'costBasis' => $costBasis,
-            'averageCost' => bcdiv($costBasis, $quantity, 4),
+            // Units on several accounts can add up to zero (+10 on one, −10 sold by mistake on another).
+            'averageCost' => bccomp($quantity, '0', 6) !== 0 ? bcdiv($costBasis, $quantity, 4) : null,
             'openedOn' => $openedOn,
             'currentPrice' => $price,
             'currentValue' => $currentValue,

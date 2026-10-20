@@ -13,6 +13,28 @@ export interface AccountListFilters {
   kind?: AssetAccountKind
 }
 
+/**
+ * An "other" change to an asset account's balance on a day, besides its
+ * opening balance: neither income nor an expense, never listed as a
+ * transaction. Kept from the account's form.
+ */
+export interface AccountAdjustment {
+  id: string
+  /** A calendar day (yyyy-MM-dd): the balance changes from that day on. */
+  date: string
+  /** Signed: positive adds to the balance. */
+  amount: string
+  description: string | null
+}
+
+/** As the form sends it: without an id it is new; the ones left out are deleted. */
+export interface AccountAdjustmentInput {
+  id?: string
+  date: string
+  amount: string
+  description: string | null
+}
+
 export interface Account {
   id: string
   type: AccountType
@@ -29,7 +51,10 @@ export interface Account {
   currencySymbol: string | null
   openingBalance: string | null
   openingBalanceDate: string | null
+  /** At the end of `balanceDate`: an asset account's free cash, the total of an expense or revenue account. */
   currentBalance: string
+  /** The day the balance, the invested value, the gain and the tax are at (yyyy-MM-dd). */
+  balanceDate: string
   lastActivityAt: string | null
   createdAt: string
   updatedAt: string
@@ -41,6 +66,8 @@ export interface Account {
   estimatedTax?: string | null
   /** gainAmount as a percentage of the cost basis; only set for an investment account. */
   gainPercent: string | null
+  /** Asset accounts: the other changes to the balance, oldest first. */
+  adjustments: AccountAdjustment[]
 }
 
 export interface CreateAccountRequest {
@@ -54,6 +81,7 @@ export interface CreateAccountRequest {
   currencyCode?: string | null
   openingBalance?: string | null
   openingBalanceDate?: string | null
+  adjustments?: AccountAdjustmentInput[]
   assetKind?: AssetAccountKind | null
 }
 
@@ -67,6 +95,7 @@ export interface UpdateAccountRequest {
   currencyCode?: string | null
   openingBalance?: string | null
   openingBalanceDate?: string | null
+  adjustments?: AccountAdjustmentInput[]
 }
 
 export interface BalancePoint {
@@ -88,9 +117,11 @@ export interface AccountDistributions {
 
 /** What deleting an account would affect, shown before the user confirms. */
 export interface AccountDeletionPreview {
-  /** Non-zero opening balance, moved as a transaction on transfer; null if there is none. */
+  /** Non-zero opening balance, moved as an "other" change (AccountAdjustment) on transfer; null if there is none. */
   openingBalance: string | null
   transactions: number
+  /** Other changes to its balance, moved or deleted with the transactions. */
+  adjustments: number
   investmentTransactions: number
   openPositions: number
   /** Accounts of the same type, kind and currency that can take over its transactions. */

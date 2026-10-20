@@ -87,9 +87,12 @@ class OpenPositionService
      * and only on a gain: for Italian funds/ETFs a loss on one position does
      * not offset another's gain.
      *
+     * With a day, the same at the end of that day: the trades up to it, at
+     * the latest price on or before it.
+     *
      * @return array<string, array{investedValue: string, costBasis: string, gainAmount: string, gainPercent: string, estimatedTax: string}> account id => totals
      */
-    public function investedSummaries(array $accounts): array
+    public function investedSummaries(array $accounts, ?\DateTimeInterface $on = null): array
     {
         $investmentAccounts = array_values(array_filter(
             $accounts,
@@ -100,9 +103,12 @@ class OpenPositionService
             return [];
         }
 
+        $lastDay = $on?->format('Y-m-d');
         $tradesByAccount = [];
         foreach ($this->transactionRepository->findTradeRowsForAccounts($investmentAccounts) as $trade) {
-            $tradesByAccount[$trade['account_id']][] = $trade;
+            if ($lastDay === null || $trade['day'] <= $lastDay) {
+                $tradesByAccount[$trade['account_id']][] = $trade;
+            }
         }
 
         $positionsByAccount = array_map(
@@ -114,7 +120,9 @@ class OpenPositionService
             static fn (array $positions) => array_column($positions, 'instrumentId'),
             array_values($positionsByAccount)
         ))));
-        $latestPrices = $this->priceRepository->findLatestPrices($instrumentIds);
+        $latestPrices = $on !== null
+            ? $this->priceRepository->findPricesOn($instrumentIds, $on)
+            : $this->priceRepository->findLatestPrices($instrumentIds);
 
         $summaries = [];
         foreach ($investmentAccounts as $account) {

@@ -4,6 +4,7 @@ namespace App\Investment\Service;
 
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentPrice;
+use App\Entity\InvestmentPriceSource;
 use App\Investment\PriceProvider\PriceProviderInterface;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentPriceRepository;
@@ -106,6 +107,11 @@ class InvestmentPriceService
      */
     public function ensureCompletePriceHistoryThroughYesterday(InvestmentInstrument $instrument): bool
     {
+        // Nothing to fetch: valued at its trades' and the user's own prices.
+        if ($instrument->getQuoteSymbol() === null) {
+            return true;
+        }
+
         if ($this->hasCompletePriceHistoryThroughYesterday($instrument)) {
             return true;
         }
@@ -134,7 +140,7 @@ class InvestmentPriceService
     /**
      * Imports every day in [from, to] for one instrument, e.g. a user-requested
      * historical import. A day already recorded is only updated if the
-     * provider now reports a different value and the user never edited it.
+     * provider now reports a different value and the user didn't enter their own.
      */
     public function importRange(InvestmentInstrument $instrument, \DateTimeImmutable $from, \DateTimeImmutable $to): void
     {
@@ -258,8 +264,8 @@ class InvestmentPriceService
      * forward-filling from the last known market price on days the market has
      * none (weekends, holidays) so the chart never has a gap. An always-open
      * market (e.g. crypto) simply never triggers the forward-fill branch,
-     * since every day has its own quote. A day already recorded is refreshed
-     * only if the provider's value changed and the user never edited it (see
+     * since every day has its own quote. A day already recorded takes the
+     * provider's newer value, unless the user entered their own (see
      * InvestmentPrice::refreshFromProvider()).
      *
      * @param array<string, string> $marketPrices day (Y-m-d) => price, sorted ascending
@@ -298,7 +304,8 @@ class InvestmentPriceService
         for ($date = $start; $date <= $through; $date = $date->modify('+1 day')) {
             $dateString = $date->format('Y-m-d');
 
-            if (isset($marketPrices[$dateString])) {
+            $isClose = isset($marketPrices[$dateString]);
+            if ($isClose) {
                 $lastKnownPrice = $marketPrices[$dateString];
             }
 
@@ -306,13 +313,14 @@ class InvestmentPriceService
                 continue;
             }
 
+            $source = $isClose ? InvestmentPriceSource::Market : InvestmentPriceSource::Filled;
             $existing = $existingByDate[$dateString] ?? null;
             if ($existing !== null) {
-                $existing->refreshFromProvider($lastKnownPrice);
+                $existing->refreshFromProvider($lastKnownPrice, $source);
                 continue;
             }
 
-            $this->entityManager->persist(new InvestmentPrice($instrument, $date, $lastKnownPrice));
+            $this->entityManager->persist(new InvestmentPrice($instrument, $date, $lastKnownPrice, $source));
         }
     }
 }

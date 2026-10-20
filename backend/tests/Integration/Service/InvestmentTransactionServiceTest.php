@@ -437,10 +437,10 @@ class InvestmentTransactionServiceTest extends KernelTestCase
 
     /**
      * The test instrument has no ticker, so a backfill attempt can never reach
-     * the market and the gap through yesterday stays open: the save must still
-     * succeed, but report pricesIncomplete=true so the caller can warn the user.
+     * the market: there is nothing to fetch, it is valued at its trades' and
+     * the user's own prices, so there is nothing to warn about either.
      */
-    public function testCreateReportsPricesIncompleteWhenInstrumentHasNoTickerToBackfillFrom(): void
+    public function testAnInstrumentWithoutTickerIsNeverReportedIncomplete(): void
     {
         $saved = $this->service->create($this->user, new CreateInvestmentTransactionRequest(
             description: null,
@@ -454,7 +454,7 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         ));
         $this->entityManager->flush();
 
-        $this->assertTrue($saved->pricesIncomplete);
+        $this->assertFalse($saved->pricesIncomplete);
     }
 
     /**

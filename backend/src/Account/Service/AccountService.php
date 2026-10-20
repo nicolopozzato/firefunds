@@ -7,8 +7,10 @@ use App\Account\DTO\UpdateAccountRequest;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Entity\Account;
+use App\Entity\AccountAdjustment;
 use App\Entity\AccountType;
 use App\Entity\User;
+use App\Repository\AccountAdjustmentRepository;
 use App\Repository\AccountRepository;
 use App\Repository\CurrencyRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,6 +21,8 @@ class AccountService
         private readonly EntityManagerInterface $entityManager,
         private readonly CurrencyRepository $currencyRepository,
         private readonly AccountRepository $accountRepository,
+        private readonly AccountAdjustmentRepository $accountAdjustmentRepository,
+        private readonly AccountAuditLogService $auditLog,
     ) {
     }
 
@@ -85,9 +89,11 @@ class AccountService
         if ($type === AccountType::Asset) {
             $this->applyAssetFields($account, $request->currencyCode, $request->openingBalance, $request->openingBalanceDate);
             $account->setAssetKind($request->getAssetAccountKind());
+            $this->applyAdjustments($account, $request->adjustments);
         }
 
         $this->entityManager->persist($account);
+        $this->auditLog->logCreated($account, $user);
         $this->entityManager->flush();
 
         return $account;
@@ -95,17 +101,65 @@ class AccountService
 
     public function update(Account $account, UpdateAccountRequest $request): Account
     {
+        $adjustments = $this->accountAdjustmentRepository->findByAccount($account);
+        $before = $this->auditLog->snapshot($account, $adjustments);
+
         $account->setName($request->name);
         $this->applyCommonFields($account, $request->iban, $request->bic, $request->accountNumber, $request->notes, $request->isActive);
 
         if ($account->getType() === AccountType::Asset) {
             $this->assertCurrencyChangeAllowed($account, $request->currencyCode);
             $this->applyAssetFields($account, $request->currencyCode, $request->openingBalance, $request->openingBalanceDate);
+            $adjustments = $this->applyAdjustments($account, $request->adjustments) ?? $adjustments;
         }
 
+        $this->auditLog->logUpdated($account, $account->getUser(), $before, $adjustments);
         $this->entityManager->flush();
 
         return $account;
+    }
+
+    /**
+     * Makes the account's other changes (AccountAdjustment) the ones sent:
+     * those with the id of one of them update it, the others are created,
+     * and the ones not sent any more are deleted. Null changes nothing.
+     *
+     * @param ?array<array{id?: ?string, date: string, amount: string, description?: ?string}> $adjustments
+     * @return ?AccountAdjustment[] the account's adjustments now; null when nothing was sent
+     */
+    private function applyAdjustments(Account $account, ?array $adjustments): ?array
+    {
+        if ($adjustments === null) {
+            return null;
+        }
+
+        $existing = [];
+        $kept = [];
+        foreach ($this->accountAdjustmentRepository->findByAccount($account) as $adjustment) {
+            $existing[$adjustment->getId()->toRfc4122()] = $adjustment;
+        }
+
+        foreach ($adjustments as $data) {
+            $date = new \DateTimeImmutable($data['date']);
+            $amount = bcadd($data['amount'], '0', 4);
+            $description = trim((string) ($data['description'] ?? '')) ?: null;
+            $id = strtolower((string) ($data['id'] ?? ''));
+
+            if (isset($existing[$id])) {
+                $kept[] = $existing[$id]->setDate($date)->setAmount($amount)->setDescription($description);
+                unset($existing[$id]);
+                continue;
+            }
+
+            $kept[] = $created = new AccountAdjustment($account, $date, $amount, $description);
+            $this->entityManager->persist($created);
+        }
+
+        foreach ($existing as $removed) {
+            $removed->markDeleted();
+        }
+
+        return $kept;
     }
 
     /**

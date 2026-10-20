@@ -5,8 +5,11 @@ namespace App\Transaction\Service;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Period\TransactionMoment;
+use App\Account\Service\AccountAuditLogService;
 use App\Entity\Account;
 use App\Entity\AccountType;
+use App\Entity\Category;
+use App\Entity\Tag;
 use App\Entity\Transaction;
 use App\Entity\User;
 use App\Repository\AccountRepository;
@@ -34,13 +37,19 @@ class TransactionService
         private readonly CategoryRepository $categoryRepository,
         private readonly TagRepository $tagRepository,
         private readonly TransactionAuditLogService $auditLogService,
+        private readonly AccountAuditLogService $accountAuditLog,
     ) {
     }
 
+    /**
+     * Names the form wrote instead of picking (new sides, category, tags) are
+     * found or created here, in the same flush as the transaction: a refused
+     * transaction creates nothing, and saving again finds what is there.
+     */
     public function create(User $user, CreateTransactionRequest $request): Transaction
     {
-        $sourceAccount = $this->resolveOptionalAccount($user, $request->sourceAccountId);
-        $destinationAccount = $this->resolveOptionalAccount($user, $request->destinationAccountId);
+        $sourceAccount = $this->resolveSide($user, $request->sourceAccountId, $request->newSourceAccountName, AccountType::Revenue);
+        $destinationAccount = $this->resolveSide($user, $request->destinationAccountId, $request->newDestinationAccountName, AccountType::Expense);
 
         $this->assertValidAccountPair($sourceAccount, $destinationAccount);
 
@@ -74,8 +83,9 @@ class TransactionService
     {
         $before = $this->auditLogService->snapshot($transaction);
 
-        $sourceAccount = $this->resolveOptionalAccount($transaction->getUser(), $request->sourceAccountId);
-        $destinationAccount = $this->resolveOptionalAccount($transaction->getUser(), $request->destinationAccountId);
+        $user = $transaction->getUser();
+        $sourceAccount = $this->resolveSide($user, $request->sourceAccountId, $request->newSourceAccountName, AccountType::Revenue);
+        $destinationAccount = $this->resolveSide($user, $request->destinationAccountId, $request->newDestinationAccountName, AccountType::Expense);
 
         $this->assertValidAccountPair($sourceAccount, $destinationAccount);
 
@@ -115,7 +125,10 @@ class TransactionService
         $transaction->setForeignCurrency($request->foreignCurrency !== null ? strtoupper($request->foreignCurrency) : null);
         $transaction->setNotes($request->notes);
 
-        if ($request->categoryId !== null) {
+        if ($request->hasName($request->newCategoryName)) {
+            $name = trim($request->newCategoryName);
+            $transaction->setCategory($this->categoryRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Category($user, $name)));
+        } elseif ($request->categoryId !== null) {
             $category = $this->categoryRepository->findOneByUserAndId($user, $request->categoryId);
 
             if ($category === null) {
@@ -134,12 +147,45 @@ class TransactionService
 
             $transaction->addTag($tag);
         }
+
+        foreach (array_unique(array_map('trim', $request->newTagNames)) as $name) {
+            $transaction->addTag($this->tagRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Tag($user, $name)));
+        }
     }
 
-    /** Null (the "external" side) stays null; an id must be one of the user's accounts. */
-    private function resolveOptionalAccount(User $user, ?string $accountId): ?Account
+    /**
+     * A side: the account picked by id, the one named (the user's with that
+     * name, or a new one of that type), or null for "external".
+     */
+    private function resolveSide(User $user, ?string $accountId, ?string $newName, AccountType $typeIfNamed): ?Account
     {
-        return $accountId !== null ? $this->resolveOwnedAccount($user, $accountId) : null;
+        if ($accountId !== null) {
+            return $this->resolveOwnedAccount($user, $accountId);
+        }
+        if ($newName === null || trim($newName) === '') {
+            return null;
+        }
+
+        $name = trim($newName);
+        $account = $this->accountRepository->findOneByUserTypeAndName($user, $typeIfNamed, $name);
+        if ($account === null) {
+            $account = $this->persisted(new Account($user, $typeIfNamed, $name));
+            $this->accountAuditLog->logCreated($account, $user);
+        }
+
+        return $account;
+    }
+
+    /**
+     * @template T of object
+     * @param T $entity
+     * @return T
+     */
+    private function persisted(object $entity): object
+    {
+        $this->entityManager->persist($entity);
+
+        return $entity;
     }
 
     /**

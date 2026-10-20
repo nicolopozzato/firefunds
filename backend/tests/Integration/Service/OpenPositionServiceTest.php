@@ -8,6 +8,7 @@ use App\Entity\AssetAccountKind;
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentInstrumentType;
 use App\Entity\InvestmentPrice;
+use App\Entity\InvestmentPriceSource;
 use App\Entity\InvestmentTransaction;
 use App\Entity\InvestmentTransactionType;
 use App\Entity\User;
@@ -82,16 +83,41 @@ class OpenPositionServiceTest extends KernelTestCase
         $this->assertSame('100.0000', $position->averageCost);
     }
 
-    public function testInstrumentWithoutPricesKeepsCostBasisAndHasNoMarketData(): void
+    /** No price recorded at all (e.g. a fund the provider doesn't quote): worth what was paid for it. */
+    public function testInstrumentWithoutPricesIsValuedAtItsTradePrice(): void
     {
         $instrument = $this->instrument('Unpriced');
         $this->trade($instrument, InvestmentTransactionType::Buy, '1', '50.0000', '2026-09-01 10:00');
 
         $position = $this->onlyPosition('2026-10-01', '2026-10-01');
 
-        $this->assertNull($position->currentPrice);
-        $this->assertNull($position->gainAmount);
-        $this->assertSame(['2026-10-01' => ['0.0000', '50.0000']], $this->history($position));
+        $this->assertSame(['50.0000', '0.0000'], [$position->currentPrice, $position->gainAmount]);
+        $this->assertSame(['2026-10-01' => ['50.0000', '50.0000']], $this->history($position));
+    }
+
+    /**
+     * The day's price: the recorded one; else, on a day with a trade, that
+     * trade's price, even over a price carried over from the day before;
+     * else the latest before. A price the user entered counts as recorded.
+     */
+    public function testTheDaysPriceFollowsRecordedPricesThenTrades(): void
+    {
+        $instrument = $this->instrument('ETF');
+        $this->prices($instrument, ['2026-10-01' => '100.0000']);
+        $this->entityManager->persist(new InvestmentPrice($instrument, new \DateTimeImmutable('2026-10-03'), '101.0000', InvestmentPriceSource::Filled));
+        $this->trade($instrument, InvestmentTransactionType::Buy, '1', '105.0000', '2026-10-03 10:00');
+        $this->trade($instrument, InvestmentTransactionType::Buy, '1', '107.0000', '2026-10-05 10:00');
+        $this->entityManager->persist(new InvestmentPrice($instrument, new \DateTimeImmutable('2026-10-05'), '106.0000', InvestmentPriceSource::Manual));
+        $this->entityManager->flush();
+
+        $position = $this->onlyPosition('2026-10-03', '2026-10-06');
+
+        $this->assertSame([
+            '2026-10-03' => ['105.0000', '105.0000'], // the trade's price, not the carried-over 101
+            '2026-10-04' => ['105.0000', '105.0000'],
+            '2026-10-05' => ['212.0000', '212.0000'], // the user's 106, not the trade's 107
+            '2026-10-06' => ['212.0000', '212.0000'],
+        ], $this->history($position));
     }
 
     /** The number of queries doesn't grow with the number of positions. */
@@ -147,10 +173,10 @@ class OpenPositionServiceTest extends KernelTestCase
 
         $summaries = $this->service->investedSummaries([$this->broker, $emptyBroker, $checking]);
 
-        // Value only counts the priced position (2 x 115); cost basis counts both (200 + 50).
-        // Tax: 26% of the priced position's gain (230 - 200 = 30); the unpriced one has no value to tax.
+        // The priced position at its price (2 x 115), the unpriced one at what was paid (50).
+        // Tax: 26% of the priced position's gain (230 - 200 = 30); the other has none.
         $this->assertSame(
-            ['investedValue' => '230.0000', 'costBasis' => '250.0000', 'gainAmount' => '-20.0000', 'gainPercent' => '-8.0000', 'estimatedTax' => '7.8000'],
+            ['investedValue' => '280.0000', 'costBasis' => '250.0000', 'gainAmount' => '30.0000', 'gainPercent' => '12.0000', 'estimatedTax' => '7.8000'],
             $summaries[$this->broker->getId()->toRfc4122()]
         );
         $this->assertSame(

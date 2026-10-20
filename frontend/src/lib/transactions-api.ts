@@ -1,10 +1,10 @@
+import type { AuditLogEntry } from '@/types/audit-log'
 import { api } from './api'
 import type {
   CreateTransactionRequest,
   DateRange,
   Distributions,
   Transaction,
-  TransactionAuditLogEntry,
   TransactionKind,
   TransactionListKind,
 } from '@/types/transaction'
@@ -76,8 +76,8 @@ export const transactionsApi = {
     await api.delete(`/api/transactions/${id}`)
   },
 
-  async auditLog(id: string): Promise<TransactionAuditLogEntry[]> {
-    const response = await api.get<TransactionAuditLogEntry[]>(`/api/transactions/${id}/audit-log`)
+  async auditLog(id: string): Promise<AuditLogEntry[]> {
+    const response = await api.get<AuditLogEntry[]>(`/api/transactions/${id}/audit-log`)
     return response.data
   },
 }

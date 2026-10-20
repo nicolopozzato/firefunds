@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { dashboardApi } from '@/lib/dashboard-api'
+import { dataChanged } from '@/lib/data-changed'
 
 export function useDashboard(from: string, to: string) {
   return useQuery({
@@ -17,8 +18,7 @@ export function useSetDashboardAccounts() {
   return useMutation({
     mutationFn: (visibleAccountIds: string[]) => dashboardApi.setAccounts(visibleAccountIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      void dataChanged(queryClient)
     },
   })
 }

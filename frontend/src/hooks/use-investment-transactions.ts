@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { investmentTransactionsApi } from '@/lib/investment-transactions-api'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import type { CreateInvestmentTransactionRequest } from '@/types/investment'
+import { dataChanged } from '@/lib/data-changed'
 
 /** The trades in the selected timeframe, or all of them with `showAll`. */
 export function useInvestmentTransactions(page = 1, showAll = false, accountId?: string, instrumentId?: string) {
@@ -53,11 +54,7 @@ export function useCreateInvestmentTransaction() {
   return useMutation({
     mutationFn: (data: CreateInvestmentTransactionRequest) => investmentTransactionsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -69,11 +66,7 @@ export function useUpdateInvestmentTransaction() {
     mutationFn: ({ id, data }: { id: string; data: CreateInvestmentTransactionRequest }) =>
       investmentTransactionsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -84,11 +77,7 @@ export function useDeleteInvestmentTransaction() {
   return useMutation({
     mutationFn: (id: string) => investmentTransactionsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }

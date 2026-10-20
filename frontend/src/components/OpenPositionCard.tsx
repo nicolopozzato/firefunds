@@ -81,7 +81,7 @@ export default function OpenPositionCard({ position, currencySymbol, weight, wei
                 {formatMoney(position.costBasis, currencySymbol)}
               </PositionStat>
               <PositionStat label={t('accountDetail.positionAverageCost')}>
-                {formatMoney(position.averageCost, currencySymbol)}
+                {position.averageCost !== null ? formatMoney(position.averageCost, currencySymbol) : <EmptyValue />}
               </PositionStat>
               <PositionStat label={t('accountDetail.positionCurrentPrice')}>
                 {position.currentPrice !== null ? formatMoney(position.currentPrice, currencySymbol) : <EmptyValue />}

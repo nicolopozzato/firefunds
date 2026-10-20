@@ -40,6 +40,22 @@ class AccountRepository extends ServiceEntityRepository
         return $this->findBy(['user' => $user, 'type' => $type], self::ORDER);
     }
 
+    /** The user's account of that type with that name, ignoring case (the oldest, if several). */
+    public function findOneByUserTypeAndName(User $user, AccountType $type, string $name): ?Account
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.user = :user')
+            ->andWhere('a.type = :type')
+            ->andWhere('LOWER(a.name) = LOWER(:name)')
+            ->setParameter('user', $user)
+            ->setParameter('type', $type)
+            ->setParameter('name', $name)
+            ->orderBy('a.createdAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * @return array{0: Account[], 1: int}
      */
@@ -106,7 +122,8 @@ class AccountRepository extends ServiceEntityRepository
      * destination) - money sent (as source), across all transactions, plus the
      * net cash effect of any BUY/SELL investment transactions on that account
      * (these never produce a `transaction` row, so their cash impact has to be
-     * folded in here to keep an investment account's free cash balance correct).
+     * folded in here to keep an investment account's free cash balance correct),
+     * plus the account's other changes (AccountAdjustment).
      *
      * @param Account[] $accounts
      * @return array<string, string> account id (string) => balance
@@ -141,6 +158,7 @@ class AccountRepository extends ServiceEntityRepository
                             FROM investment_transaction it
                             WHERE it.account_id = a.id AND it.deleted_at IS NULL
                         ), 0)
+                        + COALESCE((SELECT SUM(aa.amount) FROM account_adjustment aa WHERE aa.account_id = a.id AND aa.deleted_at IS NULL), 0)
                     AS numeric(19,4)
                 ) AS balance
             FROM account a
@@ -201,6 +219,21 @@ class AccountRepository extends ServiceEntityRepository
     }
 
     /**
+     * Balance per account at the end of a day (getDailyBalanceHistories() for
+     * that one day): what is dated after it isn't there yet.
+     *
+     * @param Account[] $accounts
+     * @return array<string, string> account id => balance
+     */
+    public function getBalancesOn(array $accounts, \DateTimeInterface $day): array
+    {
+        return array_map(
+            static fn (array $history) => end($history),
+            $this->getDailyBalanceHistories($accounts, $day, $day),
+        );
+    }
+
+    /**
      * Balance at the end of each day in [from, to], carrying the opening balance
      * forward and applying the net of that day's transactions.
      *
@@ -227,7 +260,8 @@ class AccountRepository extends ServiceEntityRepository
      *
      * The opening balance is there from its date on (as in Firefly III), so an
      * account opened during the range adds nothing before; one without a date
-     * is there from the very beginning.
+     * is there from the very beginning. The account's other changes
+     * (AccountAdjustment) count from their date too.
      *
      * @param Account[] $accounts
      * @return array<string, array<string, string>> account id => (Y-m-d => balance), oldest first
@@ -271,6 +305,11 @@ class AccountRepository extends ServiceEntityRepository
                     SELECT id, opening_balance_date, opening_balance
                     FROM account
                     WHERE id IN (:ids) AND opening_balance_date IS NOT NULL AND opening_balance <> 0
+                    UNION ALL
+                    -- So does every other change to the balance (AccountAdjustment).
+                    SELECT account_id, date, amount
+                    FROM account_adjustment
+                    WHERE account_id IN (:ids) AND deleted_at IS NULL
                 ) by_day
                 WHERE day <= CAST(:to AS date)
                 GROUP BY account_id, day

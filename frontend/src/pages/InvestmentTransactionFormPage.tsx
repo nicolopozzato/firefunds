@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowDownToLine, ArrowUpToLine } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
-import { Card, CardContent } from '@/components/ui/card'
+import FormSection from '@/components/FormSection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,8 +38,6 @@ function isInvestmentTransactionType(value: string | null): value is InvestmentT
   return value === 'buy' || value === 'sell'
 }
 
-
-
 /** Quantity × unit price rounded to cents, what a broker usually charges; null while either is missing. */
 function suggestAmount(quantity: string, unitPrice: string): string | null {
   const q = Number(quantity)
@@ -61,6 +59,57 @@ function computeTotal(type: InvestmentTransactionType, amount: string, fees: str
   const costs = Number(fees || '0') + Number(taxes || '0')
   if (!amount || Number.isNaN(a) || Number.isNaN(costs)) return null
   return type === 'buy' ? a + costs : a - costs
+}
+
+/** The amounts adding up to the total, read only and set apart from the fields. */
+function TradeSummary({
+  type,
+  amount,
+  fees,
+  taxes,
+  total,
+}: {
+  type: InvestmentTransactionType
+  amount: string
+  fees: string
+  taxes: string
+  total: number | null
+}) {
+  const { t } = useTranslation()
+  const sign = type === 'buy' ? '+' : '−'
+  const line = (label: string, value: string, prefix = '') => (
+    <div className="flex justify-between gap-4">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="tabular-nums">
+        {prefix}
+        {formatMoney(Number(value || '0'))}
+      </dd>
+    </div>
+  )
+
+  return (
+    <div className="rounded-xl border bg-muted/40 p-4">
+      <div className="mb-3 text-sm font-semibold">{t('investmentTransactionForm.summary')}</div>
+      <dl className="space-y-1.5 text-sm">
+        {line(t('investmentTransactionForm.amount'), amount)}
+        {line(t('investmentTransactionForm.fees'), fees, `${sign} `)}
+        {line(t('investmentTransactionForm.taxes'), taxes, `${sign} `)}
+      </dl>
+      <div className="mt-3 flex items-baseline justify-between gap-4 border-t pt-3">
+        <span className="text-sm text-muted-foreground">
+          {t(type === 'buy' ? 'investmentTransactionForm.totalDebited' : 'investmentTransactionForm.totalCredited')}
+        </span>
+        <span
+          className={cn(
+            'text-xl font-semibold tabular-nums',
+            total === null ? 'text-muted-foreground' : type === 'buy' ? 'text-negative' : 'text-positive'
+          )}
+        >
+          {total !== null ? formatMoney(type === 'buy' ? -total : total) : '—'}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 export default function InvestmentTransactionFormPage() {
@@ -260,32 +309,26 @@ export default function InvestmentTransactionFormPage() {
         })}
       </div>
 
-      {/* Phones: the form sits on the page, one field per row. */}
-      <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-        <CardContent className="pt-6 max-md:p-0">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="description">{t('investmentTransactionForm.descriptionField')}</Label>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="occurredAt">{t('investmentTransactionForm.occurredAt')}</Label>
-                <Input
-                  id="occurredAt"
-                  type="datetime-local"
-                  required
-                  value={occurredAt}
-                  onChange={(e) => setOccurredAt(e.target.value)}
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 md:col-span-3">
+      {/* What, when and how much first, the read-only summary after the amounts (beside them on desktop), notes last. */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Below desktop the left column dissolves, so the summary can come right after the amounts. */}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+          <div className="max-lg:contents lg:space-y-6">
+            <FormSection title={t('investmentTransactionForm.sectionTrade')} className="max-lg:order-1" contentClassName="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="description">{t('investmentTransactionForm.descriptionField')}</Label>
+                  <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="occurredAt">{t('investmentTransactionForm.occurredAt')}</Label>
+                  <Input
+                    id="occurredAt"
+                    type="datetime-local"
+                    required
+                    value={occurredAt}
+                    onChange={(e) => setOccurredAt(e.target.value)}
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label>{t('investmentTransactionForm.account')}</Label>
                   <Combobox
@@ -295,7 +338,6 @@ export default function InvestmentTransactionFormPage() {
                     placeholder={t('investmentTransactionForm.selectAccount')}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label>{t('investmentTransactionForm.instrument')}</Label>
                   <Combobox
@@ -305,44 +347,46 @@ export default function InvestmentTransactionFormPage() {
                     placeholder={t('investmentTransactionForm.selectInstrument')}
                   />
                 </div>
-              </div>
 
-              <div className="grid gap-4 sm:grid-cols-3 md:col-span-3">
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">{t('investmentTransactionForm.quantity')}</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    step="0.000001"
-                    min="0.000001"
-                    required
-                    placeholder={numberFormatter({ minimumFractionDigits: 6 }).format(0)}
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                  />
+                {/* Side by side on phones too: two short numbers. */}
+                <div className="grid grid-cols-2 gap-4 sm:col-span-2">
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="quantity">{t('investmentTransactionForm.quantity')}</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      step="0.000001"
+                      min="0.000001"
+                      required
+                      placeholder={numberFormatter({ minimumFractionDigits: 6 }).format(0)}
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="unitPrice">{t('investmentTransactionForm.unitPrice')}</Label>
+                    <Input
+                      id="unitPrice"
+                      type="number"
+                      step="0.0001"
+                      min="0.0001"
+                      required
+                      value={unitPrice}
+                      onChange={(e) => setUnitPrice(e.target.value)}
+                    />
+                  </div>
                   {held !== null && (
-                    <p className={cn('text-xs', sellsMoreThanHeld ? 'text-warning' : 'text-muted-foreground')}>
+                    <p className={cn('col-span-2 text-xs', sellsMoreThanHeld ? 'text-warning' : 'text-muted-foreground')}>
                       {t(sellsMoreThanHeld ? 'investmentTransactionForm.sellExceedsHolding' : 'investmentTransactionForm.heldToday', {
                         quantity: formatQuantity(Math.max(held, 0)),
                       })}
                     </p>
                   )}
                 </div>
+            </FormSection>
 
-                <div className="space-y-2">
-                  <Label htmlFor="unitPrice">{t('investmentTransactionForm.unitPrice')}</Label>
-                  <Input
-                    id="unitPrice"
-                    type="number"
-                    step="0.0001"
-                    min="0.0001"
-                    required
-                    value={unitPrice}
-                    onChange={(e) => setUnitPrice(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
+            <FormSection title={t('investmentTransactionForm.sectionAmounts')} className="max-lg:order-2" contentClassName="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="col-span-2 min-w-0 space-y-2 sm:col-span-1">
                   <Label htmlFor="amount">{t('investmentTransactionForm.amount')}</Label>
                   <Input
                     id="amount"
@@ -361,19 +405,8 @@ export default function InvestmentTransactionFormPage() {
                       if (amount === '') setIsAmountEdited(false)
                     }}
                   />
-                  {amountDiffers && suggestedAmount !== null && (
-                    <p className={cn('text-xs', isAmountPlausible ? 'text-muted-foreground' : 'text-destructive')}>
-                      {t(
-                        isAmountPlausible
-                          ? 'investmentTransactionForm.amountHint'
-                          : 'investmentTransactionForm.amountImplausible',
-                        { value: formatMoney(suggestedAmount) }
-                      )}
-                    </p>
-                  )}
                 </div>
-
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="fees">{t('investmentTransactionForm.fees')}</Label>
                   <Input
                     id="fees"
@@ -384,8 +417,7 @@ export default function InvestmentTransactionFormPage() {
                     onChange={(e) => setFees(e.target.value)}
                   />
                 </div>
-
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="taxes">{t('investmentTransactionForm.taxes')}</Label>
                   <Input
                     id="taxes"
@@ -396,41 +428,50 @@ export default function InvestmentTransactionFormPage() {
                     onChange={(e) => setTaxes(e.target.value)}
                   />
                 </div>
+                <p
+                  className={cn(
+                    'col-span-2 text-xs sm:col-span-3',
+                    isAmountPlausible ? 'text-muted-foreground' : 'text-destructive'
+                  )}
+                >
+                  {amountDiffers && suggestedAmount !== null
+                    ? t(isAmountPlausible ? 'investmentTransactionForm.amountHint' : 'investmentTransactionForm.amountImplausible', {
+                        value: formatMoney(suggestedAmount),
+                      })
+                    : t('investmentTransactionForm.amountFollows')}
+                </p>
+            </FormSection>
 
-                <div className="space-y-2">
-                  <Label>{t('investmentTransactionForm.total')}</Label>
-                  <Input
-                    disabled
-                    readOnly
-                    value={total !== null ? formatMoney(total) : ''}
-                    className="tabular-nums disabled:opacity-100"
-                  />
-                </div>
-              </div>
+            <FormSection
+              title={<label htmlFor="notes">{t('classificationCommon.notes')}</label>}
+              optional
+              className="max-lg:order-4"
+            >
+              <textarea
+                id="notes"
+                rows={2}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </FormSection>
+          </div>
 
-              <div className="space-y-2 md:col-span-3">
-                <Label htmlFor="notes">{t('classificationCommon.notes')}</Label>
-                <textarea
-                  id="notes"
-                  rows={3}
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
+          {/* Read only: what the account is charged (BUY) or credited (SELL). */}
+          <div className="max-lg:order-3 lg:sticky lg:top-6">
+            <TradeSummary type={type} amount={effectiveAmount} fees={fees} taxes={taxes} total={total} />
+          </div>
+        </div>
 
-            <FormActions>
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={isSaving || !accountId || !instrumentId || !isAmountPlausible}>
-                {t('common.save')}
-              </Button>
-            </FormActions>
-          </form>
-        </CardContent>
-      </Card>
+        <FormActions>
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" disabled={isSaving || !accountId || !instrumentId || !isAmountPlausible}>
+            {t('common.save')}
+          </Button>
+        </FormActions>
+      </form>
     </div>
   )
 }

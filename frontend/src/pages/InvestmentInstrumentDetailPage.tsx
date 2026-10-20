@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Upload } from 'lucide-react'
 import { format, startOfYear, subDays, subMonths, subYears } from 'date-fns'
 import PageHeader from '@/components/PageHeader'
+import PageActions from '@/components/PageActions'
 import DeleteInstrumentDialog from '@/components/DeleteInstrumentDialog'
 import BalanceLineChart from '@/components/BalanceLineChart'
 import PricePeriodSelector, { type PricePeriod } from '@/components/PricePeriodSelector'
 import ImportPricesDialog from '@/components/ImportPricesDialog'
+import InstrumentPriceList from '@/components/InstrumentPriceList'
+import SegmentedControl from '@/components/ui/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -17,7 +19,7 @@ import {
   useInvestmentInstrumentPrices,
   useInvestmentInstrumentLivePrice,
 } from '@/hooks/use-investments'
-import { cn, formatMoney, formatTime24h, moneyColorClass } from '@/lib/utils'
+import { cn, formatDateTime, formatMoney, formatTime24h, moneyColorClass } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatRate, whiteListShareFromRate } from '@/lib/capital-gains-tax'
@@ -54,6 +56,7 @@ export default function InvestmentInstrumentDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [period, setPeriod] = useState<PricePeriod>('15d')
+  const [view, setView] = useState<'chart' | 'list'>('chart')
 
   const now = new Date()
   const periodFrom = fromDateForPeriod(period, now)
@@ -76,7 +79,8 @@ export default function InvestmentInstrumentDetailPage() {
     return historical
   }, [prices, showLivePoint, livePrice, today])
 
-  const latestClose = prices && prices.length > 0 ? prices[prices.length - 1] : null
+  // A price before the period (e.g. a fund priced by hand once a month) still says what it is worth.
+  const latestClose = (prices && prices.length > 0 ? prices[prices.length - 1] : null) ?? instrument?.latestPrice ?? null
   const previousClose = prices && prices.length > 1 ? prices[prices.length - 2] : null
 
   const displayPrice = showLivePoint && livePrice?.price ? livePrice.price : latestClose?.price
@@ -112,25 +116,20 @@ export default function InvestmentInstrumentDetailPage() {
       <PageHeader
         title={instrument.name}
         description={t('investmentInstrumentDetail.title')}
+        compactActions
         actions={
-          <>
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="mr-2 h-4 w-4" />
-              {t('importPrices.button')}
-            </Button>
-            <Button variant="outline" onClick={() => navigate(`${basePath}/${instrument.id}/edit`)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              {t('common.edit')}
-            </Button>
-            <Button
-              variant="outline"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {t('common.delete')}
-            </Button>
-          </>
+          <PageActions
+            actions={[
+              { label: t('importPrices.button'), icon: Upload, onClick: () => setImportOpen(true) },
+              {
+                label: t('common.edit'),
+                icon: Pencil,
+                primary: true,
+                onClick: () => navigate(`${basePath}/${instrument.id}/edit`),
+              },
+              { label: t('common.delete'), icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true) },
+            ]}
+          />
         }
       />
 
@@ -166,7 +165,7 @@ export default function InvestmentInstrumentDetailPage() {
                         ? isMarketOpen
                           ? t('investmentInstrumentDetail.livePriceAsOf', { time: formatTime24h(livePrice?.fetchedAt ?? new Date()) })
                           : t('investmentInstrumentDetail.lastTradedPrice')
-                        : t('investmentInstrumentDetail.lastPriceOn', { date: latestClose?.date })}
+                        : t('investmentInstrumentDetail.lastPriceOn', { date: latestClose ? formatDateTime(latestClose.date) : '' })}
                     </div>
                   </>
                 ) : (
@@ -217,11 +216,24 @@ export default function InvestmentInstrumentDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <PricePeriodSelector value={period} onChange={setPeriod} />
+      {/* The prices as a chart, or as a list to see where each comes from and keep them by hand. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl
+          label={t('investmentInstrumentDetail.viewLabel')}
+          options={[
+            { value: 'chart', label: t('investmentInstrumentDetail.viewChart') },
+            { value: 'list', label: t('investmentInstrumentDetail.viewList') },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+        {/* The list goes a month at a time instead. */}
+        {view === 'chart' && <PricePeriodSelector value={period} onChange={setPeriod} />}
       </div>
 
-      {isPricesLoading ? (
+      {view === 'list' ? (
+        <InstrumentPriceList instrumentId={instrument.id} initialDate={instrument.latestPrice?.date} />
+      ) : isPricesLoading ? (
         <Skeleton className="h-96 w-full rounded-xl" />
       ) : (
         <BalanceLineChart

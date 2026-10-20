@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import { useApplyThemePreference } from './hooks/use-theme'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageLoading from './components/PageLoading'
+import LoadFailed from './components/LoadFailed'
 import NotFound from './pages/NotFound'
 
 // Each page is its own chunk, loaded when first opened: the first load on a
@@ -46,7 +47,15 @@ const AdminCurrencies = lazy(() => import('./pages/admin/AdminCurrencies'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, unreachable, retry } = useAuth()
+
+  if (unreachable) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16">
+        <LoadFailed error={unreachable} onRetry={retry} canGoBack={false} />
+      </div>
+    )
+  }
 
   if (loading) {
     return (

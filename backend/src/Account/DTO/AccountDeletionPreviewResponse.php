@@ -13,9 +13,11 @@ final readonly class AccountDeletionPreviewResponse
      * @param array<array{id: string, name: string}> $transferTargets
      */
     public function __construct(
-        /** Non-zero opening balance, moved as a transaction on transfer; null if there is none. */
+        /** Non-zero opening balance, moved as an adjustment (AccountAdjustment) on transfer; null if there is none. */
         public ?string $openingBalance,
         public int $transactions,
+        /** Other changes to its balance (AccountAdjustment), moved or deleted with the transactions. */
+        public int $adjustments,
         public int $investmentTransactions,
         public int $openPositions,
         public array $transferTargets,

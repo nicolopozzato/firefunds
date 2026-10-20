@@ -75,6 +75,21 @@ class PortfolioServiceTest extends KernelTestCase
         ], $byAccount);
     }
 
+    /** +10 on one account, −10 sold by mistake on another: the overview still loads. */
+    public function testUnitsAddingUpToZeroAcrossAccountsHaveNoAverageCost(): void
+    {
+        $vwce = $this->instrument('VWCE');
+        $this->trade($this->brokerA, $vwce, InvestmentTransactionType::Buy, '10', '100.0000', '2026-09-01 10:00');
+        $this->trade($this->brokerB, $vwce, InvestmentTransactionType::Sell, '10', '110.0000', '2026-09-02 10:00');
+        $this->prices($vwce, ['2026-09-30' => '120.0000']);
+
+        $position = $this->portfolio('2026-10-01', '2026-10-01')->positions[0];
+
+        $this->assertSame('0.000000', $position->quantity);
+        $this->assertNull($position->averageCost);
+        $this->assertSame(['100.0000', '110.0000'], array_map(static fn ($account) => $account->averageCost, $position->accounts));
+    }
+
     /**
      * Net worth: every asset account's balance (a broker's free cash included)
      * plus the market value of what is held.

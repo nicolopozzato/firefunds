@@ -3,6 +3,7 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Account;
+use App\Entity\AccountAdjustment;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
 use App\Entity\Category;
@@ -118,10 +119,11 @@ class SoftDeletionTest extends WebTestCaseBase
 
     /**
      * The old account's 100 € opening balance isn't lost: it lands on the
-     * target as a deposit from "external", named after the old account and
-     * dated on its opening balance date (midnight in the owner's timezone).
+     * target as one of its other changes (an adjustment), named after the old
+     * account and dated on its opening balance date. Not a transaction, so not
+     * income either.
      */
-    public function testTransferCarriesTheOpeningBalanceOverAsAnExternalDeposit(): void
+    public function testTransferCarriesTheOpeningBalanceOverAsAnAdjustment(): void
     {
         $old = $this->assetAccount('Vecchio', AssetAccountKind::Checking, opening: '100.0000');
         $old->setOpeningBalanceDate(new \DateTimeImmutable('2026-08-15'));
@@ -133,19 +135,16 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->request('DELETE', '/api/accounts/'.$this->id($old).'?transferTo='.$this->id($new));
         $this->assertResponseStatusCodeSame(204);
 
-        $this->assertSame('80.0000', $this->request('GET', '/api/accounts/'.$this->id($new))['currentBalance']);
-        $carried = $this->connection->fetchAssociative(
-            'SELECT id, source_account_id, destination_account_id, amount, description, category_id, occurred_at FROM transaction WHERE description = ? AND user_id = ?',
-            ['Vecchio', $this->id($this->user)]
-        );
+        $account = $this->request('GET', '/api/accounts/'.$this->id($new));
+        $this->assertSame('80.0000', $account['currentBalance']);
         $this->assertSame(
-            ['source_account_id' => null, 'destination_account_id' => $this->id($new), 'amount' => '100.0000', 'category_id' => null, 'occurred_at' => '2026-08-15 00:00:00'],
-            array_intersect_key($carried, array_flip(['source_account_id', 'destination_account_id', 'amount', 'category_id', 'occurred_at']))
+            [['date' => '2026-08-15', 'amount' => '100.0000', 'description' => 'Vecchio']],
+            array_map(static fn (array $adjustment) => array_diff_key($adjustment, ['id' => true]), $account['adjustments'])
         );
-        $this->assertSame(['created'], $this->connection->fetchFirstColumn('SELECT action FROM transaction_audit_log WHERE transaction_id = ?', [$carried['id']]));
+        $this->assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM transaction WHERE description = ? AND user_id = ?', ['Vecchio', $this->id($this->user)]));
     }
 
-    public function testWithoutOpeningDateTheBalanceIsDatedJustBeforeTheFirstOperation(): void
+    public function testWithoutOpeningDateTheBalanceIsDatedOnTheFirstOperation(): void
     {
         $old = $this->assetAccount('Vecchio', AssetAccountKind::Checking, opening: '100.0000');
         $new = $this->assetAccount('Nuovo', AssetAccountKind::Checking);
@@ -154,10 +153,10 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->request('DELETE', '/api/accounts/'.$this->id($old).'?transferTo='.$this->id($new));
         $this->assertResponseStatusCodeSame(204);
 
-        $this->assertSame('2026-09-01 09:59:00', $this->connection->fetchOne('SELECT occurred_at FROM transaction WHERE description = ? AND user_id = ?', ['Vecchio', $this->id($this->user)]));
+        $this->assertSame('2026-09-01', $this->request('GET', '/api/accounts/'.$this->id($new))['adjustments'][0]['date']);
     }
 
-    public function testNegativeOpeningBalanceBecomesAWithdrawalToExternal(): void
+    public function testNegativeOpeningBalanceBecomesANegativeAdjustment(): void
     {
         $old = $this->assetAccount('Scoperto', AssetAccountKind::Checking, opening: '-40.0000');
         $new = $this->assetAccount('Nuovo', AssetAccountKind::Checking, opening: '100.0000');
@@ -165,11 +164,32 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->request('DELETE', '/api/accounts/'.$this->id($old).'?transferTo='.$this->id($new));
         $this->assertResponseStatusCodeSame(204);
 
-        $this->assertSame('60.0000', $this->request('GET', '/api/accounts/'.$this->id($new))['currentBalance']);
-        $this->assertSame(
-            [$this->id($new), null, '40.0000'],
-            array_values($this->connection->fetchNumeric('SELECT source_account_id, destination_account_id, amount FROM transaction WHERE description = ? AND user_id = ?', ['Scoperto', $this->id($this->user)]))
-        );
+        $account = $this->request('GET', '/api/accounts/'.$this->id($new));
+        $this->assertSame('60.0000', $account['currentBalance']);
+        $this->assertSame('-40.0000', $account['adjustments'][0]['amount']);
+    }
+
+    /** The old account's own adjustments move with its transactions, or are deleted with them. */
+    public function testAdjustmentsFollowTheTransactions(): void
+    {
+        $old = $this->assetAccount('Vecchio', AssetAccountKind::Checking);
+        $new = $this->assetAccount('Nuovo', AssetAccountKind::Checking);
+        $moved = $this->adjustment($old, '2026-09-10', '25.0000');
+        $own = $this->adjustment($new, '2026-09-11', '5.0000');
+
+        $this->assertSame(1, $this->request('GET', '/api/accounts/'.$this->id($old).'/deletion-preview')['adjustments']);
+        $this->request('DELETE', '/api/accounts/'.$this->id($old));
+        $this->assertResponseStatusCodeSame(409);
+
+        $this->request('DELETE', '/api/accounts/'.$this->id($old).'?transferTo='.$this->id($new));
+        $this->assertResponseStatusCodeSame(204);
+        $this->assertSame($this->id($new), $this->connection->fetchOne('SELECT account_id FROM account_adjustment WHERE id = ?', [$this->id($moved)]));
+        $this->assertSame('30.0000', $this->request('GET', '/api/accounts/'.$this->id($new))['currentBalance']);
+
+        $this->request('DELETE', '/api/accounts/'.$this->id($new).'?deleteTransactions=1');
+        $this->assertResponseStatusCodeSame(204);
+        $this->assertMarkedDeleted('account_adjustment', $own);
+        $this->assertMarkedDeleted('account_adjustment', $moved);
     }
 
     /** Only an opening balance, no transactions: still needs a choice, so the money isn't dropped silently. */
@@ -317,6 +337,15 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->entityManager->flush();
 
         return $account;
+    }
+
+    private function adjustment(Account $account, string $date, string $amount): AccountAdjustment
+    {
+        $adjustment = new AccountAdjustment($account, new \DateTimeImmutable($date), $amount);
+        $this->entityManager->persist($adjustment);
+        $this->entityManager->flush();
+
+        return $adjustment;
     }
 
     private function expenseAccount(string $name): Account

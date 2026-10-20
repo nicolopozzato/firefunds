@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { accountsApi } from '@/lib/accounts-api'
 import type { AccountListFilters, AccountType, CreateAccountRequest, DeleteAccountOptions, MoveAccountTarget, UpdateAccountRequest } from '@/types/account'
+import { dataChanged } from '@/lib/data-changed'
 
 /**
  * The account type of the current page, read from the URL: account routes are
@@ -14,10 +15,11 @@ export function useAccountTypeFromPath(): AccountType | null {
   return (match?.[1] as AccountType) ?? null
 }
 
-export function useAccounts(type: AccountType, page = 1, filters: AccountListFilters = {}) {
+/** `on`: the day the balances are at (yyyy-MM-dd), the last of the selected period; today when left out. */
+export function useAccounts(type: AccountType, page = 1, filters: AccountListFilters = {}, on?: string) {
   return useQuery({
-    queryKey: ['accounts', type, page, filters],
-    queryFn: () => accountsApi.list(type, page, undefined, filters),
+    queryKey: ['accounts', type, page, filters, on],
+    queryFn: () => accountsApi.list(type, page, undefined, filters, on),
     placeholderData: (previousData) => previousData,
   })
 }
@@ -42,12 +44,21 @@ export function useAllAccounts(type: AccountType) {
   })
 }
 
-export function useAccount(id: string) {
+/** `on`: the day the balance is at (yyyy-MM-dd); today when left out (e.g. the edit form). */
+export function useAccount(id: string, on?: string) {
   return useQuery({
     // The page shows its own error (LoadFailed).
     meta: { quietError: true },
-    queryKey: ['accounts', 'detail', id],
-    queryFn: () => accountsApi.get(id),
+    queryKey: ['accounts', 'detail', id, on],
+    queryFn: () => accountsApi.get(id, on),
+    enabled: !!id,
+  })
+}
+
+export function useAccountAuditLog(id: string) {
+  return useQuery({
+    queryKey: ['accounts', 'audit-log', id],
+    queryFn: () => accountsApi.auditLog(id),
     enabled: !!id,
   })
 }
@@ -90,37 +101,31 @@ export function useCreateAccount(type: AccountType) {
   return useMutation({
     mutationFn: (data: CreateAccountRequest) => accountsApi.create(type, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts', type] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
 
-export function useUpdateAccount(type: AccountType) {
+export function useUpdateAccount() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateAccountRequest }) =>
       accountsApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts', type] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
 
-/** The order also drives the dashboard (boxes, chart lines and their colours), so it is refreshed too. */
-export function useMoveAccount(type: AccountType) {
+/** The order also drives the dashboard (boxes, chart lines and their colours). */
+export function useMoveAccount() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ id, target }: { id: string; target: MoveAccountTarget }) => accountsApi.move(id, target),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts', type] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void dataChanged(queryClient)
     },
   })
 }
@@ -134,18 +139,14 @@ export function useAccountDeletionPreview(id: string | null) {
   })
 }
 
-/** Moving or deleting transactions touches other accounts' balances too, so everything is refreshed. */
+
 export function useDeleteAccount() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ id, options }: { id: string; options?: DeleteAccountOptions }) => accountsApi.remove(id, options),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['investment-transactions'] })
+      void dataChanged(queryClient)
     },
   })
 }

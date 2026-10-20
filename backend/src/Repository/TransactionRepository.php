@@ -408,8 +408,8 @@ class TransactionRepository extends ServiceEntityRepository
 
     /**
      * The first and last day the user has anything on: money transactions,
-     * trades and the opening balances of their accounts (deleted ones left
-     * out). Bounds the "All" timeframe. Both null when there is nothing yet.
+     * trades, and the opening balances and other changes (AccountAdjustment)
+     * of their accounts (deleted ones left out). Bounds the "All" timeframe. Both null when there is nothing yet.
      *
      * @return array{0: ?\DateTimeImmutable, 1: ?\DateTimeImmutable} days (midnight)
      */
@@ -424,6 +424,10 @@ class TransactionRepository extends ServiceEntityRepository
                     UNION ALL
                     SELECT opening_balance_date FROM account
                     WHERE user_id = :user AND deleted_at IS NULL AND opening_balance_date IS NOT NULL
+                    UNION ALL
+                    SELECT aa.date FROM account_adjustment aa
+                    JOIN account a ON a.id = aa.account_id AND a.user_id = :user AND a.deleted_at IS NULL
+                    WHERE aa.deleted_at IS NULL
                 ) days
                 SQL,
             ['user' => $user->getId()->toRfc4122()],

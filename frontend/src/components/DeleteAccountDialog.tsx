@@ -48,7 +48,8 @@ export default function DeleteAccountDialog({ account, onClose, onDeleted }: Del
     setTargetId('')
   }, [account?.id])
 
-  const inUse = !!preview && (preview.openingBalance !== null || preview.transactions + preview.investmentTransactions > 0)
+  const inUse =
+    !!preview && (preview.openingBalance !== null || preview.transactions + preview.investmentTransactions + preview.adjustments > 0)
   const canTransfer = !!preview && preview.transferTargets.length > 0
   const effectiveMode: Mode = canTransfer ? mode : 'delete'
 
@@ -95,6 +96,7 @@ export default function DeleteAccountDialog({ account, onClose, onDeleted }: Del
                 </li>
               )}
               {preview.transactions > 0 && <li>{t('accountsCommon.deleteTransactionsCount', { count: preview.transactions })}</li>}
+              {preview.adjustments > 0 && <li>{t('accountsCommon.deleteAdjustmentsCount', { count: preview.adjustments })}</li>}
               {preview.investmentTransactions > 0 && (
                 <li>{t('accountsCommon.deleteInvestmentTransactionsCount', { count: preview.investmentTransactions })}</li>
               )}

@@ -3,6 +3,7 @@
 namespace App\Investment\DTO;
 
 use App\Entity\InvestmentInstrument;
+use App\Entity\InvestmentPrice;
 
 final readonly class InvestmentInstrumentResponse
 {
@@ -17,10 +18,12 @@ final readonly class InvestmentInstrumentResponse
         public ?string $capitalGainsTaxRate,
         public string $createdAt,
         public string $updatedAt,
+        /** The detail only: the latest price recorded (imported or the user's), whatever the period shown. */
+        public ?InvestmentPriceResponse $latestPrice = null,
     ) {
     }
 
-    public static function fromEntity(InvestmentInstrument $instrument): self
+    public static function fromEntity(InvestmentInstrument $instrument, ?InvestmentPrice $latestPrice = null): self
     {
         return new self(
             id: (string) $instrument->getId(),
@@ -32,6 +35,7 @@ final readonly class InvestmentInstrumentResponse
             capitalGainsTaxRate: $instrument->getCapitalGainsTaxRate(),
             createdAt: $instrument->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $instrument->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            latestPrice: $latestPrice !== null ? InvestmentPriceResponse::fromEntity($latestPrice) : null,
         );
     }
 }

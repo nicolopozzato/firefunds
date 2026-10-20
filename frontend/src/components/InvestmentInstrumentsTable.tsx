@@ -31,6 +31,7 @@ import { formatRate } from '@/lib/capital-gains-tax'
 import { InvestmentSectionTabs } from '@/components/layout/SectionTabs'
 import { MobileListCard, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 const basePath = '/investments/instruments'
 
@@ -40,8 +41,9 @@ export default function InvestmentInstrumentsTable() {
   const defaultTaxRate = user?.capitalGainsTaxRate ?? '26'
   const navigate = useNavigate()
   const isMobile = useIsMobile()
-  const [page, setPage] = useState(1)
-  const { data, isLoading } = useInvestmentInstruments(page)
+  const { page, setPage } = useListPage()
+  const { data, isLoading, isPlaceholderData } = useInvestmentInstruments(page)
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const instruments = data?.items
   const [instrumentToDelete, setInstrumentToDelete] = useState<InvestmentInstrument | null>(null)
 

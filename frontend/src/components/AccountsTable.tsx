@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -42,11 +42,14 @@ import { useAccounts, useHasAnyAccount, useMoveAccount } from '@/hooks/use-accou
 import DeleteAccountDialog from '@/components/DeleteAccountDialog'
 import { cn, formatDateTime, formatIban, formatMoney, moneyColorClass, totalAccountValue } from '@/lib/utils'
 import type { Account, AccountStatusFilter, AccountType, AssetAccountKind, MoveAccountTarget } from '@/types/account'
+import { format } from 'date-fns'
 import EmptyValue from '@/components/EmptyValue'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
 import { handleApiError } from '@/lib/error-handler'
 import { MobileListCard, MobileListIcon, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
+import { useTimeframe } from '@/contexts/TimeframeContext'
+import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 
 type KindFilter = AssetAccountKind | 'all'
 
@@ -205,19 +208,29 @@ export default function AccountsTable({
 }: AccountsTableProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [page, setPage] = useState(1)
   const [searchParams, setSearchParams] = useSearchParams()
   const isAsset = type === 'asset'
   // Kept in the URL, so coming back to the list (or sharing the link) keeps the filters.
   const status = pick(searchParams.get('status'), STATUS_FILTERS, DEFAULT_STATUS)
   const kind: KindFilter = isAsset ? pick(searchParams.get('kind'), KIND_FILTERS, 'all') : 'all'
   const isFiltered = status !== 'all' || kind !== 'all'
-  const { data, isLoading } = useAccounts(type, page, {
-    status,
-    kind: kind === 'all' ? undefined : kind,
-  })
+  // Balances at the end of the selected period, like the dashboard's boxes.
+  const { timeframe } = useTimeframe()
+  const balanceDay = format(timeframe.to, 'yyyy-MM-dd')
+  const { page, setPage } = useListPage([status, kind])
+  const { data, isLoading, isPlaceholderData } = useAccounts(
+    type,
+    page,
+    {
+      status,
+      kind: kind === 'all' ? undefined : kind,
+    },
+    balanceDay
+  )
+  const balanceHeading = t('accountsCommon.balanceOn', { date: formatDateTime(balanceDay) })
+  useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const isMobile = useIsMobile()
-  const moveAccount = useMoveAccount(type)
+  const moveAccount = useMoveAccount()
   // The order just dropped, shown until the list comes back from the server in that order.
   const [droppedOrder, setDroppedOrder] = useState<{ items: Account[]; of: typeof data } | null>(null)
   const accounts = droppedOrder && droppedOrder.of === data ? droppedOrder.items : data?.items
@@ -230,10 +243,6 @@ export default function AccountsTable({
   const { data: hasAnyAccount, isLoading: isCheckingAny } = useHasAnyAccount(type, isEmpty && isFiltered)
   const showFilteredEmpty = isEmpty && isFiltered && hasAnyAccount === true
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null)
-
-  useEffect(() => {
-    setPage(1)
-  }, [type])
 
   const basePath = `/accounts/${type}`
 
@@ -261,8 +270,8 @@ export default function AccountsTable({
     const next = new URLSearchParams(searchParams)
     if (value === defaultValue) next.delete(key)
     else next.set(key, value)
+    // The page goes back to the first through useListPage.
     setSearchParams(next, { replace: true })
-    setPage(1)
   }
 
   return (
@@ -333,7 +342,7 @@ export default function AccountsTable({
                   <TableRow>
                     {isAsset && <TableHead className="w-0 pl-2 pr-0" />}
                     <TableHead className={cn(isAsset && 'pl-1')}>{t('accountsCommon.name')}</TableHead>
-                    <TableHead className="text-right">{t('accountsCommon.currentBalance')}</TableHead>
+                    <TableHead className="text-right">{balanceHeading}</TableHead>
                     <TableHead>{t('accountsCommon.iban')}</TableHead>
                     {isAsset && <TableHead>{t('accountsCommon.assetKind')}</TableHead>}
                     <TableHead>{t('accountsCommon.active')}</TableHead>
@@ -385,7 +394,7 @@ export default function AccountsTable({
                     <TableRow>
                       {isAsset && <TableHead className="w-0 pl-2 pr-0" />}
                       <TableHead className={cn(isAsset && 'pl-1')}>{t('accountsCommon.name')}</TableHead>
-                      <TableHead className="text-right">{t('accountsCommon.currentBalance')}</TableHead>
+                      <TableHead className="text-right">{balanceHeading}</TableHead>
                       <TableHead>{t('accountsCommon.iban')}</TableHead>
                       {isAsset && <TableHead>{t('accountsCommon.assetKind')}</TableHead>}
                       <TableHead>{t('accountsCommon.active')}</TableHead>

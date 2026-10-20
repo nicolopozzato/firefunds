@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   addDays,
   addMonths,
@@ -16,6 +17,7 @@ import {
 } from 'date-fns'
 import { transactionsApi } from '@/lib/transactions-api'
 import { parseDate } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 /**
  * `currentMonth`, the `lastNDays`, `currentYear` and `previousYear` follow
@@ -174,6 +176,27 @@ const TimeframeContext = createContext<TimeframeContextType | undefined>(undefin
 
 export function TimeframeProvider({ children }: { children: ReactNode }) {
   const [timeframe, setTimeframe] = useState<Timeframe>(() => loadStoredTimeframe())
+  const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
+
+  // "All" is always all: from the first thing recorded to the last (or today),
+  // fetched again on every load and whenever a transaction, trade or account
+  // changes (they refresh ['transactions'] / this key), never the days stored
+  // when it was picked.
+  const isAll = timeframe.preset === 'all'
+  const { data: dateRange } = useQuery({
+    queryKey: ['transactions', 'date-range'],
+    queryFn: () => transactionsApi.dateRange(),
+    enabled: isAll && isAuthenticated,
+  })
+  useEffect(() => {
+    if (!isAll || !dateRange) return
+    const from = dateRange.earliest !== null ? parseDate(dateRange.earliest) : ALL_TIME_FROM
+    const to = dateRange.latest !== null ? parseDate(dateRange.latest) : new Date()
+    setTimeframe((current) =>
+      current.preset === 'all' && isSameDay(current.from, from) && isSameDay(current.to, to) ? current : { preset: 'all', from, to }
+    )
+  }, [isAll, dateRange])
 
   useEffect(() => {
     const stored: StoredTimeframe = {
@@ -195,17 +218,14 @@ export function TimeframeProvider({ children }: { children: ReactNode }) {
     }
 
     if (preset === 'all') {
-      try {
-        const { earliest, latest } = await transactionsApi.dateRange()
-        setTimeframe({
-          preset: 'all',
-          from: earliest !== null ? parseDate(earliest) : ALL_TIME_FROM,
-          to: latest !== null ? parseDate(latest) : new Date(),
-        })
-      } catch {
-        const { from, to } = rangeForPreset('all')
-        setTimeframe({ preset: 'all', from, to })
-      }
+      // The days come from the date range (above): what is known now, then the fresh one.
+      const known = queryClient.getQueryData<{ earliest: string | null; latest: string | null }>(['transactions', 'date-range'])
+      setTimeframe({
+        preset: 'all',
+        from: known?.earliest ? parseDate(known.earliest) : ALL_TIME_FROM,
+        to: known?.latest ? parseDate(known.latest) : new Date(),
+      })
+      await queryClient.invalidateQueries({ queryKey: ['transactions', 'date-range'] })
       return
     }
 

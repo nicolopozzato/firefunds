@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowUpCircle, ArrowDownCircle, Repeat } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
-import { Card, CardContent } from '@/components/ui/card'
+import FormSection from '@/components/FormSection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,9 +19,9 @@ import {
 } from '@/components/ui/select'
 import Combobox from '@/components/Combobox'
 import TagsInput from '@/components/TagsInput'
-import { useAllAccounts, useCreateAccount } from '@/hooks/use-accounts'
+import { useAllAccounts } from '@/hooks/use-accounts'
 import { useCreateTransaction, useTransaction, useUpdateTransaction } from '@/hooks/use-transactions'
-import { useAllClassification, useCreateClassification } from '@/hooks/use-classification'
+import { useAllClassification } from '@/hooks/use-classification'
 import { useCurrencies } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { handleApiError } from '@/lib/error-handler'
@@ -106,8 +106,6 @@ export default function TransactionFormPage() {
   const { data: tagsResponse, isLoading: isLoadingTags } = useAllClassification('tags')
   const categories = categoriesResponse?.items
   const tags = tagsResponse?.items
-  const createCategory = useCreateClassification('categories')
-  const createTag = useCreateClassification('tags')
 
   const requestedType = searchParams.get('type')
   const [transactionType, setTransactionType] = useState<TransactionType>(
@@ -119,8 +117,6 @@ export default function TransactionFormPage() {
   const { data: destinationAccountsResponse, isLoading: isLoadingDestinationAccounts } = useAllAccounts(config.destinationType)
   const sourceAccounts = sourceAccountsResponse?.items
   const destinationAccounts = destinationAccountsResponse?.items
-  const createSourceAccount = useCreateAccount(config.sourceType)
-  const createDestinationAccount = useCreateAccount(config.destinationType)
 
   const [description, setDescription] = useState('')
   // A new transaction can start from an account, e.g. the dashboard's "New" on an account's box.
@@ -260,64 +256,31 @@ export default function TransactionFormPage() {
     setIsSubmitting(true)
 
     try {
-      // When creating a new asset account on the fly, inherit the currency from
-      // the other (already existing) asset account in this transaction — an
-      // asset account cannot be created without a currency. Falls back to the
-      // first enabled currency if both sides are being created at once.
-      const inheritedCurrencyCode =
-        (!isPendingId(sourceAccountId) && sourceAccounts?.find((a) => a.id === sourceAccountId)?.currencyCode) ||
-        (!isPendingId(destinationAccountId) && destinationAccounts?.find((a) => a.id === destinationAccountId)?.currencyCode) ||
-        currencies?.[0]?.code ||
-        null
-
-      let resolvedSourceId = sourceAccountId
-      if (isPendingId(sourceAccountId)) {
-        const created = await createSourceAccount.mutateAsync({
-          type: config.sourceType,
-          name: pendingName(sourceAccountId),
-          currencyCode: config.sourceType === 'asset' ? inheritedCurrencyCode : undefined,
-        })
-        resolvedSourceId = created.id
-      }
-
-      let resolvedDestinationId = destinationAccountId
-      if (isPendingId(destinationAccountId)) {
-        const created = await createDestinationAccount.mutateAsync({
-          type: config.destinationType,
-          name: pendingName(destinationAccountId),
-          currencyCode: config.destinationType === 'asset' ? inheritedCurrencyCode : undefined,
-        })
-        resolvedDestinationId = created.id
-      }
-
-      let resolvedCategoryId = categoryId
-      if (isPendingId(categoryId)) {
-        const created = await createCategory.mutateAsync({ name: pendingName(categoryId) })
-        resolvedCategoryId = created.id
-      }
-
-      const resolvedTagIds: string[] = []
-      for (const tagId of selectedTagIds) {
-        if (isPendingId(tagId)) {
-          const created = await createTag.mutateAsync({ name: pendingName(tagId) })
-          resolvedTagIds.push(created.id)
-        } else {
-          resolvedTagIds.push(tagId)
-        }
-      }
+      // What was written instead of picked goes by name: the server finds it
+      // (same name, any case) or creates it, in the same save as the
+      // transaction, so a refused save creates nothing and a retry no duplicate.
+      const byIdOrName = (value: string) =>
+        isPendingId(value) ? { id: null, name: pendingName(value) } : { id: value || null, name: null }
+      const source = byIdOrName(sourceAccountId)
+      const destination = byIdOrName(destinationAccountId)
+      const category = byIdOrName(categoryId)
 
       const payload = {
         description: description || null,
-        sourceAccountId: resolvedSourceId || null,
-        destinationAccountId: resolvedDestinationId || null,
+        sourceAccountId: source.id,
+        newSourceAccountName: source.name,
+        destinationAccountId: destination.id,
+        newDestinationAccountName: destination.name,
         occurredAt: fromDatetimeLocal(occurredAt),
         // An edit keeps where it happened; a new one happens where this device is.
         timezone: isEditing ? undefined : deviceTimezone(),
         amount,
         foreignAmount: hasForeignAmount ? foreignAmount || null : null,
         foreignCurrency: hasForeignAmount ? foreignCurrency || null : null,
-        categoryId: resolvedCategoryId || null,
-        tagIds: resolvedTagIds,
+        categoryId: category.id,
+        newCategoryName: category.name,
+        tagIds: selectedTagIds.filter((tagId) => !isPendingId(tagId)),
+        newTagNames: selectedTagIds.filter(isPendingId).map(pendingName),
         notes: notes || null,
       }
 
@@ -390,58 +353,14 @@ export default function TransactionFormPage() {
         })}
       </div>
 
-      {/* Phones: the form sits on the page, no card around it. */}
-      <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-        <CardContent className="pt-6 max-md:p-0">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="description">{t('transactionForm.descriptionField')}</Label>
-                <Input
-                  id="description"
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{sourceLabel}</Label>
-                <Combobox
-                  options={sourceOptions}
-                  value={sourceAccountId}
-                  onChange={setSourceAccountId}
-                  onCreate={(name) => setSourceAccountId(toPendingId(name))}
-                  placeholder={t('transactionForm.selectAccount')}
-                  clearable={OPTIONAL_SIDE[transactionType] === 'source'}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{destinationLabel}</Label>
-                <Combobox
-                  options={destinationOptions}
-                  value={destinationAccountId}
-                  onChange={setDestinationAccountId}
-                  onCreate={(name) => setDestinationAccountId(toPendingId(name))}
-                  placeholder={t('transactionForm.selectAccount')}
-                  clearable={OPTIONAL_SIDE[transactionType] === 'destination'}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="occurredAt">{t('transactionForm.occurredAt')}</Label>
-                <Input
-                  id="occurredAt"
-                  type="datetime-local"
-                  required
-                  value={occurredAt}
-                  onChange={(e) => setOccurredAt(e.target.value)}
-                />
-              </div>
-
+      {/* Desktop: what, when, how much and its categories on the left, the optional extras on the right.
+          Below that, one column in that order. */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+          <div className="space-y-6">
+            <FormSection title={t('transactionForm.sectionTransaction')} contentClassName="grid gap-4 sm:grid-cols-2">
               {/* Phones: the amount comes first, large. */}
-              <div className="space-y-2 max-md:order-first">
+              <div className="space-y-2">
                 <Label htmlFor="amount">{t('transactionForm.amount')}</Label>
                 <Input
                   data-large
@@ -456,22 +375,91 @@ export default function TransactionFormPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="occurredAt">{t('transactionForm.occurredAt')}</Label>
+                <Input
+                  id="occurredAt"
+                  type="datetime-local"
+                  required
+                  value={occurredAt}
+                  onChange={(e) => setOccurredAt(e.target.value)}
+                />
+              </div>
+
               <div className="space-y-2 sm:col-span-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    id="hasForeignAmount"
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-input"
-                    checked={hasForeignAmount}
-                    onChange={(e) => resetForeignAmount(e.target.checked)}
-                  />
-                  <Label htmlFor="hasForeignAmount">{t('transactionForm.hasForeignAmount')}</Label>
-                </div>
+                <Label htmlFor="description">{t('transactionForm.descriptionField')}</Label>
+                <Input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{sourceLabel}</Label>
+                <Combobox
+                  options={sourceOptions}
+                  value={sourceAccountId}
+                  onChange={setSourceAccountId}
+                  // An asset account needs a kind, a currency and an opening balance: made on the Accounts page.
+                  onCreate={config.sourceType === 'asset' ? undefined : (name) => setSourceAccountId(toPendingId(name))}
+                  placeholder={t('transactionForm.selectAccount')}
+                  clearable={OPTIONAL_SIDE[transactionType] === 'source'}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{destinationLabel}</Label>
+                <Combobox
+                  options={destinationOptions}
+                  value={destinationAccountId}
+                  onChange={setDestinationAccountId}
+                  onCreate={config.destinationType === 'asset' ? undefined : (name) => setDestinationAccountId(toPendingId(name))}
+                  placeholder={t('transactionForm.selectAccount')}
+                  clearable={OPTIONAL_SIDE[transactionType] === 'destination'}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection title={t('transactionForm.sectionClassification')} optional contentClassName="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t('transactionForm.category')}</Label>
+                <Combobox
+                  options={categoryOptions}
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  onCreate={(name) => setCategoryId(toPendingId(name))}
+                  placeholder={t('transactionForm.selectCategory')}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('transactionForm.tags')}</Label>
+                <TagsInput
+                  options={tagOptions}
+                  value={selectedTagIds}
+                  onChange={setSelectedTagIds}
+                  onCreate={(name) => setSelectedTagIds((current) => [...current, toPendingId(name)])}
+                  placeholder={t('tagsInput.add')}
+                />
+              </div>
+            </FormSection>
+          </div>
+
+          <div className="space-y-6">
+            <FormSection title={t('transactionForm.foreignCurrency')} optional contentClassName="space-y-4">
+              <div className="flex items-start gap-2">
+                <input
+                  id="hasForeignAmount"
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-input"
+                  checked={hasForeignAmount}
+                  onChange={(e) => resetForeignAmount(e.target.checked)}
+                />
+                <Label htmlFor="hasForeignAmount" className="font-normal">
+                  {t('transactionForm.hasForeignAmount')}
+                </Label>
               </div>
 
               {hasForeignAmount && (
-                <>
-                  <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="foreignCurrency">{t('transactionForm.foreignCurrency')}</Label>
                     <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
                       <SelectTrigger id="foreignCurrency">
@@ -487,7 +475,7 @@ export default function TransactionFormPage() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="foreignAmount">{t('transactionForm.foreignAmount')}</Label>
                     <Input
                       id="foreignAmount"
@@ -497,59 +485,39 @@ export default function TransactionFormPage() {
                       onChange={(e) => setForeignAmount(e.target.value)}
                     />
                   </div>
-                </>
+                </div>
               )}
+            </FormSection>
 
-              <div className="space-y-2">
-                <Label>{t('transactionForm.category')}</Label>
-                <Combobox
-                  options={categoryOptions}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  onCreate={(name) => setCategoryId(toPendingId(name))}
-                  placeholder={t('transactionForm.selectCategory')}
-                />
-              </div>
+            <FormSection title={<label htmlFor="notes">{t('classificationCommon.notes')}</label>} optional>
+              <textarea
+                id="notes"
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </FormSection>
+          </div>
+        </div>
 
-              <div className="space-y-2 sm:col-span-2">
-                <Label>{t('transactionForm.tags')}</Label>
-                <TagsInput
-                  options={tagOptions}
-                  value={selectedTagIds}
-                  onChange={setSelectedTagIds}
-                  onCreate={(name) => setSelectedTagIds((current) => [...current, toPendingId(name)])}
-                  placeholder={t('tagsInput.add')}
-                />
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="notes">{t('classificationCommon.notes')}</Label>
-                <textarea
-                  id="notes"
-                  rows={3}
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <FormActions>
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={
-                  isSaving ||
-                  !description.trim() ||
-                  (!sourceAccountId && OPTIONAL_SIDE[transactionType] !== 'source') ||
-                  (!destinationAccountId && OPTIONAL_SIDE[transactionType] !== 'destination')
-                }>
-                {t('common.save')}
-              </Button>
-            </FormActions>
-          </form>
-        </CardContent>
-      </Card>
+        <FormActions>
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            disabled={
+              isSaving ||
+              !description.trim() ||
+              (!sourceAccountId && OPTIONAL_SIDE[transactionType] !== 'source') ||
+              (!destinationAccountId && OPTIONAL_SIDE[transactionType] !== 'destination')
+            }
+          >
+            {t('common.save')}
+          </Button>
+        </FormActions>
+      </form>
     </div>
   )
 }

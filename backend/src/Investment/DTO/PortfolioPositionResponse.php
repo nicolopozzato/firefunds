@@ -19,7 +19,8 @@ final readonly class PortfolioPositionResponse
         public string $quantity,
         public string $costBasis,
         /** Total cost basis over total quantity, whatever account each unit was bought on. */
-        public string $averageCost,
+        /** Null when the accounts' units add up to zero (e.g. +10 on one, −10 on another). */
+        public ?string $averageCost,
         /** The earliest of the accounts' opening days. */
         public ?string $openedOn,
         public ?string $currentPrice,

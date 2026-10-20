@@ -21,12 +21,15 @@ final readonly class AccountResponse
         public ?string $currencySymbol,
         public ?string $openingBalance,
         public ?string $openingBalanceDate,
+        /** At the end of `balanceDate`: the asset account's free cash, the total of an expense or revenue account. */
         public string $currentBalance,
+        /** The day `currentBalance`, `investedValue`, the gain and the tax are at (Y-m-d). */
+        public string $balanceDate,
         public ?string $lastActivityAt,
         public string $createdAt,
         public string $updatedAt,
         /**
-         * Current market value of everything held on this account, only ever
+         * Market value of everything held on this account, only ever
          * set for an investment account. `currentBalance` above stays what it
          * always was: the account's free cash, not counting invested value.
          */
@@ -40,9 +43,19 @@ final readonly class AccountResponse
          * position (a loss on one doesn't offset another's gain); an estimate.
          */
         public ?string $estimatedTax = null,
+        /**
+         * Asset accounts: the other changes to the balance besides the opening
+         * balance (AccountAdjustment), oldest first.
+         *
+         * @var AccountAdjustmentResponse[]
+         */
+        public array $adjustments = [],
     ) {
     }
 
+    /**
+     * @param \App\Entity\AccountAdjustment[] $adjustments
+     */
     public static function fromEntity(
         Account $account,
         string $currentBalance,
@@ -51,6 +64,8 @@ final readonly class AccountResponse
         ?string $gainAmount = null,
         ?string $gainPercent = null,
         ?string $estimatedTax = null,
+        array $adjustments = [],
+        ?\DateTimeInterface $balanceDate = null,
     ): self {
         $currency = $account->getCurrency();
 
@@ -70,6 +85,7 @@ final readonly class AccountResponse
             openingBalance: $account->getOpeningBalance(),
             openingBalanceDate: $account->getOpeningBalanceDate()?->format('Y-m-d'),
             currentBalance: $currentBalance,
+            balanceDate: ($balanceDate ?? new \DateTimeImmutable())->format('Y-m-d'),
             lastActivityAt: $lastActivityAt !== null
                 ? (new \DateTimeImmutable($lastActivityAt))->format(\DateTimeInterface::ATOM)
                 : null,
@@ -79,6 +95,7 @@ final readonly class AccountResponse
             gainAmount: $gainAmount,
             gainPercent: $gainPercent,
             estimatedTax: $estimatedTax,
+            adjustments: array_map(AccountAdjustmentResponse::fromEntity(...), $adjustments),
         );
     }
 }

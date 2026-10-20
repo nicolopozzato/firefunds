@@ -13,6 +13,8 @@ export interface InvestmentInstrument {
   capitalGainsTaxRate: string | null
   createdAt: string
   updatedAt: string
+  /** The detail only: the latest price recorded, whatever the period shown. */
+  latestPrice?: InvestmentPrice | null
 }
 
 export interface InvestmentInstrumentRequest {
@@ -24,10 +26,15 @@ export interface InvestmentInstrumentRequest {
   capitalGainsTaxRate?: string | null
 }
 
+/** market: the provider's close; filled: carried over from the day before (no close that day); manual: the user's. */
+export type InvestmentPriceSource = 'market' | 'filled' | 'manual'
+
 export interface InvestmentPrice {
   date: string
   price: string
-  originalPrice: string
+  source: InvestmentPriceSource
+  /** The provider's value, when there is one: what "restore" goes back to. Null for a day only the user entered. */
+  originalPrice: string | null
 }
 
 export type MarketState = 'open' | 'pre_market' | 'post_market' | 'closed' | 'unknown'
@@ -102,19 +109,6 @@ export interface CreateInvestmentTransactionRequest {
   notes?: string | null
 }
 
-export interface InvestmentTransactionAuditLogChange {
-  field: string
-  oldValue: unknown
-  newValue: unknown
-}
-
-export interface InvestmentTransactionAuditLogEntry {
-  id: string
-  action: 'created' | 'updated' | 'deleted'
-  changes: InvestmentTransactionAuditLogChange[] | null
-  createdAt: string
-}
-
 export interface PositionHistoryPoint {
   date: string
   value: string
@@ -128,7 +122,8 @@ export interface OpenPosition {
   instrumentTicker: string | null
   quantity: string
   costBasis: string
-  averageCost: string
+  /** Null when the units add up to zero (in the portfolio, across accounts: +10 on one, −10 on another). */
+  averageCost: string | null
   /** Day (YYYY-MM-DD, as written where the trade happened) the current holding was opened. */
   openedOn: string | null
   currentPrice: string | null
