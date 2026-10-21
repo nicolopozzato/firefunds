@@ -13,6 +13,10 @@ import { handleApiError } from './lib/error-handler'
 // Initialize theme system
 applyTheme(getTheme())
 
+// No pinch zoom, as in a native app: Safari on iOS ignores user-scalable=no in
+// the viewport (index.html), but lets its own gesture event be cancelled.
+document.addEventListener('gesturestart', (event) => event.preventDefault())
+
 const queryClient = new QueryClient({
   // A list that failed to load would otherwise just look empty. Only when
   // there is nothing on screen yet (a failed background refetch keeps what is

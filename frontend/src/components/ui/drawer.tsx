@@ -1,10 +1,12 @@
 import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
+import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { cn } from '@/lib/utils'
 
 /** A panel that slides up from the bottom of the screen and can be dragged down to close (phones). */
-const Drawer = ({ shouldScaleBackground = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
+const Drawer = ({ shouldScaleBackground = false, repositionInputs = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
+  // repositionInputs off: the panel follows the keyboard itself (DrawerContent), vaul's own way misplaces it.
+  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} repositionInputs={repositionInputs} {...props} />
 )
 Drawer.displayName = 'Drawer'
 
@@ -25,22 +27,29 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DrawerPortal>
-    <DrawerOverlay />
-    <DrawerPrimitive.Content
-      ref={ref}
-      className={cn(
-        'fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-2xl border-t bg-background pb-[env(safe-area-inset-bottom)] outline-none',
-        className
-      )}
-      {...props}
-    >
-      <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
-      {children}
-    </DrawerPrimitive.Content>
-  </DrawerPortal>
-))
+>(({ className, children, style, ...props }, ref) => {
+  // With the keyboard open the panel takes the visible area, from its top edge:
+  // the search field stays on screen above the keyboard.
+  const keyboard = useKeyboardViewport(true)
+
+  return (
+    <DrawerPortal>
+      <DrawerOverlay />
+      <DrawerPrimitive.Content
+        ref={ref}
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-2xl border-t bg-background pb-[env(safe-area-inset-bottom)] outline-none',
+          className
+        )}
+        style={keyboard ? { ...style, top: keyboard.top + 8, bottom: 'auto', height: keyboard.height - 8, maxHeight: 'none' } : style}
+        {...props}
+      >
+        <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
+        {children}
+      </DrawerPrimitive.Content>
+    </DrawerPortal>
+  )
+})
 DrawerContent.displayName = 'DrawerContent'
 
 const DrawerHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

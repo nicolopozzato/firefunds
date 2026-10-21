@@ -96,10 +96,10 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   /* Touch screens: no grey flash on whatever is tapped, the app gives its own feedback (active: states);
-     no double-tap zoom, which delays taps. Pinch zoom stays (index.html). */
+     no pinch or double-tap zoom: the app doesn't zoom, see the viewport in index.html. */
   html {
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+    touch-action: pan-x pan-y;
   }
   /* Phones and tablets: iOS (iPad too) zooms into a field whose text is smaller than 16px
      when it gets the focus. A field drawn larger on purpose (e.g. a form's amount) opts out
