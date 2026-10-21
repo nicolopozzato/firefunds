@@ -53,6 +53,12 @@ jobs:
       - name: Database schema
         run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
+      # The backup tests run pg_dump, which must be the database's version.
+      - name: PostgreSQL 18 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+
       - run: vendor/bin/phpunit
 
   frontend:
