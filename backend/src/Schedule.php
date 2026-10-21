@@ -41,6 +41,11 @@ class Schedule implements ScheduleProviderInterface
                 // Expired refresh tokens: a session left unused for 30 days.
                 RecurringMessage::cron('30 3 * * *', new RunCommandMessage('gesdinet:jwt:clear'), $this->timezone)
             )
+            ->add(
+                // Backups: the administrator sets how often and for how long
+                // (Administration → Backups); this only checks, hourly, whether one is due.
+                RecurringMessage::cron('5 * * * *', new RunCommandMessage('app:backup:run'), $this->timezone)
+            )
         ;
     }
 }

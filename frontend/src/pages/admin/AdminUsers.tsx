@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import AdminTabs from '@/components/layout/AdminTabs'
 import PageHeader from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,6 +20,7 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
+      <AdminTabs />
       <PageHeader title={t('admin.users.title')} description={t('admin.users.description')} />
 
       <Card>

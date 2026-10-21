@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn, formatMoney, moneyColorClass, parseDate } from '@/lib/utils'
+import { isTransfer } from '@/lib/transaction-sides'
 import type { DashboardAccount } from '@/types/dashboard'
 import type { Transaction } from '@/types/transaction'
 
@@ -77,7 +78,7 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
                       {format(parseDate(transaction.occurredAt), 'd MMM', { locale })}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{transaction.description ?? '—'}</span>
-                    <span className={cn('shrink-0 text-sm font-medium tabular-nums', moneyColorClass(amount))}>
+                    <span className={cn('shrink-0 text-sm font-medium tabular-nums', isTransfer(transaction) ? 'text-info' : moneyColorClass(amount))}>
                       {amount > 0 ? '+' : ''}
                       {formatMoney(amount, account.currencySymbol)}
                     </span>

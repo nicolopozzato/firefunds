@@ -9,3 +9,8 @@ export function isWithdrawal(transaction: Transaction): boolean {
 export function isDeposit(transaction: Transaction): boolean {
   return transaction.sourceAccount === null || transaction.sourceAccount.type === 'revenue'
 }
+
+/** Money moving between two tracked accounts (investment trades are not transfers). */
+export function isTransfer(transaction: Transaction): boolean {
+  return transaction.kind === 'money' && !isWithdrawal(transaction) && !isDeposit(transaction)
+}

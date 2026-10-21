@@ -15,7 +15,7 @@ keys: false
 
 x-backend-env: &backend-env
   APP_ENV: dev
-  DATABASE_URL: postgresql://app:app@database:5432/firefunds?serverVersion=16&charset=utf8
+  DATABASE_URL: postgresql://app:app@database:5432/firefunds?serverVersion=18&charset=utf8
   CORS_ALLOW_ORIGIN: '^https?://([a-z0-9-]+\.)*(lndo\.site|localhost)(:[0-9]+)?$'
   XDEBUG_MODE: ${XDEBUG_MODE:-off}
 
@@ -23,7 +23,7 @@ services:
   database:
     type: lando
     services:
-      image: postgres:16-alpine
+      image: postgres:18-alpine
       # Lando runs its own entrypoint first, then this command.
       command: docker-entrypoint.sh postgres
       environment:
@@ -31,11 +31,12 @@ services:
         POSTGRES_USER: app
         POSTGRES_PASSWORD: app
       volumes:
-        - database_data:/var/lib/postgresql/data
+        # PostgreSQL 18+: its data goes in a per-version folder under here.
+        - database_data_18:/var/lib/postgresql
       ports:
         - "127.0.0.1:54320:5432"
     volumes:
-      database_data:
+      database_data_18:
 
   backend:
     type: lando
@@ -80,7 +81,7 @@ services:
     ssl: true
     sslExpose: false
     services:
-      image: node:22-alpine
+      image: node:24-alpine
       working_dir: /app/frontend
       # As `node` (uid 1000, like you) so node_modules/ stays yours.
       command: su node -s /bin/sh -c "npm install && npm run dev"

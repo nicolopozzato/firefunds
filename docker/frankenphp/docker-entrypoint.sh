@@ -13,8 +13,8 @@ cd /app/backend
 if [ -n "$APP_USER" ] && [ "$(id -u)" = 0 ]; then
 	# Prod: the volumes may come from an older image that ran as root.
 	if [ "$APP_ENV" = 'prod' ]; then
-		mkdir -p config/jwt var/share
-		chown -R "$APP_USER:$APP_USER" config/jwt var/share
+		mkdir -p config/jwt var/share var/backups
+		chown -R "$APP_USER:$APP_USER" config/jwt var/share var/backups
 	fi
 	exec setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups \
 		env HOME="$(getent passwd "$APP_USER" | cut -d: -f6)" "$0" "$@"

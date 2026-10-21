@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bell, LogOut, User as UserIcon, Settings, ShieldCheck, Users, Coins } from 'lucide-react'
+import { Bell, LogOut, User as UserIcon, Settings, ShieldCheck, Users, Coins, DatabaseBackup } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { getFullName } from '@/types/auth'
@@ -93,6 +93,10 @@ export default function Header() {
                 <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   {t('admin.settings.title')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/admin/backups')}>
+                  <DatabaseBackup className="mr-2 h-4 w-4" />
+                  {t('admin.backups.title')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/admin/currencies')}>
                   <Coins className="mr-2 h-4 w-4" />

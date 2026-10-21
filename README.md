@@ -105,11 +105,11 @@ docker compose up -d
 
 The app is at `http://127.0.0.1:8080` (check: `curl http://127.0.0.1:8080/api/health`). Open it, register: the first user becomes the admin. Then create your accounts, a few categories, and start recording transactions; for investments, create the instruments first.
 
-Everything FireFunds stores is in `./data` (database, login keys, scheduler state).
+Everything FireFunds stores is in `./data` (database, login keys, scheduler state, backups).
 
 | Service     | What it does                                                      |
 |-------------|-------------------------------------------------------------------|
-| `database`  | PostgreSQL 16                                                     |
+| `database`  | PostgreSQL 18                                                     |
 | `app`       | FrankenPHP: the web app on `/`, the API on `/api`                 |
 | `scheduler` | Background jobs: the investment price fetch, at 00:10, 04:10, 08:10 and 12:10 (`TIMEZONE`) |
 
@@ -148,15 +148,49 @@ The register page is open until the first account exists, and that account is th
 docker compose pull && docker compose up -d
 ```
 
-Database migrations run by themselves when the new version starts, so take a backup first. To stay on a known version, set `FIREFUNDS_TAG` in `.env` (e.g. `1.2.0`, or `1.2` for its latest patch) instead of `latest`.
+Database migrations run by themselves when the new version starts, so make a backup first (Administration → Backups → Back up now). To stay on a known version, set `FIREFUNDS_TAG` in `.env` (e.g. `1.2.0`, or `1.2` for its latest patch) instead of `latest`.
 
-### Backup
+**Coming from a release up to 0.3.0 (PostgreSQL 16):** the database is now PostgreSQL 18, and a PostgreSQL data folder can't be opened by another major version, so the data goes through a dump. In the folder with `compose.yml`, with the old version still running:
 
 ```bash
-docker compose exec database pg_dump -U firefunds -Fc firefunds > firefunds_$(date +%F).dump
+docker compose exec database pg_dump -U firefunds -Fc firefunds > firefunds_pg16.dump
+docker compose down
+mv data/postgres data/postgres_16        # kept, in case you need to go back
+curl -O https://raw.githubusercontent.com/nicolopozzato/firefunds/main/compose.yml
+docker compose pull && docker compose up -d database
+docker compose exec -T database pg_restore -U firefunds -d firefunds --no-owner --no-acl --exit-on-error < firefunds_pg16.dump
+docker compose up -d
 ```
 
-Keep `./data/jwt` too: without those keys everyone simply logs in again.
+The new `compose.yml` also has the backups volume, so after this the data is backed up as described below. Delete `data/postgres_16` once you are sure everything is there.
+
+### Backup and restore
+
+FireFunds backs up its own database: once a day, keeping the last 14 days, in `./data/backups` (one `firefunds_<date>_v<version>.tar` file each). The administrator changes how often and how long, makes one on the spot and downloads them in **Administration → Backups**.
+
+**A backup on the same disk is not enough.** To be able to rebuild everything elsewhere, keep a copy, somewhere else (another machine, cloud storage), of:
+
+1. `compose.yml` and `.env` (the secrets in it: `POSTGRES_PASSWORD`, `APP_SECRET`, `JWT_PASSPHRASE`);
+2. a backup file from `./data/backups` (download it from the app, or copy the newest one);
+3. optionally `./data/jwt`: without it everyone simply logs in again.
+
+**Restore** (on the same server, or on a new one with your `compose.yml` and `.env` in place and the backup file copied into `./data/backups`). Run the commands in the folder with `compose.yml`:
+
+```bash
+docker compose stop app scheduler
+docker compose run --rm -e RUN_MIGRATIONS=0 app php bin/console app:backup:restore firefunds_20261021_030500_v0.3.0.tar
+docker compose up -d
+```
+
+This **replaces all the data** with the backup's, after asking for confirmation and saving what is there now as a backup of its own. It also checks the version first:
+
+- a backup from the **same version** is put back as it is;
+- from an **older version**: it is put back, then the database migrations that came after it run;
+- from a **newer version**: it is refused, telling you which version made it. Update FireFunds (`FIREFUNDS_TAG` in `.env`, or `latest`) and try again.
+
+Backups made by hand with `pg_dump` (before this existed) are restored with `pg_restore` instead.
+
+**Upgrading from a version without backups:** add `- ./data/backups:/app/backend/var/backups` to the `volumes:` of `x-app` in your `compose.yml` (or download the new one), otherwise the backups stay inside the container and are lost when it is recreated; the Backups page warns you if it is missing.
 
 ## Limitations
 
@@ -175,7 +209,7 @@ Keep `./data/jwt` too: without those keys everyone simply logs in again.
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to run FireFunds locally (one command, with [Lando](https://lando.dev)), how the code is organized and the rules it follows.
 
-**Tech stack:** PHP 8.4, Symfony 8.1, PostgreSQL 16, [FrankenPHP](https://frankenphp.dev); React 18, TypeScript, Vite, shadcn/ui, TanStack Query, i18next.
+**Tech stack:** PHP 8.5, Symfony 8.1, PostgreSQL 18, [FrankenPHP](https://frankenphp.dev); React 18, TypeScript, Vite, shadcn/ui, TanStack Query, i18next.
 
 ## Security
 
@@ -211,15 +245,21 @@ Apri `.env`, imposta `DOMAIN` e compila i 3 segreti (`POSTGRES_PASSWORD`, `APP_S
 docker compose up -d
 ```
 
-L'app risponde su `http://127.0.0.1:8080`. Aprila e registrati: il primo utente diventa l'amministratore, quindi crealo **prima** di rendere l'app raggiungibile da internet. Tutto quello che FireFunds salva è in `./data`.
+L'app risponde su `http://127.0.0.1:8080`. Aprila e registrati: il primo utente diventa l'amministratore, quindi crealo **prima** di rendere l'app raggiungibile da internet. Tutto quello che FireFunds salva è in `./data` (database, chiavi di accesso, backup).
 
 **HTTPS:** l'app parla solo HTTP su `127.0.0.1`; mettila dietro un reverse proxy (Traefik, Caddy, nginx, Cloudflare Tunnel). L'esempio per Traefik è nella sezione [HTTPS](#https-reverse-proxy). Il proxy deve aggiungere l'indirizzo del client all'header `X-Forwarded-For`, che serve al blocco dei tentativi di accesso falliti.
 
-**Aggiornare:** `docker compose pull && docker compose up -d`. Le migrazioni del database partono da sole all'avvio, quindi fai prima un backup:
+**Aggiornare:** `docker compose pull && docker compose up -d` (dalle versioni fino alla 0.3.0, con PostgreSQL 16, il passaggio a PostgreSQL 18 richiede un dump: i comandi sono nella sezione *Updating* in inglese). Le migrazioni del database partono da sole all'avvio, quindi fai prima un backup (Amministrazione → Backup → Fai un backup ora). Se aggiorni da una versione senza backup, aggiungi `- ./data/backups:/app/backend/var/backups` ai `volumes:` di `x-app` in `compose.yml` (o riscaricalo).
+
+**Backup e ripristino:** FireFunds fa da solo un backup del database ogni giorno e tiene gli ultimi 14 giorni in `./data/backups`; l'amministratore cambia frequenza e durata, ne fa uno al volo e li scarica da **Amministrazione → Backup**. Per poter ricostruire tutto altrove, tieni una copia **fuori da questo server** di `compose.yml`, `.env` (con i segreti) e di un file di backup. Per ripristinare (nella cartella con `compose.yml`, con il file di backup in `./data/backups`):
 
 ```bash
-docker compose exec database pg_dump -U firefunds -Fc firefunds > firefunds_$(date +%F).dump
+docker compose stop app scheduler
+docker compose run --rm -e RUN_MIGRATIONS=0 app php bin/console app:backup:restore firefunds_20261021_030500_v0.3.0.tar
+docker compose up -d
 ```
+
+Il ripristino **sostituisce tutti i dati** (chiede conferma e prima salva quelli attuali come backup). Controlla la versione: un backup della stessa versione torna com'è, uno di una versione precedente viene riportato e poi aggiornato con le migrazioni, uno di una versione **più recente** viene rifiutato indicando quale versione l'ha fatto (aggiorna FireFunds e riprova).
 
 ### Limiti
 

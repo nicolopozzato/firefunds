@@ -489,6 +489,42 @@
       "deleteConfirmDescription": "Stai per eliminare \"{{code}}\". Questa azione è permanente.",
       "saved": "Valuta salvata.",
       "deleted": "Valuta eliminata."
+    },
+    "backups": {
+      "title": "Backup",
+      "description": "Copie del database conservate su questo server",
+      "automatic": "Backup automatici",
+      "automaticDescription": "Il database viene copiato a intervalli regolari.",
+      "enabled": "Fai i backup in automatico",
+      "interval": "Frequenza",
+      "retention": "Conservali per",
+      "every": {
+        "h6": "Ogni 6 ore",
+        "h12": "Ogni 12 ore",
+        "h24": "Ogni giorno",
+        "h48": "Ogni 2 giorni",
+        "h168": "Ogni settimana"
+      },
+      "settingsSaved": "Impostazioni salvate.",
+      "saved": "Backup",
+      "savedDescription": "Scaricane una copia e tienila fuori da questo server.",
+      "now": "Fai un backup ora",
+      "creating": "Backup in corso…",
+      "created": "Backup fatto.",
+      "none": "Nessun backup per ora.",
+      "date": "Fatto il",
+      "kind": "Tipo",
+      "version": "Versione",
+      "size": "Dimensione",
+      "download": "Scarica",
+      "trigger": {
+        "scheduled": "Automatico",
+        "manual": "Manuale",
+        "before_restore": "Prima di un ripristino"
+      },
+      "notOnVolume": "La cartella dei backup non è un volume: se il container viene ricreato, i backup si perdono. Aggiungi ./data/backups ai volumi di compose.yml (vedi il README).",
+      "restoreHint": "Per ripristinare un backup serve la riga di comando: la procedura è nel README, alla voce «Backup e ripristino».",
+      "days": "giorni"
     }
   },
   "errors": {
@@ -540,7 +576,12 @@
       "price_not_found": "Nessun prezzo registrato in quel giorno.",
       "price_date_in_future": "Si può registrare un prezzo solo per oggi o per un giorno passato.",
       "price_without_provider_value": "Questo prezzo è stato inserito a mano: non c'è un valore importato da ripristinare.",
-      "price_from_provider": "Un prezzo importato non si può togliere: ripristina il valore importato."
+      "price_from_provider": "Un prezzo importato non si può togliere: ripristina il valore importato.",
+      "backup_not_found": "Questo backup non esiste più.",
+      "backup_failed": "Non è stato possibile completare il backup o il ripristino: {{reason}}",
+      "backup_in_progress": "Un altro backup o ripristino è in corso: riprova tra un momento.",
+      "backup_from_newer_version": "Questo backup viene da FireFunds {{version}}, più recente della {{current}} in uso: aggiorna prima FireFunds.",
+      "backup_unreadable": "Questo file non è un backup di FireFunds, oppure è danneggiato."
     },
     "validation": {
       "required": "campo obbligatorio.",
@@ -620,7 +661,10 @@
       "type": "Tipo",
       "unitPrice": "Prezzo unitario",
       "visibleAccountIds": "Conti",
-      "yahooTicker": "Ticker Yahoo"
+      "yahooTicker": "Ticker Yahoo",
+      "enabled": "Backup automatici",
+      "intervalHours": "Intervallo",
+      "retentionDays": "Conservazione"
     },
     "loadFailed": "Non è stato possibile caricare questa pagina.",
     "pageCrashed": "Qualcosa è andato storto in questa pagina."

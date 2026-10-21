@@ -43,6 +43,7 @@ const InvestmentInstrumentDetailPage = lazy(() => import('./pages/InvestmentInst
 const Profile = lazy(() => import('./pages/Profile'))
 const Preferences = lazy(() => import('./pages/Preferences'))
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'))
+const AdminBackups = lazy(() => import('./pages/admin/AdminBackups'))
 const AdminCurrencies = lazy(() => import('./pages/admin/AdminCurrencies'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
@@ -145,6 +146,14 @@ function AppRoutes() {
                   element={
                     <AdminRoute>
                       <AdminSettings />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/backups"
+                  element={
+                    <AdminRoute>
+                      <AdminBackups />
                     </AdminRoute>
                   }
                 />

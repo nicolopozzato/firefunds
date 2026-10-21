@@ -51,6 +51,13 @@ enum ErrorCode: string
     case CurrencyCodeTaken = 'currency_code_taken';
     case CurrencyInUse = 'currency_in_use';
 
+    // Backups (admin)
+    case BackupNotFound = 'backup_not_found';
+    case BackupFailed = 'backup_failed';
+    case BackupInProgress = 'backup_in_progress';
+    case BackupFromNewerVersion = 'backup_from_newer_version';
+    case BackupUnreadable = 'backup_unreadable';
+
     // Periods
     case InvalidDateRange = 'invalid_date_range';
     case DateRangeInverted = 'date_range_inverted';
@@ -90,6 +97,11 @@ enum ErrorCode: string
             self::PriceFromProvider => 'An imported price cannot be removed: restore the imported value instead.',
             self::CurrencyCodeTaken => 'A currency with this code already exists.',
             self::CurrencyInUse => 'This currency is in use by one or more accounts and cannot be deleted.',
+            self::BackupNotFound => 'Backup not found.',
+            self::BackupFailed => 'The backup or restore could not be completed: {reason}',
+            self::BackupInProgress => 'Another backup or restore is running: try again in a moment.',
+            self::BackupFromNewerVersion => 'This backup comes from FireFunds {version}, newer than the {current} that is running: update FireFunds first.',
+            self::BackupUnreadable => 'This file is not a FireFunds backup, or it is damaged.',
             self::InvalidDateRange => 'Invalid date range.',
             self::DateRangeInverted => '"from" must be on or before "to".',
             self::DateRangeTooLong => 'A date range can span at most {years} years.',

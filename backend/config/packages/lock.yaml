@@ -1,0 +1,4 @@
+framework:
+    # On var/share, the volume the web and scheduler containers have in common
+    # (a lock in each container's own temp dir wouldn't keep them apart).
+    lock: 'flock://%kernel.project_dir%/var/share'

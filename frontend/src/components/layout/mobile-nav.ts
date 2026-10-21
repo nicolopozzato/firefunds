@@ -38,6 +38,7 @@ const MORE_PAGES = [
   '/preferences',
   '/admin/users',
   '/admin/settings',
+  '/admin/backups',
   '/admin/currencies',
 ]
 

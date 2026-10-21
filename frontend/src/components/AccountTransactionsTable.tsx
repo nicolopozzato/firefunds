@@ -42,7 +42,7 @@ import { useTransactions, useDeleteTransaction } from '@/hooks/use-transactions'
 import { useDeleteInvestmentTransaction } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
 import AccountName from '@/components/AccountName'
-import { isDeposit, isWithdrawal } from '@/lib/transaction-sides'
+import { isDeposit, isTransfer, isWithdrawal } from '@/lib/transaction-sides'
 import { cn, currencySymbolFor, formatMoney, formatQuantity } from '@/lib/utils'
 import type { Transaction, TransactionListKind } from '@/types/transaction'
 import EmptyValue from '@/components/EmptyValue'
@@ -84,15 +84,17 @@ function clonePath(transaction: Transaction): string {
     : `/transactions/new?cloneFrom=${transaction.id}`
 }
 
-/** Withdrawals and BUYs show as a negative (money leaving), deposits and SELLs stay positive; transfers are neutral. */
-function signedAmount(transaction: Transaction): number {
+/** Withdrawals and BUYs show as a negative (money leaving), deposits and SELLs stay positive; a transfer is seen from this account. */
+function signedAmount(transaction: Transaction, accountId: string): number {
   if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return -Number(transaction.amount)
+  if (isTransfer(transaction) && transaction.sourceAccount?.id === accountId) return -Number(transaction.amount)
   return Number(transaction.amount)
 }
 
 function amountColorClass(transaction: Transaction): string {
   if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return 'text-negative'
   if (isDeposit(transaction) || transaction.kind === 'investmentSell') return 'text-positive'
+  if (isTransfer(transaction)) return 'text-info'
   return ''
 }
 
@@ -228,7 +230,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                       ]
                         .filter(Boolean)
                         .join(' · ')}
-                      value={formatMoney(signedAmount(transaction), currencySymbolFor(transaction.currency))}
+                      value={formatMoney(signedAmount(transaction, accountId), currencySymbolFor(transaction.currency))}
                       valueClassName={amountColorClass(transaction)}
                     />
                   )
@@ -350,7 +352,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                         </>
                       )}
                       <TableCell className={cn('text-right tabular-nums', isInvestmentAccount && 'font-medium', amountColorClass(transaction))}>
-                        {formatMoney(signedAmount(transaction), currencySymbolFor(transaction.currency))}
+                        {formatMoney(signedAmount(transaction, accountId), currencySymbolFor(transaction.currency))}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         <DateWithTime date={transaction.occurredAt} />

@@ -8,9 +8,13 @@
 #   prod  the image published to ghcr.io/nicolopozzato/firefunds
 #         (run by compose.yml)
 
-ARG PHP_VERSION=8.4
+ARG PHP_VERSION=8.5
 ARG FRANKENPHP_VERSION=1.13
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
+# The PostgreSQL client in the image (backups) must match the database's
+# major version (compose.yml: postgres:18-alpine): pg_restore of a newer
+# client's dump fails on an older server.
+ARG POSTGRES_VERSION=18
 
 
 # ---------------------------------------------------------------- base ----
@@ -18,8 +22,12 @@ FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-trixie AS base
 
 WORKDIR /app/backend
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends acl file git unzip postgresql-client \
+ARG POSTGRES_VERSION
+ADD --chmod=644 https://www.postgresql.org/media/keys/ACCC4CF8.asc /usr/share/keyrings/postgresql.asc
+RUN . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends acl file git unzip tar "postgresql-client-${POSTGRES_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
 RUN install-php-extensions \
@@ -105,7 +113,7 @@ RUN rm -rf var/* config/jwt/*.pem .env.local .env.*.local \
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 
 # Runs as `app`, not root: docker-entrypoint starts as root only to hand the
-# data volumes (config/jwt, var/share) to it, then drops to it. The code stays
+# data volumes (config/jwt, var/share, var/backups) to it, then drops to it. The code stays
 # root's, readable by all (a checkout may have private file modes).
 RUN groupadd -g 1000 app \
     && useradd -u 1000 -g 1000 -M -d /app -s /usr/sbin/nologin app \

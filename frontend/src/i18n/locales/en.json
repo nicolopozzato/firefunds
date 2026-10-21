@@ -489,6 +489,42 @@
       "deleteConfirmDescription": "You are about to delete \"{{code}}\". This action is permanent.",
       "saved": "Currency saved.",
       "deleted": "Currency deleted."
+    },
+    "backups": {
+      "title": "Backups",
+      "description": "Copies of the database kept on this server",
+      "automatic": "Automatic backups",
+      "automaticDescription": "The database is copied at regular intervals.",
+      "enabled": "Back up automatically",
+      "interval": "How often",
+      "retention": "Keep them for",
+      "every": {
+        "h6": "Every 6 hours",
+        "h12": "Every 12 hours",
+        "h24": "Every day",
+        "h48": "Every 2 days",
+        "h168": "Every week"
+      },
+      "settingsSaved": "Settings saved.",
+      "saved": "Backups",
+      "savedDescription": "Download a copy and keep it away from this server.",
+      "now": "Back up now",
+      "creating": "Backing up…",
+      "created": "Backup made.",
+      "none": "No backups yet.",
+      "date": "Made on",
+      "kind": "Kind",
+      "version": "Version",
+      "size": "Size",
+      "download": "Download",
+      "trigger": {
+        "scheduled": "Automatic",
+        "manual": "Manual",
+        "before_restore": "Before a restore"
+      },
+      "notOnVolume": "The backups folder is not a volume: if the container is recreated, the backups are lost. Add ./data/backups to the volumes in compose.yml (see the README).",
+      "restoreHint": "Restoring a backup is done from the command line: the steps are in the README, under “Backup and restore”.",
+      "days": "days"
     }
   },
   "errors": {
@@ -540,7 +576,12 @@
       "price_not_found": "No price recorded on that day.",
       "price_date_in_future": "A price can only be recorded for today or a past day.",
       "price_without_provider_value": "This price was entered by hand: there is no imported value to restore.",
-      "price_from_provider": "An imported price can't be removed: restore the imported value instead."
+      "price_from_provider": "An imported price can't be removed: restore the imported value instead.",
+      "backup_not_found": "This backup no longer exists.",
+      "backup_failed": "The backup or restore could not be completed: {{reason}}",
+      "backup_in_progress": "Another backup or restore is running: try again in a moment.",
+      "backup_from_newer_version": "This backup comes from FireFunds {{version}}, newer than the {{current}} running here: update FireFunds first.",
+      "backup_unreadable": "This file is not a FireFunds backup, or it is damaged."
     },
     "validation": {
       "required": "required.",
@@ -620,7 +661,10 @@
       "type": "Type",
       "unitPrice": "Unit price",
       "visibleAccountIds": "Accounts",
-      "yahooTicker": "Yahoo ticker"
+      "yahooTicker": "Yahoo ticker",
+      "enabled": "Automatic backups",
+      "intervalHours": "Interval",
+      "retentionDays": "Retention"
     },
     "loadFailed": "This page couldn't be loaded.",
     "pageCrashed": "Something went wrong on this page."

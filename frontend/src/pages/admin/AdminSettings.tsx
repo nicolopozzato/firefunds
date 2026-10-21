@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import AdminTabs from '@/components/layout/AdminTabs'
 import PageHeader from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
+import SettingRow from '@/components/SettingRow'
+import { Switch } from '@/components/ui/switch'
 import { useServerSettings, useUpdateServerSettings } from '@/hooks/use-admin'
 import { handleApiError } from '@/lib/error-handler'
 
@@ -32,7 +34,8 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
+      <AdminTabs />
       <PageHeader title={t('admin.settings.title')} description={t('admin.settings.description')} />
 
       <Card>
@@ -44,17 +47,9 @@ export default function AdminSettings() {
           {isLoading ? (
             <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
-            <div className="flex items-center gap-2">
-              <input
-                id="registrationEnabled"
-                type="checkbox"
-                className="h-4 w-4 rounded border-input"
-                checked={registrationEnabled}
-                disabled={updateSettings.isPending}
-                onChange={(e) => handleToggle(e.target.checked)}
-              />
-              <Label htmlFor="registrationEnabled">{t('admin.settings.registrationEnabled')}</Label>
-            </div>
+            <SettingRow label={t('admin.settings.registrationEnabled')} htmlFor="registrationEnabled">
+              <Switch id="registrationEnabled" checked={registrationEnabled} disabled={updateSettings.isPending} onCheckedChange={handleToggle} />
+            </SettingRow>
           )}
         </CardContent>
       </Card>

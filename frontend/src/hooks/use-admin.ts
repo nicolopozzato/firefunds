@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/lib/admin-api'
-import type { CurrencyRequest, ServerSettings } from '@/types/admin'
+import type { BackupSettings, CurrencyRequest, ServerSettings } from '@/types/admin'
 
 export function useServerSettings() {
   return useQuery({
@@ -17,6 +17,31 @@ export function useUpdateServerSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] })
     },
+  })
+}
+
+export function useBackups() {
+  return useQuery({
+    queryKey: ['admin', 'backups'],
+    queryFn: () => adminApi.getBackups(),
+  })
+}
+
+export function useUpdateBackupSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: BackupSettings) => adminApi.updateBackupSettings(data),
+    onSuccess: (overview) => queryClient.setQueryData(['admin', 'backups'], overview),
+  })
+}
+
+export function useCreateBackup() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => adminApi.createBackup(),
+    onSuccess: (overview) => queryClient.setQueryData(['admin', 'backups'], overview),
   })
 }
 

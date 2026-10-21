@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-react'
+import AdminTabs from '@/components/layout/AdminTabs'
 import PageHeader from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -121,6 +122,7 @@ export default function AdminCurrencies() {
 
   return (
     <div className="space-y-6">
+      <AdminTabs />
       <PageHeader
         title={t('admin.currencies.title')}
         description={t('admin.currencies.description')}

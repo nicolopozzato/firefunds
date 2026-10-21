@@ -30,4 +30,22 @@ class ScheduleTest extends KernelTestCase
             $runs
         );
     }
+
+    /** The backup command is checked every hour; the administrator's settings decide whether a backup is due. */
+    public function testBackupsAreCheckedHourly(): void
+    {
+        self::bootKernel();
+        $schedule = self::getContainer()->get(Schedule::class)->getSchedule();
+        $message = $schedule->getRecurringMessages()[2];
+
+        $rome = new \DateTimeZone('Europe/Rome');
+        $run = new \DateTimeImmutable('2026-10-01 10:00:00', $rome);
+        $runs = [];
+        for ($i = 0; $i < 3; ++$i) {
+            $run = $message->getTrigger()->getNextRunDate($run);
+            $runs[] = $run->setTimezone($rome)->format('H:i');
+        }
+
+        $this->assertSame(['10:05', '11:05', '12:05'], $runs);
+    }
 }

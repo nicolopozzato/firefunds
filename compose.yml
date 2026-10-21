@@ -4,7 +4,10 @@
 #   docker compose pull && docker compose up -d   update
 #
 # Database migrations run when the new `app` container starts.
-# Data lives in ./data (database, JWT keys, scheduler state): back it up.
+# Data lives in ./data (database, JWT keys, scheduler state, backups). The app
+# makes database backups into ./data/backups on a schedule the administrator
+# sets (Administration → Backups): keep a copy of them, and of this file and
+# .env, somewhere else.
 
 x-app: &app
   image: ghcr.io/nicolopozzato/firefunds:${FIREFUNDS_TAG:-latest}
@@ -12,26 +15,28 @@ x-app: &app
   environment: &app-env
     APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
     JWT_PASSPHRASE: ${JWT_PASSPHRASE:?set JWT_PASSPHRASE in .env}
-    DATABASE_URL: postgresql://firefunds:${POSTGRES_PASSWORD}@database:5432/firefunds?serverVersion=16&charset=utf8
+    DATABASE_URL: postgresql://firefunds:${POSTGRES_PASSWORD}@database:5432/firefunds?serverVersion=18&charset=utf8
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-PRIVATE_SUBNETS}
     APP_TIMEZONE: ${TIMEZONE:-Europe/Rome}
   volumes:
     - ./data/jwt:/app/backend/config/jwt
     - ./data/share:/app/backend/var/share
+    - ./data/backups:/app/backend/var/backups
   depends_on:
     database:
       condition: service_healthy
 
 services:
   database:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: firefunds
       POSTGRES_USER: firefunds
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      # PostgreSQL 18+ keeps its data in a per-version folder under here.
+      - ./data/postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U firefunds -d firefunds"]
       interval: 10s

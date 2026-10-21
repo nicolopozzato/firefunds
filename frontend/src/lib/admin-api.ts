@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { AdminCurrency, AdminUser, CurrencyRequest, ServerSettings } from '@/types/admin'
+import type { AdminCurrency, AdminUser, BackupSettings, BackupsOverview, CurrencyRequest, ServerSettings } from '@/types/admin'
 
 export const adminApi = {
   async getSettings(): Promise<ServerSettings> {
@@ -10,6 +10,32 @@ export const adminApi = {
   async updateSettings(data: ServerSettings): Promise<ServerSettings> {
     const response = await api.put<ServerSettings>('/api/admin/settings', data)
     return response.data
+  },
+
+  async getBackups(): Promise<BackupsOverview> {
+    const response = await api.get<BackupsOverview>('/api/admin/backups')
+    return response.data
+  },
+
+  async updateBackupSettings(data: BackupSettings): Promise<BackupsOverview> {
+    const response = await api.put<BackupsOverview>('/api/admin/backups/settings', data)
+    return response.data
+  },
+
+  async createBackup(): Promise<BackupsOverview> {
+    const response = await api.post<BackupsOverview>('/api/admin/backups')
+    return response.data
+  },
+
+  /** Saves a backup through the browser: the request carries the login, so no plain link. */
+  async downloadBackup(name: string): Promise<void> {
+    const response = await api.get<Blob>(`/api/admin/backups/${encodeURIComponent(name)}/download`, { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = name
+    link.click()
+    URL.revokeObjectURL(url)
   },
 
   async listUsers(): Promise<AdminUser[]> {

@@ -24,7 +24,7 @@ jobs:
         working-directory: backend
     services:
       database:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
@@ -35,13 +35,13 @@ jobs:
     env:
       APP_ENV: test
       # The test environment adds "_test" to the database name.
-      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/firefunds?serverVersion=16&charset=utf8
+      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/firefunds?serverVersion=18&charset=utf8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: bcmath, intl, pdo_pgsql, zip
           coverage: none
 
@@ -65,7 +65,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
