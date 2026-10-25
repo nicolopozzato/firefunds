@@ -24,6 +24,8 @@ final readonly class InvestmentTransactionResponse
         public string $totalAmount,
         /** The broker account's currency code: unit price, fees, taxes and total are all expressed in it for now. */
         public string $currency,
+        /** The currency the unit price is in: the instrument's quote currency (the account's, when they are the same). */
+        public string $unitPriceCurrency,
         /** The clock time where it happened, without offset: show it as it is. */
         public string $occurredAt,
         /** Where it happened (App\Entity\OccursLocally). */
@@ -60,6 +62,7 @@ final readonly class InvestmentTransactionResponse
             taxes: $transaction->getTaxes(),
             totalAmount: $transaction->getTotalAmount(),
             currency: $transaction->getAccount()->getCurrency()?->getCode() ?? '',
+            unitPriceCurrency: $instrument->getCurrency(),
             occurredAt: $transaction->getOccurredAt()->format('Y-m-d\TH:i:s'),
             timezone: $transaction->getTimezone(),
             notes: $transaction->getNotes(),

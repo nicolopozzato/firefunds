@@ -1,11 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import type { StartPage as StartPageKey } from './types/auth'
 import { TimeframeProvider } from './contexts/TimeframeContext'
 import { Toaster } from './components/ui/sonner'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ChooseNewPassword from './pages/ChooseNewPassword'
 import { useApplyThemePreference } from './hooks/use-theme'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageLoading from './components/PageLoading'
@@ -44,11 +46,11 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Preferences = lazy(() => import('./pages/Preferences'))
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'))
 const AdminBackups = lazy(() => import('./pages/admin/AdminBackups'))
-const AdminCurrencies = lazy(() => import('./pages/admin/AdminCurrencies'))
+const AdminTasks = lazy(() => import('./pages/admin/AdminTasks'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading, unreachable, retry } = useAuth()
+  const { user, isAuthenticated, loading, unreachable, retry } = useAuth()
 
   if (unreachable) {
     return (
@@ -66,7 +68,26 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  // A password an administrator set to be changed: nothing else until it is.
+  return user?.mustChangePassword ? <ChooseNewPassword /> : <>{children}</>
+}
+
+/** Where "/" (and so the login) leads: the user's start page (Preferences). */
+const START_PAGES: Record<StartPageKey, string> = {
+  dashboard: '/dashboard',
+  transactions: '/transactions',
+  investments: '/investments/overview',
+  reports: '/reports',
+}
+
+function StartPage() {
+  const { user } = useAuth()
+
+  return <Navigate to={START_PAGES[user?.startPage ?? 'dashboard'] ?? '/dashboard'} replace />
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -98,7 +119,7 @@ function AppRoutes() {
             <Layout>
               <PageBoundary>
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<StartPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts/asset" element={<AssetAccounts />} />
                 <Route path="/accounts/asset/new" element={<AccountFormPage />} />
@@ -158,10 +179,10 @@ function AppRoutes() {
                   }
                 />
                 <Route
-                  path="/admin/currencies"
+                  path="/admin/tasks"
                   element={
                     <AdminRoute>
-                      <AdminCurrencies />
+                      <AdminTasks />
                     </AdminRoute>
                   }
                 />

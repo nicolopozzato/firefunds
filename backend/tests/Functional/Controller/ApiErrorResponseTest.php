@@ -117,7 +117,7 @@ class ApiErrorResponseTest extends WebTestCaseBase
         if ($type === AccountType::Asset) {
             $eur = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
             if ($eur === null) {
-                $eur = new Currency('EUR', 'Euro', '€', 2, true);
+                $eur = new Currency('EUR', 'Euro', '€', 2);
                 $this->entityManager->persist($eur);
             }
             $account->setAssetKind(AssetAccountKind::Checking);

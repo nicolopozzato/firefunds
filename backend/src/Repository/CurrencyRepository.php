@@ -19,26 +19,19 @@ class CurrencyRepository extends ServiceEntityRepository
     /**
      * @return Currency[]
      */
-    public function findEnabled(): array
-    {
-        return $this->findBy(['isEnabled' => true], ['code' => 'ASC']);
-    }
-
-    /**
-     * @return Currency[]
-     */
     public function findAllOrdered(): array
     {
         return $this->findBy([], ['code' => 'ASC']);
     }
 
+    /** A currency's symbol; null for a code not on the list. */
+    public function symbolOf(string $code): ?string
+    {
+        return $this->findOneByCode($code)?->getSymbol();
+    }
+
     public function findOneByCode(string $code): ?Currency
     {
         return $this->findOneBy(['code' => strtoupper($code)]);
-    }
-
-    public function findOneById(string $id): ?Currency
-    {
-        return $this->findOneBy(['id' => $id]);
     }
 }

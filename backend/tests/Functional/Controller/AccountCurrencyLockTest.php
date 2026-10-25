@@ -33,9 +33,7 @@ class AccountCurrencyLockTest extends WebTestCaseBase
         foreach ([['EUR', 'Euro', '€'], ['USD', 'US Dollar', '$']] as [$code, $name, $symbol]) {
             $currency = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => $code]);
             if ($currency === null) {
-                $this->entityManager->persist(new Currency($code, $name, $symbol, 2, true));
-            } else {
-                $currency->setIsEnabled(true);
+                $this->entityManager->persist(new Currency($code, $name, $symbol, 2));
             }
         }
         $this->entityManager->flush();

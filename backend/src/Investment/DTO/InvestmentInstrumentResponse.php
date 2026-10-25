@@ -11,6 +11,8 @@ final readonly class InvestmentInstrumentResponse
         public string $id,
         public string $name,
         public string $type,
+        /** ISO 4217 code of the currency the instrument is quoted in. */
+        public string $currencyCode,
         public ?string $ticker,
         public ?string $yahooTicker,
         public ?string $isin,
@@ -29,6 +31,7 @@ final readonly class InvestmentInstrumentResponse
             id: (string) $instrument->getId(),
             name: $instrument->getName(),
             type: $instrument->getType()->value,
+            currencyCode: $instrument->getCurrency(),
             ticker: $instrument->getTicker(),
             yahooTicker: $instrument->getYahooTicker(),
             isin: $instrument->getIsin(),

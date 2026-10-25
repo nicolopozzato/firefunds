@@ -14,6 +14,12 @@ framework:
     # stuck answer must not hold a request or the price fetch for long.
     http_client:
         scoped_clients:
+            # The ECB's exchange rates (EcbExchangeRateProvider): a large file once, a small one daily.
+            ecb.client:
+                base_uri: 'https://www.ecb.europa.eu/stats/eurofxref/'
+                timeout: 10
+                max_duration: 60
+                max_redirects: 3
             yahoo.client:
                 base_uri: 'https://query1.finance.yahoo.com/v8/finance/chart/'
                 timeout: 5

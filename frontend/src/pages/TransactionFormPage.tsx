@@ -10,22 +10,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import FormSkeleton from '@/components/FormSkeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import Combobox from '@/components/Combobox'
 import TagsInput from '@/components/TagsInput'
 import { useAllAccounts } from '@/hooks/use-accounts'
 import { useCreateTransaction, useTransaction, useUpdateTransaction } from '@/hooks/use-transactions'
 import { useAllClassification } from '@/hooks/use-classification'
-import { useCurrencies } from '@/hooks/use-currencies'
+import { useCurrencies, useCurrencyOptions } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
+import { useAuth } from '@/contexts/AuthContext'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, deviceTimezone, formatAccountBalance, fromDatetimeLocal, nowAsDatetimeLocal, toDatetimeLocal } from '@/lib/utils'
+import { cn, currencySymbolFor, deviceTimezone, formatAccountBalance, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
 import type { AccountType } from '@/types/account'
 import type { Transaction } from '@/types/transaction'
 import FormActions from '@/components/FormActions'
@@ -48,6 +42,12 @@ const TYPE_STYLES: Record<TransactionType, { active: string; icon: string }> = {
   withdrawal: { active: 'border-negative bg-negative/10', icon: 'text-negative' },
   deposit: { active: 'border-positive bg-positive/10', icon: 'text-positive' },
   transfer: { active: 'border-info bg-info/10', icon: 'text-info' },
+}
+
+/** Where the default account goes: what pays a withdrawal or a transfer, what receives a deposit. */
+function defaultAccountSides(type: TransactionType, accountId: string | null): { source: string; destination: string } {
+  if (!accountId) return { source: '', destination: '' }
+  return type === 'deposit' ? { source: '', destination: accountId } : { source: accountId, destination: '' }
 }
 
 /**
@@ -102,6 +102,7 @@ export default function TransactionFormPage() {
   const updateTransaction = useUpdateTransaction()
   const { data: existingTransaction } = useTransaction(id ?? cloneFromId ?? '')
   const { data: currencies } = useCurrencies()
+  const currencyOptions = useCurrencyOptions()
   const { data: categoriesResponse, isLoading: isLoadingCategories } = useAllClassification('categories')
   const { data: tagsResponse, isLoading: isLoadingTags } = useAllClassification('tags')
   const categories = categoriesResponse?.items
@@ -119,11 +120,22 @@ export default function TransactionFormPage() {
   const destinationAccounts = destinationAccountsResponse?.items
 
   const [description, setDescription] = useState('')
-  // A new transaction can start from an account, e.g. the dashboard's "New" on an account's box.
-  const [sourceAccountId, setSourceAccountId] = useState(() => searchParams.get('sourceAccountId') ?? '')
-  const [destinationAccountId, setDestinationAccountId] = useState(() => searchParams.get('destinationAccountId') ?? '')
+  // A new transaction can start from an account, e.g. the dashboard's "New" on an account's box;
+  // else from the user's default account (Preferences), on the asset side.
+  const { user } = useAuth()
+  const defaultSides = (type: TransactionType) =>
+    isEditing || isCloning ? { source: '', destination: '' } : defaultAccountSides(type, user?.defaultAccountId ?? null)
+  const fromLink = searchParams.has('sourceAccountId') || searchParams.has('destinationAccountId')
+  const [sourceAccountId, setSourceAccountId] = useState(() =>
+    fromLink ? searchParams.get('sourceAccountId') ?? '' : defaultSides(transactionType).source
+  )
+  const [destinationAccountId, setDestinationAccountId] = useState(() =>
+    fromLink ? searchParams.get('destinationAccountId') ?? '' : defaultSides(transactionType).destination
+  )
   const [occurredAt, setOccurredAt] = useState(nowAsDatetimeLocal)
   const [amount, setAmount] = useState('')
+  // A transfer between two currencies also says what arrived.
+  const [destinationAmount, setDestinationAmount] = useState('')
   const [hasForeignAmount, setHasForeignAmount] = useState(false)
   const [foreignAmount, setForeignAmount] = useState('')
   const [foreignCurrency, setForeignCurrency] = useState('')
@@ -148,6 +160,7 @@ export default function TransactionFormPage() {
     setOccurredAt(isCloning ? nowAsDatetimeLocal() : toDatetimeLocal(existingTransaction.occurredAt))
     const amountDecimals = currencies?.find((c) => c.code === existingTransaction.currency)?.decimalPlaces
     setAmount(trimAmountToCurrency(existingTransaction.amount, amountDecimals))
+    setDestinationAmount(existingTransaction.destinationAmount ? trimAmountToCurrency(existingTransaction.destinationAmount, currencies?.find((c) => c.code === existingTransaction.destinationCurrency)?.decimalPlaces) : '')
     setHasForeignAmount(existingTransaction.foreignAmount !== null)
     const foreignDecimals = currencies?.find((c) => c.code === existingTransaction.foreignCurrency)?.decimalPlaces
     setForeignAmount(
@@ -191,8 +204,9 @@ export default function TransactionFormPage() {
 
   const handleTypeChange = (value: TransactionType) => {
     setTransactionType(value)
-    setSourceAccountId('')
-    setDestinationAccountId('')
+    const sides = defaultSides(value)
+    setSourceAccountId(sides.source)
+    setDestinationAccountId(sides.destination)
   }
 
   const resetForeignAmount = (checked: boolean) => {
@@ -202,6 +216,24 @@ export default function TransactionFormPage() {
       setForeignCurrency('')
     }
   }
+
+  // A transfer between two asset accounts in different currencies: the amount that arrived is asked for,
+  // and the rate between them follows from the two.
+  const sourceCurrency = sourceAccounts?.find((account) => account.id === sourceAccountId)?.currencyCode ?? null
+  const destinationCurrency = destinationAccounts?.find((account) => account.id === destinationAccountId)?.currencyCode ?? null
+  const isCurrencyTransfer =
+    transactionType === 'transfer' && sourceCurrency !== null && destinationCurrency !== null && sourceCurrency !== destinationCurrency
+  const transferRate = isCurrencyTransfer && Number(amount) > 0 && Number(destinationAmount) > 0 ? Number(destinationAmount) / Number(amount) : null
+
+  // What the bank charged per unit of the original currency, when both amounts are there.
+  const accountCurrency = (config.sourceType === 'asset'
+    ? sourceAccounts?.find((account) => account.id === sourceAccountId)
+    : destinationAccounts?.find((account) => account.id === destinationAccountId)
+  )?.currencyCode
+  const appliedRate =
+    hasForeignAmount && foreignCurrency && accountCurrency && Number(amount) > 0 && Number(foreignAmount) > 0
+      ? Number(amount) / Number(foreignAmount)
+      : null
 
   const sourceLabel = useMemo(() => {
     if (transactionType === 'deposit') return t('transactionForm.sourceRevenue')
@@ -275,8 +307,9 @@ export default function TransactionFormPage() {
         // An edit keeps where it happened; a new one happens where this device is.
         timezone: isEditing ? undefined : deviceTimezone(),
         amount,
-        foreignAmount: hasForeignAmount ? foreignAmount || null : null,
-        foreignCurrency: hasForeignAmount ? foreignCurrency || null : null,
+        destinationAmount: isCurrencyTransfer ? destinationAmount || null : null,
+        foreignAmount: hasForeignAmount && transactionType !== 'transfer' ? foreignAmount || null : null,
+        foreignCurrency: hasForeignAmount && transactionType !== 'transfer' ? foreignCurrency || null : null,
         categoryId: category.id,
         newCategoryName: category.name,
         tagIds: selectedTagIds.filter((tagId) => !isPendingId(tagId)),
@@ -375,6 +408,33 @@ export default function TransactionFormPage() {
                 />
               </div>
 
+              {isCurrencyTransfer && (
+                <div className="space-y-2">
+                  <Label htmlFor="destinationAmount">
+                    {t('transactionForm.destinationAmount')}
+                    <span className="ml-1 font-normal text-muted-foreground">({currencySymbolFor(destinationCurrency ?? '')})</span>
+                  </Label>
+                  <Input
+                    id="destinationAmount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={destinationAmount}
+                    onChange={(e) => setDestinationAmount(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {transferRate !== null
+                      ? t('transactionForm.transferRate', {
+                          from: sourceCurrency,
+                          rate: numberFormatter({ maximumFractionDigits: 6 }).format(transferRate),
+                          to: destinationCurrency,
+                        })
+                      : t('transactionForm.destinationAmountHint', { from: sourceCurrency, to: destinationCurrency })}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="occurredAt">{t('transactionForm.occurredAt')}</Label>
                 <Input
@@ -443,51 +503,59 @@ export default function TransactionFormPage() {
           </div>
 
           <div className="space-y-6">
-            <FormSection title={t('transactionForm.foreignCurrency')} optional contentClassName="space-y-4">
-              <div className="flex items-start gap-2">
-                <input
-                  id="hasForeignAmount"
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-input"
-                  checked={hasForeignAmount}
-                  onChange={(e) => resetForeignAmount(e.target.checked)}
-                />
-                <Label htmlFor="hasForeignAmount" className="font-normal">
-                  {t('transactionForm.hasForeignAmount')}
-                </Label>
-              </div>
-
-              {hasForeignAmount && (
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                  <div className="min-w-0 space-y-2">
-                    <Label htmlFor="foreignCurrency">{t('transactionForm.foreignCurrency')}</Label>
-                    <Select value={foreignCurrency} onValueChange={setForeignCurrency}>
-                      <SelectTrigger id="foreignCurrency">
-                        <SelectValue placeholder={t('accountsCommon.selectCurrency')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies?.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
-                            {currency.code} — {currency.name} ({currency.symbol})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="min-w-0 space-y-2">
-                    <Label htmlFor="foreignAmount">{t('transactionForm.foreignAmount')}</Label>
-                    <Input
-                      id="foreignAmount"
-                      type="number"
-                      step="0.01"
-                      value={foreignAmount}
-                      onChange={(e) => setForeignAmount(e.target.value)}
-                    />
-                  </div>
+            {transactionType !== 'transfer' && (
+              <FormSection title={t('transactionForm.foreignCurrency')} optional contentClassName="space-y-4">
+                <div className="flex items-start gap-2">
+                  <input
+                    id="hasForeignAmount"
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-input"
+                    checked={hasForeignAmount}
+                    onChange={(e) => resetForeignAmount(e.target.checked)}
+                  />
+                  <Label htmlFor="hasForeignAmount" className="font-normal">
+                    {t(transactionType === 'deposit' ? 'transactionForm.hasForeignAmountDeposit' : 'transactionForm.hasForeignAmount')}
+                  </Label>
                 </div>
-              )}
-            </FormSection>
+  
+                {hasForeignAmount && (
+                  <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="foreignCurrency">{t('transactionForm.foreignCurrency')}</Label>
+                      <Combobox
+                        options={currencyOptions}
+                        value={foreignCurrency}
+                        onChange={setForeignCurrency}
+                        placeholder={t('accountsCommon.selectCurrency')}
+                      />
+                    </div>
+  
+                    <div className="min-w-0 space-y-2">
+                      <Label htmlFor="foreignAmount">{t('transactionForm.foreignAmount')}</Label>
+                      <Input
+                        id="foreignAmount"
+                        type="number"
+                        step="0.01"
+                        value={foreignAmount}
+                        onChange={(e) => setForeignAmount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+  
+                {hasForeignAmount && (
+                  <p className="text-xs text-muted-foreground">
+                    {appliedRate !== null
+                      ? t('transactionForm.appliedRate', {
+                          foreign: foreignCurrency,
+                          rate: numberFormatter({ maximumFractionDigits: 4 }).format(appliedRate),
+                          currency: accountCurrency,
+                        })
+                      : t('transactionForm.foreignHint')}
+                  </p>
+                )}
+              </FormSection>
+            )}
 
             <FormSection title={<label htmlFor="notes">{t('classificationCommon.notes')}</label>} optional>
               <textarea

@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -14,6 +15,15 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    public const array COLOR_SCHEMES = ['blue', 'violet', 'rose', 'orange', 'zinc'];
+    public const array DENSITIES = ['compact', 'comfortable', 'spacious'];
+    public const array START_PAGES = ['dashboard', 'transactions', 'investments', 'reports'];
+    public const array START_PERIODS = ['last', 'currentMonth', 'last30Days', 'last60Days', 'currentYear'];
+    /** In their default order: the summary cards, the chart, the three rankings, the accounts' boxes. */
+    public const array DASHBOARD_SECTIONS = ['summary', 'trend', 'expensesByCategory', 'expenseAccounts', 'revenueAccounts', 'accounts'];
+    public const array DASHBOARD_TREND_VIEWS = ['accounts', 'investments'];
+    public const array DASHBOARD_INVESTMENT_UNITS = ['percent', 'money'];
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
@@ -62,6 +72,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private string $numberFormat = 'it-IT';
 
     /**
+     * The currency (ISO 4217 code) amounts are shown in wherever different
+     * currencies are added up: dashboard, reports, net worth. Also what a new
+     * account or instrument starts with.
+     */
+    #[ORM\Column(length: 3)]
+    private string $currency = 'EUR';
+
+    /**
      * Percentage applied to capital gains to estimate the tax owed if a
      * position were sold today (Italy: 26). An instrument can set its own
      * (e.g. a fund holding white-list government bonds).
@@ -72,6 +90,73 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     #[Assert\Positive]
     private int $pageSize = 50;
+
+    /** The primary colour (frontend lib/theme.ts). */
+    #[ORM\Column(length: 10, options: ['default' => 'blue'])]
+    private string $colorScheme = 'blue';
+
+    /** How much fits on screen on larger screens: compact, comfortable or spacious. */
+    #[ORM\Column(length: 12, options: ['default' => 'comfortable'])]
+    private string $density = 'comfortable';
+
+    /** The page the app opens on (after login, or at "/"). */
+    #[ORM\Column(length: 20, options: ['default' => 'dashboard'])]
+    private string $startPage = 'dashboard';
+
+    /**
+     * The period the app opens with: a preset of the period picker, or
+     * "last" for the one chosen last time on that device.
+     */
+    #[ORM\Column(length: 20, options: ['default' => 'last'])]
+    private string $startPeriod = 'last';
+
+    /**
+     * The asset account a new transaction starts from (source of a withdrawal
+     * or transfer, destination of a deposit). Ignored while deleted or inactive.
+     */
+    #[ORM\ManyToOne(targetEntity: Account::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Account $defaultAccount = null;
+
+    /**
+     * The dashboard's sections in order, each shown or not:
+     * list of {key, visible} (keys in DASHBOARD_SECTIONS). Null: the default.
+     *
+     * @var list<array{key: string, visible: bool}>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $dashboardSections = null;
+
+    /** The dashboard chart's view: accounts or investments. */
+    #[ORM\Column(length: 12, options: ['default' => 'accounts'])]
+    private string $dashboardTrendView = 'accounts';
+
+    /** The investments view's unit: percent (price change) or money (value held). */
+    #[ORM\Column(length: 8, options: ['default' => 'percent'])]
+    private string $dashboardInvestmentUnit = 'percent';
+
+    /**
+     * Set by an administrator: the user can't log in and every session ends
+     * (App\Auth\Security\UserChecker). Not a delete: the data stays, and
+     * an administrator can turn the user back on.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $disabledAt = null;
+
+    /**
+     * The password was set by an administrator, who asked for a new one at
+     * the next login: until then the API answers only what changing it needs
+     * (App\Auth\EventListener\PasswordChangeRequiredListener).
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $mustChangePassword = false;
+
+    /**
+     * When the user last used the app (UTC): a login, or any request at most
+     * LastSeenListener::PRECISION after the previous record. Null: never.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastSeenAt = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -230,6 +315,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    public function getCurrency(): string
+    {
+        return $this->currency;
+    }
+
+    public function setCurrency(string $currency): static
+    {
+        $this->currency = strtoupper($currency);
+        return $this;
+    }
+
     public function getPageSize(): int
     {
         return $this->pageSize;
@@ -238,6 +334,161 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPageSize(int $pageSize): static
     {
         $this->pageSize = $pageSize;
+        return $this;
+    }
+
+    public function getColorScheme(): string
+    {
+        return $this->colorScheme;
+    }
+
+    public function setColorScheme(string $colorScheme): static
+    {
+        $this->colorScheme = $colorScheme;
+        return $this;
+    }
+
+    public function getDensity(): string
+    {
+        return $this->density;
+    }
+
+    public function setDensity(string $density): static
+    {
+        $this->density = $density;
+        return $this;
+    }
+
+    public function getStartPage(): string
+    {
+        return $this->startPage;
+    }
+
+    public function setStartPage(string $startPage): static
+    {
+        $this->startPage = $startPage;
+        return $this;
+    }
+
+    public function getStartPeriod(): string
+    {
+        return $this->startPeriod;
+    }
+
+    public function setStartPeriod(string $startPeriod): static
+    {
+        $this->startPeriod = $startPeriod;
+        return $this;
+    }
+
+    public function getDefaultAccount(): ?Account
+    {
+        return $this->defaultAccount;
+    }
+
+    /** The default account if it can still be used: not deleted, active. */
+    public function getUsableDefaultAccount(): ?Account
+    {
+        $account = $this->defaultAccount;
+        try {
+            return $account !== null && $account->getDeletedAt() === null && $account->isActive() ? $account : null;
+        } catch (EntityNotFoundException) {
+            // Deleted: the soft delete filter hides it from the proxy.
+            return null;
+        }
+    }
+
+    public function setDefaultAccount(?Account $defaultAccount): static
+    {
+        $this->defaultAccount = $defaultAccount;
+        return $this;
+    }
+
+    /**
+     * Every section, in the user's order: the saved ones first (unknown keys
+     * dropped), then any section added since, where it is by default.
+     *
+     * @return list<array{key: string, visible: bool}>
+     */
+    public function getDashboardSections(): array
+    {
+        $sections = [];
+        foreach ($this->dashboardSections ?? [] as $section) {
+            if (\in_array($section['key'] ?? null, self::DASHBOARD_SECTIONS, true) && !isset($sections[$section['key']])) {
+                $sections[$section['key']] = ['key' => $section['key'], 'visible' => (bool) ($section['visible'] ?? true)];
+            }
+        }
+        foreach (self::DASHBOARD_SECTIONS as $key) {
+            $sections[$key] ??= ['key' => $key, 'visible' => true];
+        }
+
+        return array_values($sections);
+    }
+
+    /** @param list<array{key: string, visible: bool}> $dashboardSections */
+    public function setDashboardSections(array $dashboardSections): static
+    {
+        $this->dashboardSections = $dashboardSections;
+        return $this;
+    }
+
+    public function getDashboardTrendView(): string
+    {
+        return $this->dashboardTrendView;
+    }
+
+    public function setDashboardTrendView(string $dashboardTrendView): static
+    {
+        $this->dashboardTrendView = $dashboardTrendView;
+        return $this;
+    }
+
+    public function getDashboardInvestmentUnit(): string
+    {
+        return $this->dashboardInvestmentUnit;
+    }
+
+    public function setDashboardInvestmentUnit(string $dashboardInvestmentUnit): static
+    {
+        $this->dashboardInvestmentUnit = $dashboardInvestmentUnit;
+        return $this;
+    }
+
+    public function getDisabledAt(): ?\DateTimeImmutable
+    {
+        return $this->disabledAt;
+    }
+
+    public function isActive(): bool
+    {
+        return null === $this->disabledAt;
+    }
+
+    public function setDisabledAt(?\DateTimeImmutable $disabledAt): static
+    {
+        $this->disabledAt = $disabledAt;
+        return $this;
+    }
+
+    public function mustChangePassword(): bool
+    {
+        return $this->mustChangePassword;
+    }
+
+    public function setMustChangePassword(bool $mustChangePassword): static
+    {
+        $this->mustChangePassword = $mustChangePassword;
+        return $this;
+    }
+
+    public function getLastSeenAt(): ?\DateTimeImmutable
+    {
+        return $this->lastSeenAt;
+    }
+
+    public function setLastSeenAt(?\DateTimeImmutable $lastSeenAt): static
+    {
+        $this->lastSeenAt = $lastSeenAt;
         return $this;
     }
 

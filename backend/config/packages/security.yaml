@@ -20,6 +20,7 @@ security:
             pattern: ^/api/auth/login
             stateless: true
             provider: users_by_email
+            user_checker: App\Auth\Security\UserChecker
             json_login:
                 check_path: /api/auth/login
                 username_path: email
@@ -46,6 +47,8 @@ security:
             pattern: ^/api
             stateless: true
             provider: users_by_id
+            # A disabled user is refused by the JWT and refresh authenticators too.
+            user_checker: App\Auth\Security\UserChecker
             jwt: ~
             entry_point: jwt
             refresh_jwt:

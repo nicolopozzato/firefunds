@@ -2,11 +2,17 @@
 
 namespace App\Auth\Service;
 
+use App\Auth\DTO\UpdatePreferencesRequest;
 use App\Auth\DTO\UserResponse;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Currency\Service\ExchangeRateService;
+use App\Entity\Account;
+use App\Entity\AccountType;
 use App\Entity\User;
 use App\Entity\UserTheme;
+use App\Repository\AccountRepository;
+use App\Repository\CurrencyRepository;
 use App\Repository\UserRepository;
 use App\Service\SettingsService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +31,9 @@ class UserService
         private ValidatorInterface $validator,
         private SettingsService $settingsService,
         private RevokeRefreshTokenManagerInterface $refreshTokens,
+        private CurrencyRepository $currencyRepository,
+        private ExchangeRateService $exchangeRates,
+        private AccountRepository $accountRepository,
     ) {
     }
 
@@ -69,7 +78,34 @@ class UserService
             throw new ApiException(ErrorCode::RegistrationDisabled, [], Response::HTTP_FORBIDDEN);
         }
 
-        // Check if email already exists
+        // First user is admin, and closes registration
+        if ($this->isFirstUser()) {
+            $user = $this->addUser($firstName, $lastName, $email, $plainPassword, ['ROLE_ADMIN']);
+            $this->settingsService->disableRegistration();
+
+            return $user;
+        }
+
+        return $this->addUser($firstName, $lastName, $email, $plainPassword, $roles);
+    }
+
+    /**
+     * A new user, whether registration is open or not: registration goes
+     * through createUser(), an administrator comes straight here.
+     *
+     * @param list<string> $roles
+     *
+     * @throws ApiException               if the email is taken
+     * @throws ValidationFailedException if the user isn't valid
+     */
+    public function addUser(
+        string $firstName,
+        string $lastName,
+        string $email,
+        string $plainPassword,
+        array $roles = [],
+        bool $mustChangePassword = false,
+    ): User {
         if ($this->emailExists($email)) {
             throw new ApiException(ErrorCode::EmailAlreadyRegistered, [], Response::HTTP_CONFLICT);
         }
@@ -78,22 +114,10 @@ class UserService
         $user->setFirstName($firstName);
         $user->setLastName($lastName);
         $user->setEmail($email);
+        $user->setPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+        $user->setRoles($roles);
+        $user->setMustChangePassword($mustChangePassword);
 
-        // Hash password
-        $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
-        $user->setPassword($hashedPassword);
-
-        // First user is admin
-        if ($this->isFirstUser()) {
-            $user->setRoles(['ROLE_ADMIN']);
-
-            // Disable registration after first user
-            $this->settingsService->disableRegistration();
-        } else {
-            $user->setRoles($roles);
-        }
-
-        // Validate user
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {
             throw new ValidationFailedException($user, $errors);
@@ -142,41 +166,100 @@ class UserService
      * Signs the user out everywhere: every refresh token is revoked, so each
      * device has to log in again with the new password once its access token
      * (lexik token_ttl) runs out. The frontend logs this one straight back in.
+     * A password an administrator set to be changed is replaced without
+     * asking for it again (the user just logged in with it).
      *
-     * @throws ApiException if the current password does not match
+     * @throws ApiException if the current password does not match, or the new one is the same
      */
-    public function changePassword(User $user, string $currentPassword, string $newPassword): void
+    public function changePassword(User $user, string $newPassword, ?string $currentPassword = null): void
     {
-        if (!$this->passwordHasher->isPasswordValid($user, $currentPassword)) {
+        if (!$user->mustChangePassword() && !$this->passwordHasher->isPasswordValid($user, $currentPassword ?? '')) {
             throw new ApiException(ErrorCode::CurrentPasswordIncorrect);
+        }
+        if ($this->passwordHasher->isPasswordValid($user, $newPassword)) {
+            throw new ApiException(ErrorCode::PasswordUnchanged);
         }
 
         $user->setPassword($this->passwordHasher->hashPassword($user, $newPassword));
+        $user->setMustChangePassword(false);
         $this->entityManager->flush();
 
         $this->refreshTokens->revokeAllForUser($user);
     }
 
-    public function updatePreferences(
-        User $user,
-        string $locale,
-        UserTheme $theme,
-        int $pageSize,
-        string $timezone,
-        string $numberFormat,
-        ?string $capitalGainsTaxRate = null,
-    ): User {
-        $user->setLocale($locale);
-        $user->setTheme($theme);
-        $user->setPageSize($pageSize);
-        $user->setTimezone($timezone);
-        $user->setNumberFormat($numberFormat);
-        if ($capitalGainsTaxRate !== null && $capitalGainsTaxRate !== '') {
-            $user->setCapitalGainsTaxRate($capitalGainsTaxRate);
+    public function updatePreferences(User $user, UpdatePreferencesRequest $request): User
+    {
+        if ($request->locale !== null) {
+            $user->setLocale($request->locale);
+        }
+        if ($request->theme !== null) {
+            $user->setTheme(UserTheme::from($request->theme));
+        }
+        if ($request->pageSize !== null) {
+            $user->setPageSize($request->pageSize);
+        }
+        if ($request->timezone !== null) {
+            $user->setTimezone($request->timezone);
+        }
+        if ($request->numberFormat !== null) {
+            $user->setNumberFormat($request->numberFormat);
+        }
+        if ($request->capitalGainsTaxRate !== null && $request->capitalGainsTaxRate !== '') {
+            $user->setCapitalGainsTaxRate($request->capitalGainsTaxRate);
+        }
+        if ($request->currency !== null && $request->currency !== '') {
+            $found = $this->currencyRepository->findOneByCode($request->currency);
+            if ($found === null) {
+                throw new ApiException(ErrorCode::CurrencyNotAvailable, ['currency' => $request->currency]);
+            }
+            $user->setCurrency($found->getCode());
+        }
+        if ($request->colorScheme !== null) {
+            $user->setColorScheme($request->colorScheme);
+        }
+        if ($request->density !== null) {
+            $user->setDensity($request->density);
+        }
+        if ($request->startPage !== null) {
+            $user->setStartPage($request->startPage);
+        }
+        if ($request->startPeriod !== null) {
+            $user->setStartPeriod($request->startPeriod);
+        }
+        if ($request->defaultAccountId !== null) {
+            $user->setDefaultAccount($this->defaultAccount($user, $request->defaultAccountId));
+        }
+        if ($request->dashboardSections !== null) {
+            $user->setDashboardSections(array_map(
+                static fn (array $section): array => ['key' => $section['key'], 'visible' => $section['visible']],
+                array_values($request->dashboardSections),
+            ));
+        }
+        if ($request->dashboardTrendView !== null) {
+            $user->setDashboardTrendView($request->dashboardTrendView);
+        }
+        if ($request->dashboardInvestmentUnit !== null) {
+            $user->setDashboardInvestmentUnit($request->dashboardInvestmentUnit);
         }
 
         $this->entityManager->flush();
+        // A new preferred currency may be one rates are needed for.
+        $this->exchangeRates->syncForUser($user);
 
         return $user;
+    }
+
+    /** "" = none; otherwise one of the user's active asset accounts. */
+    private function defaultAccount(User $user, string $id): ?Account
+    {
+        if ($id === '') {
+            return null;
+        }
+        $account = $this->accountRepository->findOneByUserAndId($user, $id);
+        if ($account === null || $account->getType() !== AccountType::Asset || !$account->isActive()) {
+            throw new ApiException(ErrorCode::AccountNotFound);
+        }
+
+        return $account;
     }
 }

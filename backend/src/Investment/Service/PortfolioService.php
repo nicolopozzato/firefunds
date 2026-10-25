@@ -2,10 +2,11 @@
 
 namespace App\Investment\Service;
 
+use App\Currency\Service\CurrencyConverter;
+use App\Currency\Service\RateTable;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
-use App\Entity\InvestmentTransactionType;
 use App\Entity\User;
 use App\Investment\DTO\MonthlyInvestmentFlowResponse;
 use App\Investment\DTO\PortfolioPositionAccountResponse;
@@ -14,7 +15,9 @@ use App\Investment\DTO\PortfolioResponse;
 use App\Investment\DTO\PositionHistoryPointResponse;
 use App\Investment\Position\CapitalGainsTax;
 use App\Investment\Position\PositionHistory;
+use App\Investment\Position\TradeCashEffect;
 use App\Repository\AccountRepository;
+use App\Repository\CurrencyRepository;
 use App\Repository\InvestmentPriceRepository;
 use App\Repository\InvestmentTransactionRepository;
 
@@ -35,6 +38,9 @@ class PortfolioService
         private readonly AccountRepository $accountRepository,
         private readonly InvestmentTransactionRepository $transactionRepository,
         private readonly InvestmentPriceRepository $priceRepository,
+        private readonly CurrencyConverter $converter,
+        private readonly CurrencyRepository $currencies,
+        private readonly PriceCalendar $calendar,
     ) {
     }
 
@@ -53,6 +59,38 @@ class PortfolioService
         $latestPrices = $this->priceRepository->findLatestPrices($instrumentIds);
         $pricesInRange = $this->priceRepository->findDailyPricesForRange($instrumentIds, $from, $to);
 
+        // The portfolio adds accounts up, which can be in different currencies: everything in the user's.
+        // Prices are converted day by day (the latest at yesterday's rate: the day prices and rates are fetched
+        // through), what each trade cost at its own day's rate, balances at yesterday's.
+        $currency = $user->getCurrency();
+        $yesterday = $this->calendar->yesterday();
+        $today = $yesterday->format('Y-m-d');
+        $inPlay = array_unique(array_filter([
+            $currency,
+            ...array_map(static fn (Account $account) => $account->getCurrency()?->getCode(), $assetAccounts),
+            ...array_column($trades, 'instrument_currency'),
+        ]));
+        $firstDay = $trades === [] ? $from->format('Y-m-d') : min($from->format('Y-m-d'), ...array_column($trades, 'day'));
+        $rates = \count($inPlay) < 2 ? new RateTable([]) : $this->converter->tableFor($user, $inPlay, new \DateTimeImmutable($firstDay), max($to, $yesterday));
+        $trades = array_map(function (array $trade) use ($rates, $currency): array {
+            $own = $trade['account_currency'] ?? $currency;
+            if ($own !== $currency) {
+                $trade['amount'] = $rates->convertTo4($trade['amount'], $own, $currency, $trade['day']) ?? $trade['amount'];
+                $trade['costs'] = $rates->convertTo4($trade['costs'], $own, $currency, $trade['day']) ?? $trade['costs'];
+            }
+            // From here on a holding is valued, and its cost counted, in the user's currency.
+            $trade['account_currency'] = $currency;
+
+            return $trade;
+        }, $trades);
+        foreach ($assetAccounts as $account) {
+            $id = $account->getId()->toRfc4122();
+            $own = $account->getCurrency()?->getCode() ?? $currency;
+            if ($own !== $currency && isset($balances[$id])) {
+                $balances[$id] = $rates->convertTo4($balances[$id], $own, $currency, $today) ?? $balances[$id];
+            }
+        }
+
         $accountNames = [];
         foreach ($investmentAccounts as $account) {
             $accountNames[$account->getId()->toRfc4122()] = $account->getName();
@@ -66,12 +104,18 @@ class PortfolioService
 
         $holdingsByInstrument = [];
         $historyByInstrument = [];
+        $pricesByHolding = [];
         foreach ($tradesByHolding as $accountId => $tradesByInstrument) {
             foreach ($tradesByInstrument as $instrumentId => $holdingTrades) {
+                $quoteCurrency = $holdingTrades[0]['instrument_currency'];
+                $accountCurrency = $holdingTrades[0]['account_currency'] ?? $quoteCurrency;
+                $latest = $latestPrices[$instrumentId] ?? null;
+                $pricesByHolding[$instrumentId][$accountId] = $latest !== null ? $rates->convertTo4($latest, $quoteCurrency, $accountCurrency, $today) : null;
+
                 // Closed holdings too: what they were worth before being sold belongs in the portfolio's history.
                 $historyByInstrument[$instrumentId] = $this->addHistories(
                     $historyByInstrument[$instrumentId] ?? [],
-                    array_column(PositionHistory::daily($holdingTrades, $pricesInRange[$instrumentId] ?? [], $from, $to), null, 'date'),
+                    array_column(PositionHistory::daily($holdingTrades, $rates->convertSeries($pricesInRange[$instrumentId] ?? [], $quoteCurrency, $accountCurrency), $from, $to), null, 'date'),
                 );
 
                 $position = $this->transactionRepository->positionsFromTrades($holdingTrades)[0] ?? null;
@@ -87,7 +131,7 @@ class PortfolioService
         $userRate = $user->getCapitalGainsTaxRate();
         $positions = [];
         foreach ($holdingsByInstrument as $instrumentId => $holdings) {
-            $positions[] = $this->position($holdings, $latestPrices[$instrumentId] ?? null, $userRate, $historyByInstrument[$instrumentId]);
+            $positions[] = $this->position($holdings, $pricesByHolding[$instrumentId] ?? [], $userRate, $historyByInstrument[$instrumentId]);
         }
 
         $marketValue = '0.0000';
@@ -110,7 +154,7 @@ class PortfolioService
         $gainAmount = bcsub($marketValue, $costBasis, 4);
 
         return new PortfolioResponse(
-            currencySymbol: ($investmentAccounts[0] ?? null)?->getCurrency()?->getSymbol(),
+            currencySymbol: $this->currencies->symbolOf($currency),
             marketValue: $marketValue,
             costBasis: $costBasis,
             gainAmount: $gainAmount,
@@ -129,13 +173,15 @@ class PortfolioService
     }
 
     /**
-     * One instrument added up over the accounts holding it.
+     * One instrument added up over the accounts holding it, each valued at its
+     * own price: the instrument's, in the currency of the account holding it.
      *
      * @param array<array{accountId: string, accountName: string, quantity: string, costBasis: string, openedOn: ?string, taxRate: ?string, instrumentId: string, instrumentName: string, instrumentTicker: ?string}> $holdings
+     * @param array<string, ?string> $priceByAccount account id => the latest price in that account's currency
      * @param array<string, array{value: string, costBasis: string}> $history
      * @return array<string, mixed>
      */
-    private function position(array $holdings, ?string $price, string $userRate, array $history): array
+    private function position(array $holdings, array $priceByAccount, string $userRate, array $history): array
     {
         $taxRate = $holdings[0]['taxRate'] ?? $userRate;
         $quantity = '0';
@@ -143,6 +189,8 @@ class PortfolioService
         $estimatedTax = '0';
         $openedOn = null;
         $accounts = [];
+        $currentValue = '0';
+        $allPriced = true;
 
         foreach ($holdings as $holding) {
             $quantity = bcadd($quantity, $holding['quantity'], 6);
@@ -151,8 +199,14 @@ class PortfolioService
                 $openedOn = $holding['openedOn'];
             }
 
+            $price = $priceByAccount[$holding['accountId']] ?? null;
             $value = $price !== null ? bcmul($holding['quantity'], $price, 4) : null;
             $gain = $value !== null ? bcsub($value, $holding['costBasis'], 4) : null;
+            if ($value !== null) {
+                $currentValue = bcadd($currentValue, $value, 4);
+            } else {
+                $allPriced = false;
+            }
             if ($gain !== null) {
                 $estimatedTax = bcadd($estimatedTax, CapitalGainsTax::on($gain, $taxRate), 4);
             }
@@ -169,7 +223,7 @@ class PortfolioService
             );
         }
 
-        $currentValue = $price !== null ? bcmul($quantity, $price, 4) : null;
+        $currentValue = $allPriced ? $currentValue : null;
         $gainAmount = $currentValue !== null ? bcsub($currentValue, $costBasis, 4) : null;
 
         return [
@@ -181,12 +235,12 @@ class PortfolioService
             // Units on several accounts can add up to zero (+10 on one, −10 sold by mistake on another).
             'averageCost' => bccomp($quantity, '0', 6) !== 0 ? bcdiv($costBasis, $quantity, 4) : null,
             'openedOn' => $openedOn,
-            'currentPrice' => $price,
+            'currentPrice' => $priceByAccount[$holdings[0]['accountId']] ?? null,
             'currentValue' => $currentValue,
             'gainAmount' => $gainAmount,
             'gainPercent' => $gainAmount !== null ? $this->percentage($gainAmount, $costBasis) ?? '0.0000' : null,
             'taxRate' => $taxRate,
-            'estimatedTax' => $price !== null ? $estimatedTax : null,
+            'estimatedTax' => $allPriced ? $estimatedTax : null,
             'accounts' => $accounts,
             'history' => $history,
         ];
@@ -272,11 +326,8 @@ class PortfolioService
             }
 
             $month = substr($trade['day'], 0, 7);
-            if ($trade['type'] === InvestmentTransactionType::Buy->value) {
-                $months[$month]['bought'] = bcadd($months[$month]['bought'], bcadd($trade['amount'], $trade['costs'], 4), 4);
-            } else {
-                $months[$month]['sold'] = bcadd($months[$month]['sold'], bcsub($trade['amount'], $trade['costs'], 4), 4);
-            }
+            $key = $trade['type'] === 'buy' ? 'bought' : 'sold';
+            $months[$month][$key] = bcadd($months[$month][$key], TradeCashEffect::total($trade['type'], $trade['amount'], $trade['costs']), 4);
         }
 
         return array_map(

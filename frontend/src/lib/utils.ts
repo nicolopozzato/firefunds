@@ -14,9 +14,29 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   CHF: 'CHF',
 }
 
-/** Best-effort ISO 4217 code -> symbol, falling back to the code itself. */
+/** ISO 4217 code -> its symbol ("$", "£", "¥"…): the few the app fixes, else what Intl knows, else the code itself. */
 export function currencySymbolFor(code: string): string {
-  return CURRENCY_SYMBOLS[code] ?? code
+  const fixed = CURRENCY_SYMBOLS[code]
+  if (fixed) return fixed
+  try {
+    const part = new Intl.NumberFormat('en', { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0)
+      .find((p) => p.type === 'currency')
+    return part?.value ?? code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * The symbol an amount gets when none is given: the user's own currency (their
+ * preference), where different currencies are added up. Set by AuthContext as
+ * soon as the user is loaded; the euro until then.
+ */
+let defaultSymbol = '€'
+
+export function setDefaultCurrency(code: string): void {
+  defaultSymbol = currencySymbolFor(code)
 }
 
 /**
@@ -49,7 +69,30 @@ export function formatIban(iban: string): string {
  * negative (separators follow the user's number format). Every place that
  * renders a monetary amount should go through this.
  */
-export function formatMoney(amount: number | string, symbol: string | null = '€'): string {
+/**
+ * "Hide amounts" (this device only, `hooks/use-hide-amounts.ts`): every
+ * amount formatted here shows as dots, percentages and quantities as they are.
+ */
+let amountsHidden = false
+const AMOUNT_MASK = '•••••'
+
+export function setAmountsHidden(hidden: boolean): void {
+  amountsHidden = hidden
+}
+
+export function areAmountsHidden(): boolean {
+  return amountsHidden
+}
+
+/** An amount without decimals, for chart axes: "7.550 €". */
+export function formatWholeMoney(amount: number, symbol: string | null | undefined): string {
+  const formatted = amountsHidden ? AMOUNT_MASK : numberFormatter({ maximumFractionDigits: 0 }).format(amount)
+  return symbol ? `${formatted} ${symbol}` : formatted
+}
+
+export function formatMoney(amount: number | string, symbol?: string | null): string {
+  const shown = symbol === undefined ? defaultSymbol : symbol
+  if (amountsHidden) return shown ? `${AMOUNT_MASK} ${shown}` : AMOUNT_MASK
   const value = typeof amount === 'string' ? Number(amount) : amount
   const formatted = numberFormatter({
     minimumFractionDigits: 2,
@@ -57,7 +100,12 @@ export function formatMoney(amount: number | string, symbol: string | null = '�
   }).format(Math.abs(value))
 
   const sign = value < 0 ? '-' : ''
-  return symbol ? `${sign}${formatted} ${symbol}` : `${sign}${formatted}`
+  return shown ? `${sign}${formatted} ${shown}` : `${sign}${formatted}`
+}
+
+/** An exchange rate: "0,9091", at most 8 decimals. */
+export function formatExchangeRate(rate: string | number): string {
+  return numberFormatter({ minimumFractionDigits: 4, maximumFractionDigits: 8 }).format(Number(rate))
 }
 
 /** A traded quantity (e.g. ETF units): up to 6 decimals, trailing zeros dropped. */

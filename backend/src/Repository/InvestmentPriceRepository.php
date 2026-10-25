@@ -219,4 +219,34 @@ class InvestmentPriceRepository extends ServiceEntityRepository
 
         return $byInstrument;
     }
+
+    /**
+     * Every quote symbol the price fetch asks the provider for (instruments
+     * of every user), with the newest day with a price and the newest with
+     * the provider's own close (not carried over, possibly corrected by the
+     * user since).
+     *
+     * @return list<array{symbol: string, latest: ?string, latestClose: ?string}>
+     */
+    public function latestBySymbol(): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            <<<SQL
+                SELECT COALESCE(NULLIF(i.yahoo_ticker, ''), NULLIF(i.ticker, '')) AS symbol,
+                       CAST(MAX(p.date) AS text) AS latest,
+                       CAST(MAX(p.date) FILTER (WHERE p.source = 'market' OR p.original_source = 'market') AS text) AS latest_close
+                FROM investment_instrument i
+                LEFT JOIN investment_price p ON p.instrument_id = i.id AND p.deleted_at IS NULL
+                WHERE i.deleted_at IS NULL AND COALESCE(NULLIF(i.yahoo_ticker, ''), NULLIF(i.ticker, '')) IS NOT NULL
+                GROUP BY 1
+                ORDER BY 1
+                SQL,
+        )->fetchAllAssociative();
+
+        return array_map(static fn (array $row) => [
+            'symbol' => $row['symbol'],
+            'latest' => $row['latest'],
+            'latestClose' => $row['latest_close'],
+        ], $rows);
+    }
 }

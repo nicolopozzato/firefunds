@@ -20,7 +20,7 @@ import {
   useUpdateInvestmentTransaction,
 } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, deviceTimezone, formatAccountBalance, formatMoney, formatQuantity, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
+import { cn, currencySymbolFor, deviceTimezone, formatAccountBalance, formatMoney, formatQuantity, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
 import type { InvestmentTransactionType } from '@/types/investment'
 import FormActions from '@/components/FormActions'
 
@@ -44,13 +44,6 @@ function suggestAmount(quantity: string, unitPrice: string): string | null {
   const p = Number(unitPrice)
   if (!quantity || !unitPrice || Number.isNaN(q) || Number.isNaN(p)) return null
   return (Math.round(q * p * 100) / 100).toFixed(2)
-}
-
-/** Same rule as the backend (InvestmentTransaction::isPlausibleAmount): within 0.5% of quantity × price, or a cent. */
-function isPlausibleAmount(quantity: string, unitPrice: string, amount: string): boolean {
-  const expected = Number(quantity) * Number(unitPrice)
-  const difference = Math.abs(Number(amount) - expected)
-  return difference <= Math.max(0.01, expected * 0.005) + 1e-9
 }
 
 /** BUY total = amount + fees + taxes; SELL total = amount - fees - taxes. */
@@ -187,11 +180,18 @@ export default function InvestmentTransactionFormPage() {
     [instruments]
   )
 
-  const suggestedAmount = suggestAmount(quantity, unitPrice)
+  // Quoted in the instrument's currency, charged in the account's: with two currencies the amount isn't
+  // quantity × price, so it isn't suggested: it is what the broker charged, which the rate follows from.
+  const accountCurrency = investmentAccounts.find((account) => account.id === accountId)?.currencyCode ?? null
+  const quoteCurrency = instruments.find((instrument) => instrument.id === instrumentId)?.currencyCode ?? null
+  const isOtherCurrency = accountCurrency !== null && quoteCurrency !== null && accountCurrency !== quoteCurrency
+  const suggestedAmount = isOtherCurrency ? null : suggestAmount(quantity, unitPrice)
   const effectiveAmount = isAmountEdited ? amount : (suggestedAmount ?? '')
   const amountDiffers =
     isAmountEdited && suggestedAmount !== null && effectiveAmount !== '' && Number(effectiveAmount) !== Number(suggestedAmount)
-  const isAmountPlausible = !amountDiffers || isPlausibleAmount(quantity, unitPrice, effectiveAmount)
+  const grossInQuote = Number(quantity) * Number(unitPrice)
+  const appliedRate =
+    isOtherCurrency && grossInQuote > 0 && Number(effectiveAmount) > 0 ? Number(effectiveAmount) / grossInQuote : null
   const total = computeTotal(type, effectiveAmount, fees, taxes)
 
   // Selling more than is held is allowed (the position just goes negative,
@@ -364,7 +364,10 @@ export default function InvestmentTransactionFormPage() {
                     />
                   </div>
                   <div className="min-w-0 space-y-2">
-                    <Label htmlFor="unitPrice">{t('investmentTransactionForm.unitPrice')}</Label>
+                    <Label htmlFor="unitPrice">
+                      {t('investmentTransactionForm.unitPrice')}
+                      {quoteCurrency && <span className="ml-1 font-normal text-muted-foreground">({currencySymbolFor(quoteCurrency)})</span>}
+                    </Label>
                     <Input
                       id="unitPrice"
                       type="number"
@@ -387,7 +390,10 @@ export default function InvestmentTransactionFormPage() {
 
             <FormSection title={t('investmentTransactionForm.sectionAmounts')} className="max-lg:order-2" contentClassName="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <div className="col-span-2 min-w-0 space-y-2 sm:col-span-1">
-                  <Label htmlFor="amount">{t('investmentTransactionForm.amount')}</Label>
+                  <Label htmlFor="amount">
+                    {t('investmentTransactionForm.amount')}
+                    {accountCurrency && <span className="ml-1 font-normal text-muted-foreground">({currencySymbolFor(accountCurrency)})</span>}
+                  </Label>
                   <Input
                     id="amount"
                     type="number"
@@ -395,8 +401,7 @@ export default function InvestmentTransactionFormPage() {
                     min="0.01"
                     required
                     value={effectiveAmount}
-                    aria-invalid={!isAmountPlausible}
-                    className={cn('tabular-nums', !isAmountPlausible && 'border-destructive')}
+                    className="tabular-nums"
                     onChange={(e) => {
                       setAmount(e.target.value)
                       setIsAmountEdited(true)
@@ -428,17 +433,18 @@ export default function InvestmentTransactionFormPage() {
                     onChange={(e) => setTaxes(e.target.value)}
                   />
                 </div>
-                <p
-                  className={cn(
-                    'col-span-2 text-xs sm:col-span-3',
-                    isAmountPlausible ? 'text-muted-foreground' : 'text-destructive'
-                  )}
-                >
-                  {amountDiffers && suggestedAmount !== null
-                    ? t(isAmountPlausible ? 'investmentTransactionForm.amountHint' : 'investmentTransactionForm.amountImplausible', {
-                        value: formatMoney(suggestedAmount),
-                      })
-                    : t('investmentTransactionForm.amountFollows')}
+                <p className="col-span-2 text-xs text-muted-foreground sm:col-span-3">
+                  {isOtherCurrency
+                    ? appliedRate !== null
+                      ? t('investmentTransactionForm.appliedRate', {
+                          quote: quoteCurrency,
+                          rate: numberFormatter({ maximumFractionDigits: 4 }).format(appliedRate),
+                          account: accountCurrency,
+                        })
+                      : t('investmentTransactionForm.amountOtherCurrency', { account: accountCurrency, quote: quoteCurrency })
+                    : amountDiffers && suggestedAmount !== null
+                      ? t('investmentTransactionForm.amountHint', { value: formatMoney(suggestedAmount) })
+                      : t('investmentTransactionForm.amountFollows')}
                 </p>
             </FormSection>
 
@@ -467,7 +473,7 @@ export default function InvestmentTransactionFormPage() {
           <Button type="button" variant="outline" onClick={handleCancel}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" disabled={isSaving || !accountId || !instrumentId || !isAmountPlausible}>
+          <Button type="submit" disabled={isSaving || !accountId || !instrumentId}>
             {t('common.save')}
           </Button>
         </FormActions>

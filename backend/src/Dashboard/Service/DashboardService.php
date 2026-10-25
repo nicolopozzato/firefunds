@@ -3,6 +3,7 @@
 namespace App\Dashboard\Service;
 
 use App\Account\Service\AssetValueHistory;
+use App\Account\Service\AssetValues;
 use App\Core\Period\Days;
 use App\Core\Period\UserDayRange;
 use App\Dashboard\DTO\DashboardAccountResponse;
@@ -11,9 +12,11 @@ use App\Dashboard\DTO\DashboardResponse;
 use App\Dashboard\DTO\DashboardSummaryResponse;
 use App\Dashboard\DTO\DatedValueResponse;
 use App\Entity\Account;
-use App\Entity\InvestmentTransactionType;
 use App\Entity\User;
+use App\Investment\Position\PriceSeries;
+use App\Investment\Position\TradeCashEffect;
 use App\Repository\InvestmentTransactionRepository;
+use App\Repository\CurrencyRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\DTO\DistributionEntryResponse;
 use App\Transaction\DTO\TransactionResponse;
@@ -39,6 +42,7 @@ class DashboardService
         private readonly AssetValueHistory $assetValueHistory,
         private readonly TransactionRepository $transactionRepository,
         private readonly InvestmentTransactionRepository $investmentTransactionRepository,
+        private readonly CurrencyRepository $currencies,
     ) {
     }
 
@@ -72,7 +76,7 @@ class DashboardService
         $netWorthEnd = $values->netWorthOn($lastDay);
         $netWorthChange = bcsub($netWorthEnd, $netWorthStart, 4);
 
-        $contributionsByInstrument = $this->contributions($trades, $firstDay, $lastDay);
+        $contributionsByInstrument = $this->contributions($values, $firstDay, $lastDay);
         $investmentsStart = $values->investmentsOn($startDay);
         $investmentsEnd = $values->investmentsOn($lastDay);
         $investmentContributions = array_reduce($contributionsByInstrument, static fn (string $sum, string $c) => bcadd($sum, $c, 4), '0.0000');
@@ -86,7 +90,8 @@ class DashboardService
         $chartDays = Days::sample($days, self::MAX_POINTS);
 
         return new DashboardResponse(
-            currencySymbol: ($assetAccounts[0] ?? null)?->getCurrency()?->getSymbol(),
+            // Everything added up is in the user's currency (the accounts' own boxes show theirs).
+            currencySymbol: $this->currencies->symbolOf($user->getCurrency()),
             summary: new DashboardSummaryResponse(
                 income: $income,
                 expenses: $expenses,
@@ -127,22 +132,20 @@ class DashboardService
     /**
      * Money put into each instrument over [firstDay, lastDay]: what the BUYs
      * cost, fees and taxes included, minus what the SELLs brought back, net
-     * of them. Only instruments traded in the period.
+     * of them, each at its day's rate in the user's currency. Only instruments
+     * traded in the period.
      *
-     * @param array<array{instrument_id: string, type: string, amount: string, costs: string, day: string}> $trades
      * @return array<string, string> instrument id => contributions
      */
-    private function contributions(array $trades, string $firstDay, string $lastDay): array
+    private function contributions(AssetValues $values, string $firstDay, string $lastDay): array
     {
         $byInstrument = [];
-        foreach ($trades as $trade) {
+        foreach ($values->trades as $trade) {
             if ($trade['day'] < $firstDay || $trade['day'] > $lastDay) {
                 continue;
             }
 
-            $flow = $trade['type'] === InvestmentTransactionType::Buy->value
-                ? bcadd($trade['amount'], $trade['costs'], 4)
-                : bcsub('0', bcsub($trade['amount'], $trade['costs'], 4), 4);
+            $flow = $values->inUserCurrency(TradeCashEffect::contribution($trade['type'], $trade['amount'], $trade['costs']), $trade['account_currency'] ?? null, $trade['day']);
             $byInstrument[$trade['instrument_id']] = bcadd($byInstrument[$trade['instrument_id']] ?? '0', $flow, 4);
         }
 
@@ -211,13 +214,7 @@ class DashboardService
      */
     private function performance(array $priceByDate, string $startDay, array $days, array $chartDays): array
     {
-        $price = null;
-        foreach ($priceByDate as $date => $value) {
-            if ($date > $startDay) {
-                break;
-            }
-            $price = $value;
-        }
+        $price = PriceSeries::onOrBefore($priceByDate, $startDay);
 
         $base = $price;
         $points = [];

@@ -9,6 +9,7 @@ use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
 use App\Entity\User;
+use App\Investment\Position\TradeCashEffect;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -140,20 +141,17 @@ class AccountRepository extends ServiceEntityRepository
         $placeholders = implode(',', array_fill(0, \count($ids), '?'));
         $params = array_map(static fn ($id) => $id->toRfc4122(), $ids);
 
+        $signed = TradeCashEffect::signedSql('it');
         $sql = <<<SQL
             SELECT
                 a.id AS account_id,
                 CAST(
                     COALESCE(a.opening_balance, 0)
-                        + COALESCE((SELECT SUM(t.amount) FROM transaction t WHERE t.destination_account_id = a.id AND t.deleted_at IS NULL), 0)
+                        + COALESCE((SELECT SUM(COALESCE(t.destination_amount, t.amount)) FROM transaction t WHERE t.destination_account_id = a.id AND t.deleted_at IS NULL), 0)
                         - COALESCE((SELECT SUM(t.amount) FROM transaction t WHERE t.source_account_id = a.id AND t.deleted_at IS NULL), 0)
                         + COALESCE((
                             SELECT SUM(
-                                CASE
-                                    WHEN it.type = 'buy' THEN -(it.amount + it.fees + it.taxes)
-                                    WHEN it.type = 'sell' THEN (it.amount - it.fees - it.taxes)
-                                    ELSE 0
-                                END
+                                {$signed}
                             )
                             FROM investment_transaction it
                             WHERE it.account_id = a.id AND it.deleted_at IS NULL
@@ -272,12 +270,13 @@ class AccountRepository extends ServiceEntityRepository
             return [];
         }
 
+        $signed = TradeCashEffect::signedSql('it');
         $sql = <<<SQL
             WITH days AS (
                 SELECT CAST(d AS date) AS day FROM generate_series(CAST(:from AS date), CAST(:to AS date), INTERVAL '1 day') d
             ),
             movements AS (
-                SELECT t.destination_account_id AS account_id, t.occurred_at, t.amount AS net
+                SELECT t.destination_account_id AS account_id, t.occurred_at, COALESCE(t.destination_amount, t.amount) AS net
                 FROM transaction t
                 WHERE t.destination_account_id IN (:ids) AND t.deleted_at IS NULL
                 UNION ALL
@@ -288,11 +287,7 @@ class AccountRepository extends ServiceEntityRepository
                 SELECT
                     it.account_id,
                     it.occurred_at,
-                    CASE
-                        WHEN it.type = 'buy' THEN -(it.amount + it.fees + it.taxes)
-                        WHEN it.type = 'sell' THEN (it.amount - it.fees - it.taxes)
-                        ELSE 0
-                    END
+                    {$signed}
                 FROM investment_transaction it
                 WHERE it.account_id IN (:ids) AND it.deleted_at IS NULL
             ),

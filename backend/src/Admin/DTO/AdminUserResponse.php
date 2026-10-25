@@ -12,6 +12,12 @@ final readonly class AdminUserResponse
         public string $lastName,
         public string $email,
         public bool $isAdmin,
+        public bool $isActive,
+        /** UTC instant; null while the user is active. */
+        public ?string $disabledAt,
+        public bool $mustChangePassword,
+        /** UTC instant of the last use of the app; null: never. */
+        public ?string $lastSeenAt,
         public string $createdAt,
     ) {
     }
@@ -24,6 +30,10 @@ final readonly class AdminUserResponse
             lastName: $user->getLastName(),
             email: $user->getEmail(),
             isAdmin: $user->isAdmin(),
+            isActive: $user->isActive(),
+            disabledAt: $user->getDisabledAt()?->format(\DateTimeInterface::ATOM),
+            mustChangePassword: $user->mustChangePassword(),
+            lastSeenAt: $user->getLastSeenAt()?->format(\DateTimeInterface::ATOM),
             createdAt: $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
         );
     }

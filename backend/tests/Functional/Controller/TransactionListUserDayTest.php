@@ -35,7 +35,7 @@ class TransactionListUserDayTest extends WebTestCaseBase
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $eur = $entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($eur === null) {
-            $eur = new Currency('EUR', 'Euro', '€', 2, true);
+            $eur = new Currency('EUR', 'Euro', '€', 2);
             $entityManager->persist($eur);
         }
 

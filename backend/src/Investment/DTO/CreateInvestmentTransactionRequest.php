@@ -59,8 +59,9 @@ final readonly class CreateInvestmentTransactionRequest
 
         /**
          * What the broker actually charged/credited for the units, fees and
-         * taxes excluded. Optional: defaults to quantity x unit price. Must be
-         * a plausible rounding of it (InvestmentTransaction::isPlausibleAmount()).
+         * taxes excluded. Optional: defaults to quantity x unit price. Never
+         * checked against it: fees, rounding and (soon) another currency make
+         * the broker's figure its own.
          */
         #[Assert\Positive(message: 'Amount must be greater than zero')]
         #[Decimal]

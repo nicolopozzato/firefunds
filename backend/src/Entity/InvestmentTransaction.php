@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Investment\Position\TradeCashEffect;
 use App\Repository\InvestmentTransactionRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
@@ -192,23 +193,6 @@ class InvestmentTransaction implements SoftDeletable
         return bcmul($quantity, $unitPrice, 4);
     }
 
-    /**
-     * Whether an amount is a believable rounding of quantity x unit price:
-     * within 0.5% of it, or a cent, whichever is larger. Anything further off
-     * is a typo (a digit too many in the quantity, 500 for 50…).
-     */
-    public static function isPlausibleAmount(string $quantity, string $unitPrice, string $amount): bool
-    {
-        $expected = self::grossAmount($quantity, $unitPrice);
-        $difference = ltrim(bcsub($amount, $expected, 4), '-');
-        $allowed = bcmul($expected, '0.005', 4);
-        if (bccomp($allowed, '0.01', 4) < 0) {
-            $allowed = '0.01';
-        }
-
-        return bccomp($difference, $allowed, 4) <= 0;
-    }
-
     public function getFees(): string
     {
         return $this->fees;
@@ -243,9 +227,7 @@ class InvestmentTransaction implements SoftDeletable
      */
     public function getTotalAmount(): string
     {
-        return $this->type === InvestmentTransactionType::Buy
-            ? bcadd($this->amount, $this->getCosts(), 4)
-            : bcsub($this->amount, $this->getCosts(), 4);
+        return TradeCashEffect::total($this->type->value, $this->amount, $this->getCosts());
     }
 
     public function getNotes(): ?string

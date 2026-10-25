@@ -34,7 +34,7 @@ class ExternalTransactionTest extends WebTestCaseBase
 
         $eur = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($eur === null) {
-            $eur = new Currency('EUR', 'Euro', '€', 2, true);
+            $eur = new Currency('EUR', 'Euro', '€', 2);
             $this->entityManager->persist($eur);
         }
 

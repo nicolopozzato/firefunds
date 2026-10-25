@@ -106,15 +106,45 @@ class YahooFinancePriceProviderTest extends TestCase
         $this->assertNull($quote->price);
     }
 
+    public function testTheQuoteCurrencyIsWhatYahooSays(): void
+    {
+        $provider = new YahooFinancePriceProvider(new MockHttpClient($this->chart([['2026-09-25 09:00', 100.0]], 'America/New_York', 'USD')), new NullLogger());
+
+        $this->assertSame('USD', $provider->getQuoteCurrency($this->instrument()));
+    }
+
+    public function testAQuoteInPenceIsAQuoteInPoundsWithPricesDividedByAHundred(): void
+    {
+        $client = new MockHttpClient(fn () => $this->chart([['2026-09-25 09:00', 1250.0], ['2026-09-28 09:00', 1262.5]], 'Europe/London', 'GBp'));
+        $provider = new YahooFinancePriceProvider($client, new NullLogger());
+
+        $this->assertSame('GBP', $provider->getQuoteCurrency($this->instrument()));
+        $this->assertSame(
+            ['2026-09-25' => '12.5000', '2026-09-28' => '12.6250'],
+            $provider->getClosingPrices($this->instrument(), new \DateTimeImmutable('2026-09-25'), new \DateTimeImmutable('2026-09-28')),
+        );
+    }
+
+    public function testNoCurrencyWhenYahooDoesNotSayOrFails(): void
+    {
+        $unknown = new YahooFinancePriceProvider(new MockHttpClient($this->chart([['2026-09-25 09:00', 100.0]])), new NullLogger());
+        $failing = new YahooFinancePriceProvider(new MockHttpClient(new MockResponse('', ['http_code' => 500])), new NullLogger());
+        $noSymbol = new YahooFinancePriceProvider(new MockHttpClient($this->chart([])), new NullLogger());
+
+        $this->assertNull($unknown->getQuoteCurrency($this->instrument()));
+        $this->assertNull($failing->getQuoteCurrency($this->instrument()));
+        $this->assertNull($noSymbol->getQuoteCurrency(new InvestmentInstrument(new User(), 'No symbol', InvestmentInstrumentType::Other)));
+    }
+
     /**
      * @param list<array{string, ?float}> $bars local 'Y-m-d H:i' => close
      */
-    private function chart(array $bars, string $timezone = 'Europe/Rome'): JsonMockResponse
+    private function chart(array $bars, string $timezone = 'Europe/Rome', ?string $currency = null): JsonMockResponse
     {
         $tz = new \DateTimeZone($timezone);
 
         return new JsonMockResponse(['chart' => ['result' => [[
-            'meta' => ['exchangeTimezoneName' => $timezone],
+            'meta' => ['exchangeTimezoneName' => $timezone] + ($currency !== null ? ['currency' => $currency] : []),
             'timestamp' => array_map(static fn (array $bar) => (new \DateTimeImmutable($bar[0], $tz))->getTimestamp(), $bars),
             'indicators' => ['quote' => [['close' => array_column($bars, 1)]]],
         ]]]]);

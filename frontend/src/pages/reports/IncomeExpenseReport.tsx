@@ -34,7 +34,7 @@ import {
   type ReportPreset,
   type ReportSpan,
 } from '@/lib/report-period'
-import { cn, formatMoney, formatPercent, moneyColorClass, numberFormatter, parseDate } from '@/lib/utils'
+import { cn, formatMoney, formatPercent, moneyColorClass, formatWholeMoney, parseDate } from '@/lib/utils'
 import type { IncomeExpenseReport as ReportData, ReportComparison, ReportGranularity } from '@/types/report'
 import LoadFailed from '@/components/LoadFailed'
 
@@ -189,7 +189,7 @@ function NetWorthChart({ report }: { report: ReportData }) {
     () => eachDayOfInterval({ start: parseISO(report.from), end: parseISO(report.to) }).map((day) => format(day, 'yyyy-MM-dd')),
     [report.from, report.to]
   )
-  const wholeMoney = (value: number) => `${numberFormatter({ maximumFractionDigits: 0 }).format(value)}${currency ? ` ${currency}` : ''}`
+  const wholeMoney = (value: number) => formatWholeMoney(value, currency)
 
   return (
     <ReportCard title={t('reports.netWorthTrend')}>

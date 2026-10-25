@@ -50,12 +50,14 @@ export function withOpening(row: NetWorthRow): MonthlyValues & { previousOpening
   return { ...monthlyValues(row), previousOpening: row.previousOpening === null ? null : Number(row.previousOpening) }
 }
 
-/** a − b − c month by month (null where any is): what the change leaves once saving and the market are taken out. */
-export function remainder(total: MonthlyValues, saved: MonthlyValues, market: MonthlyValues): MonthlyValues {
-  const rest = (a: (number | null)[], b: (number | null)[], c: (number | null)[]) =>
-    a.map((value, index) => (value === null || b[index] === null || c[index] === null ? null : value - (b[index] as number) - (c[index] as number)))
+/** total − each part month by month (null where any is): what the change leaves once saving, the market and the rates are taken out. */
+export function remainder(total: MonthlyValues, ...parts: MonthlyValues[]): MonthlyValues {
+  const rest = (a: (number | null)[], others: (number | null)[][]) =>
+    a.map((value, index) =>
+      value === null || others.some((other) => other[index] === null) ? null : others.reduce((left, other) => left - (other[index] as number), value),
+    )
   return {
-    values: rest(total.values, saved.values, market.values),
-    previousValues: rest(total.previousValues, saved.previousValues, market.previousValues),
+    values: rest(total.values, parts.map((part) => part.values)),
+    previousValues: rest(total.previousValues, parts.map((part) => part.previousValues)),
   }
 }

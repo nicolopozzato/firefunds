@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import CurrencyTag from '@/components/CurrencyTag'
 import { cn, formatMoney, moneyColorClass } from '@/lib/utils'
 import { signedMoney } from '@/lib/report-format'
 import type { IncomeExpenseSummary, ReportAccount } from '@/types/report'
@@ -39,6 +40,7 @@ export default function ReportAccountsTable({ accounts, summary, currency }: Rep
                 <Link to={`/accounts/asset/${account.id}`} className={cn('hover:underline', !account.isActive && 'text-muted-foreground')}>
                   {account.name}
                 </Link>
+                <CurrencyTag code={account.currencyCode} />
                 {!account.isActive && <span className="ml-1.5 text-xs text-muted-foreground">({t('reports.closed')})</span>}
               </td>
               <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums" title={heldTitle(account, 'investedStart')}>

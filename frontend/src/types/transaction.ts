@@ -43,6 +43,11 @@ export interface Transaction {
   /** Investment BUY/SELL only; null for a money transaction. */
   quantity: string | null
   unitPrice: string | null
+  /** Investment rows: the currency the unit price is in (the instrument's quote currency). */
+  unitPriceCurrency?: string | null
+  /** A transfer between currencies: what arrived on the destination account, in its currency (`amount` left the source). */
+  destinationAmount?: string | null
+  destinationCurrency?: string | null
   fees: string | null
   taxes: string | null
 }
@@ -72,6 +77,8 @@ export interface CreateTransactionRequest {
   /** Where it happened (IANA); left out on an edit to keep it. */
   timezone?: string
   amount: string
+  /** A transfer between currencies: what arrived on the destination account. */
+  destinationAmount?: string | null
   foreignAmount?: string | null
   foreignCurrency?: string | null
   categoryId?: string | null

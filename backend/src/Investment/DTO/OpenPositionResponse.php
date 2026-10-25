@@ -15,7 +15,14 @@ final readonly class OpenPositionResponse
         public string $costBasis,
         public string $averageCost,
         public ?string $openedOn,
+        /** The latest price in the account's currency (what the value is worked out from). */
         public ?string $currentPrice,
+        /** The same price as quoted, in the instrument's currency. */
+        public ?string $quotePrice,
+        /** ISO 4217 code of the currency the instrument is quoted in. */
+        public ?string $quoteCurrency,
+        /** ISO 4217 code of the account's currency: the value, cost and gain are in it. */
+        public ?string $currencyCode,
         public ?string $currentValue,
         public ?string $gainAmount,
         public ?string $gainPercent,
@@ -42,6 +49,9 @@ final readonly class OpenPositionResponse
             averageCost: $row['averageCost'],
             openedOn: $row['openedOn'],
             currentPrice: $row['currentPrice'],
+            quotePrice: $row['quotePrice'] ?? null,
+            quoteCurrency: $row['quoteCurrency'] ?? null,
+            currencyCode: $row['accountCurrency'] ?? null,
             currentValue: $row['currentValue'],
             gainAmount: $row['gainAmount'],
             gainPercent: $row['gainPercent'],

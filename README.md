@@ -8,7 +8,7 @@ FireFunds is a self-hosted personal finance app. You record where your money is 
 
 It uses double-entry bookkeeping, like [Firefly III](https://www.firefly-iii.org), which inspired it, with first-class support for investments: ETF and stock positions, daily prices, gains and the estimated tax if you sold today.
 
-> **Status:** personal project, used daily by its author and under active development. Only **EUR** is supported for now (see [Limitations](#limitations)). Interface in English and Italian.
+> **Status:** personal project, used daily by its author and under active development. Multi-currency up to a point (see [Limitations](#limitations)). Interface in English and Italian.
 
 **Italiano:** [la descrizione e l'installazione in italiano](#in-italiano) sono in fondo alla pagina.
 
@@ -76,7 +76,7 @@ For any period (this month, this year, a range of your choice): income, expenses
 
 ### Everything else
 
-- Multi-user, every record scoped to its owner; the first user to register is the admin and can close registrations.
+- Multi-user, every record scoped to its owner; the first user to register is the admin, who can close registrations and add, edit and disable users (Administration → Users).
 - Light and dark theme (or follow the device), Italian and English, your own number format and timezone.
 - Search across descriptions, notes, accounts, categories and tags.
 - JWT login with single-use refresh tokens (a replayed one signs the session out), logout and password changes that end sessions, and login throttling (5 failed attempts per email and IP lock it for up to 15 minutes).
@@ -111,7 +111,7 @@ Everything FireFunds stores is in `./data` (database, login keys, scheduler stat
 |-------------|-------------------------------------------------------------------|
 | `database`  | PostgreSQL 18                                                     |
 | `app`       | FrankenPHP: the web app on `/`, the API on `/api`                 |
-| `scheduler` | Background jobs: the investment price fetch, at 00:10, 04:10, 08:10 and 12:10 (`TIMEZONE`) |
+| `scheduler` | Background jobs: investment prices, exchange rates, backups, expired sessions (Administration → Scheduled tasks shows when each runs and how it went) |
 
 ### HTTPS (reverse proxy)
 
@@ -194,13 +194,12 @@ Backups made by hand with `pg_dump` (before this existed) are restored with `pg_
 
 ## Limitations
 
-- **EUR only.** Accounts have a currency and a transaction can record a foreign amount, but nothing is converted: totals and charts add every amount as if it were in EUR. An instrument quoted in USD on a EUR broker account is therefore valued wrongly; stick to instruments quoted in EUR (e.g. `VWCE.MI`) until multi-currency lands.
+- **Currencies, up to a point.** Every account has its currency, every instrument its quote currency, and you choose the one amounts are shown in (Preferences). Wherever accounts are added up (dashboard, reports, net worth, totals) each amount is converted at its day's rate: ECB reference rates, Yahoo for a currency the ECB doesn't publish, and you can correct any day for yourself (Preferences → Exchange rates). A transfer between currencies takes the amount that arrived. Not there yet: a broker account holding cash in two currencies (use two accounts), and splitting a gain into price and exchange.
 - **The current price is the last close** (yesterday's at best), not a live quote.
 - Selling more units than you hold is not blocked, like overdrawing a checking account.
 
 ## Roadmap
 
-- **Multi-currency**: each instrument's quote currency, daily exchange rates, trades in a foreign currency with the rate the broker applied, everything shown in the account's currency.
 - Live quotes, realized gains on sales, dividends.
 - Split transactions, reconciliation.
 - Imports (bank CSV, payment notifications) with proposed transactions to confirm, optionally AI-assisted classification.
@@ -263,7 +262,7 @@ Il ripristino **sostituisce tutti i dati** (chiede conferma e prima salva quelli
 
 ### Limiti
 
-- **Solo euro**: le valute ci sono, ma nulla viene convertito. Usa strumenti quotati in euro (es. `VWCE.MI`).
+- **Valute, fino a un certo punto**: ogni conto ha la sua valuta, ogni strumento la sua valuta di quotazione, e scegli tu quella in cui vedere gli importi (Preferenze). Dove si sommano i conti (dashboard, report, patrimonio, totali) ogni importo è convertito al cambio del suo giorno: tassi BCE, Yahoo per quelli che la BCE non pubblica, e puoi correggere un giorno solo per te (Preferenze → Cambi). Un trasferimento tra valute prende l'importo arrivato. Non c'è ancora: un conto di un broker con liquidità in due valute (usa due conti) e la divisione del guadagno tra prezzo e cambio.
 - Il prezzo attuale di uno strumento è l'ultima chiusura, non una quotazione in tempo reale.
 
 Segnalazioni e contributi sono benvenuti, in italiano o in inglese: vedi [CONTRIBUTING.md](CONTRIBUTING.md). Per le vulnerabilità, [SECURITY.md](SECURITY.md).

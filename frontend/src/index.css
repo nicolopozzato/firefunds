@@ -73,17 +73,16 @@
     --series-other: 55 9.1% 74.1%;
   }
 
-  /* Density variants */
-  [data-density="compact"] {
-    --spacing-unit: 0.75;
-  }
+  /* Density (Preferences): larger screens with a mouse only, by scaling the rem every size is
+     made of; phones and tablets keep the default, so fields stay 16px and nothing gets too small to tap. */
+  @media (min-width: 768px) and (pointer: fine) {
+    html[data-density="compact"] {
+      font-size: 93.75%;
+    }
 
-  [data-density="comfortable"] {
-    --spacing-unit: 1;
-  }
-
-  [data-density="spacious"] {
-    --spacing-unit: 1.25;
+    html[data-density="spacious"] {
+      font-size: 106.25%;
+    }
   }
 }
 

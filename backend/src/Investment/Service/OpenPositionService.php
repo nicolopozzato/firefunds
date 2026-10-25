@@ -29,6 +29,8 @@ class OpenPositionService
     public function __construct(
         private readonly InvestmentTransactionRepository $transactionRepository,
         private readonly InvestmentPriceRepository $priceRepository,
+        private readonly HoldingRates $holdingRates,
+        private readonly PriceCalendar $calendar,
     ) {
     }
 
@@ -52,6 +54,11 @@ class OpenPositionService
         $latestPrices = $this->priceRepository->findLatestPrices($instrumentIds);
         $pricesInRange = $this->priceRepository->findDailyPricesForRange($instrumentIds, $from, $to);
 
+        // Quoted in the instrument's currency, valued in the account's: converted day by day,
+        // and the latest price at yesterday's rate (the day prices and rates are fetched through).
+        $today = $this->calendar->yesterday();
+        $rates = $this->holdingRates->forTrades($account->getUser(), $trades, $from, max($to, $today));
+
         $tradesByInstrument = [];
         foreach ($trades as $trade) {
             $tradesByInstrument[$trade['instrument_id']][] = $trade;
@@ -60,15 +67,22 @@ class OpenPositionService
         $userRate = $account->getUser()->getCapitalGainsTaxRate();
 
         return array_map(
-            fn (array $position) => OpenPositionResponse::fromRow(
-                $this->withMarketData($position, $latestPrices[$position['instrumentId']] ?? null, $userRate),
-                PositionHistory::daily(
-                    $tradesByInstrument[$position['instrumentId']] ?? [],
-                    $pricesInRange[$position['instrumentId']] ?? [],
-                    $from,
-                    $to,
-                ),
-            ),
+            function (array $position) use ($latestPrices, $pricesInRange, $tradesByInstrument, $rates, $today, $userRate, $from, $to) {
+                $quoteCurrency = $position['quoteCurrency'] ?? $position['accountCurrency'];
+                $accountCurrency = $position['accountCurrency'] ?? $quoteCurrency;
+                $quotePrice = $latestPrices[$position['instrumentId']] ?? null;
+                $price = $quotePrice !== null ? $rates->convertTo4($quotePrice, $quoteCurrency, $accountCurrency, $today->format('Y-m-d')) : null;
+
+                return OpenPositionResponse::fromRow(
+                    $this->withMarketData($position, $price, $userRate) + ['quotePrice' => $quotePrice, 'quoteCurrency' => $quoteCurrency],
+                    PositionHistory::daily(
+                        $tradesByInstrument[$position['instrumentId']] ?? [],
+                        $rates->convertSeries($pricesInRange[$position['instrumentId']] ?? [], $quoteCurrency, $accountCurrency),
+                        $from,
+                        $to,
+                    ),
+                );
+            },
             $positions
         );
     }
@@ -105,11 +119,17 @@ class OpenPositionService
 
         $lastDay = $on?->format('Y-m-d');
         $tradesByAccount = [];
+        $tradeRows = [];
         foreach ($this->transactionRepository->findTradeRowsForAccounts($investmentAccounts) as $trade) {
             if ($lastDay === null || $trade['day'] <= $lastDay) {
                 $tradesByAccount[$trade['account_id']][] = $trade;
+                $tradeRows[] = $trade;
             }
         }
+
+        // Priced in the instrument's currency, valued in the account's: at that day's rate.
+        $valueDay = $on ?? $this->calendar->yesterday();
+        $rates = $this->holdingRates->forTrades($investmentAccounts[0]->getUser(), $tradeRows, $valueDay, $valueDay);
 
         $positionsByAccount = array_map(
             fn (array $trades) => $this->transactionRepository->positionsFromTrades($trades),
@@ -136,6 +156,9 @@ class OpenPositionService
                 $costBasis = bcadd($costBasis, $position['costBasis'], 10);
 
                 $price = $latestPrices[$position['instrumentId']] ?? null;
+                if ($price !== null) {
+                    $price = $rates->convertTo4($price, $position['quoteCurrency'] ?? $position['accountCurrency'], $position['accountCurrency'] ?? $position['quoteCurrency'], $valueDay->format('Y-m-d'));
+                }
                 if ($price !== null) {
                     $positionValue = bcmul($position['quantity'], $price, 10);
                     $value = bcadd($value, $positionValue, 10);

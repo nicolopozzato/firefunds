@@ -56,6 +56,8 @@ export interface ReportAccount {
   /** Investment accounts: the market value held, part of start and end. */
   investedStart: string | null
   investedEnd: string | null
+  /** The account's own currency: start, end and change are in the user's, each at its day's rate. */
+  currencyCode?: string | null
 }
 
 export interface CategoryRow {
@@ -111,6 +113,8 @@ export interface NetWorthRow {
   previousValues: (string | null)[]
   /** End of December two years before: what January of the year before changed from. */
   previousOpening: string | null
+  /** Cash rows: the account's own currency (values are in the user's); price and rate rows: the currency they are of. */
+  currencyCode?: string | null
 }
 
 export interface NetWorthReport {
@@ -131,4 +135,10 @@ export interface NetWorthReport {
   market: NetWorthRow
   /** Closing price at the end of each month. */
   prices: NetWorthRow[]
+  /** What the exchange rates did to what is held each month. */
+  exchange?: NetWorthRow | null
+  /** What 1 unit of each other currency was worth in the user's at the end of each month. */
+  rates?: NetWorthRow[]
+  /** The net worth by currency of what is held, in the user's currency; empty with one currency. */
+  currencies?: NetWorthRow[]
 }

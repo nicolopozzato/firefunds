@@ -5,6 +5,7 @@ namespace App\Investment\Service;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Period\TransactionMoment;
+use App\Currency\Service\CurrencyConverter;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
@@ -25,6 +26,7 @@ class InvestmentTransactionService
         private readonly InvestmentInstrumentRepository $instrumentRepository,
         private readonly InvestmentTransactionAuditLogService $auditLogService,
         private readonly InvestmentPriceService $priceService,
+        private readonly CurrencyConverter $converter,
     ) {
     }
 
@@ -42,7 +44,7 @@ class InvestmentTransactionService
             quantity: $request->quantity,
             unitPrice: $request->unitPrice,
             occurredAt: TransactionMoment::parse($request->occurredAt, $request->timezone ?? $user->getTimezone()),
-            amount: $this->resolveAmount($request),
+            amount: $this->resolveAmount($request, $user, $account, $instrument),
         );
         $transaction->setFees($request->fees);
         $transaction->setTaxes($request->taxes);
@@ -71,7 +73,7 @@ class InvestmentTransactionService
         $transaction->setType($type);
         $transaction->setQuantity($request->quantity);
         $transaction->setUnitPrice($request->unitPrice);
-        $transaction->setAmount($this->resolveAmount($request));
+        $transaction->setAmount($this->resolveAmount($request, $transaction->getUser(), $account, $instrument));
         $transaction->setFees($request->fees);
         $transaction->setTaxes($request->taxes);
         $transaction->setOccurredAt(TransactionMoment::parse($request->occurredAt, $request->timezone ?? $transaction->getTimezone()));
@@ -94,22 +96,28 @@ class InvestmentTransactionService
     }
 
     /**
-     * The amount the user entered, or quantity x unit price when left out.
+     * The amount the user entered (what the broker charged, in the account's
+     * currency), or quantity x unit price when left out: converted from the
+     * instrument's currency at the day's rate when the account is in another.
      */
-    private function resolveAmount(CreateInvestmentTransactionRequest $request): string
+    private function resolveAmount(CreateInvestmentTransactionRequest $request, User $user, Account $account, InvestmentInstrument $instrument): string
     {
-        if ($request->amount === null || $request->amount === '') {
-            return InvestmentTransaction::grossAmount($request->quantity, $request->unitPrice);
+        if ($request->amount !== null && $request->amount !== '') {
+            return bcadd($request->amount, '0', 4);
         }
 
-        if (!InvestmentTransaction::isPlausibleAmount($request->quantity, $request->unitPrice, $request->amount)) {
-            throw new ApiException(ErrorCode::AmountFarFromQuantityTimesPrice, [
-                'amount' => $request->amount,
-                'expected' => InvestmentTransaction::grossAmount($request->quantity, $request->unitPrice),
-            ]);
+        $gross = InvestmentTransaction::grossAmount($request->quantity, $request->unitPrice);
+        $quote = $instrument->getCurrency();
+        $accountCurrency = $account->getCurrency()?->getCode();
+        if ($accountCurrency === null || $accountCurrency === $quote) {
+            return $gross;
         }
 
-        return bcadd($request->amount, '0', 4);
+        $day = TransactionMoment::parse($request->occurredAt, $request->timezone ?? $user->getTimezone())->format('Y-m-d');
+        $converted = $this->converter->tableFor($user, [$quote, $accountCurrency], new \DateTimeImmutable($day), new \DateTimeImmutable($day))
+            ->convertTo4($gross, $quote, $accountCurrency, $day);
+
+        return $converted ?? throw new ApiException(ErrorCode::AmountRequiredOtherCurrency, ['instrument' => $quote, 'account' => $accountCurrency]);
     }
 
     private function resolveBrokerAccount(User $user, string $accountId): Account

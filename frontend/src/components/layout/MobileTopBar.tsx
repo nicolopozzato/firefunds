@@ -5,6 +5,7 @@ import { ChevronLeft, DollarSign, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import TimeframeSelector from '@/components/TimeframeSelector'
 import SearchBox from './SearchBox'
+import HideAmountsButton from '@/components/HideAmountsButton'
 import { isTabPage, parentPath, showsPeriod } from './mobile-nav'
 
 /**
@@ -51,6 +52,7 @@ export default function MobileTopBar() {
             {showsPeriod(location.pathname) && <TimeframeSelector />}
           </div>
 
+          <HideAmountsButton className="h-10 w-10 shrink-0" />
           <Button
             variant="ghost"
             size="icon"

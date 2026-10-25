@@ -22,6 +22,12 @@ final readonly class NetWorthRowResponse
         public array $previousValues,
         /** At the end of December two years before: what January of the year before changed from. */
         public ?string $previousOpening,
+        /**
+         * Cash rows: the account's own currency (the values are in the user's);
+         * price rows: the currency the price is in; rate rows: the currency
+         * the rate is of. Null for what is in the user's currency throughout.
+         */
+        public ?string $currencyCode = null,
     ) {
     }
 }

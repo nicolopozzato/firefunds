@@ -11,10 +11,12 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { useManualPrices } from '@/hooks/use-investments'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { handleApiError } from '@/lib/error-handler'
-import { formatDateTime, formatMoney } from '@/lib/utils'
+import { currencySymbolFor, formatDateTime, formatMoney } from '@/lib/utils'
 import type { InvestmentPrice } from '@/types/investment'
 
 interface PriceEditDialogProps {
+  /** The currency the prices are in. */
+  currencyCode: string
   instrumentId: string
   /** The day to correct, or 'new' to add one; null: closed. */
   price: InvestmentPrice | 'new' | null
@@ -28,7 +30,7 @@ interface PriceEditDialogProps {
  * on phones. A corrected imported day can go back to the imported value, a
  * day only the user entered can be removed.
  */
-export default function PriceEditDialog({ instrumentId, price, known, onClose }: PriceEditDialogProps) {
+export default function PriceEditDialog({ instrumentId, currencyCode, price, known, onClose }: PriceEditDialogProps) {
   const { t } = useTranslation()
   const isMobile = useIsMobile()
   const isOpen = price !== null
@@ -36,6 +38,7 @@ export default function PriceEditDialog({ instrumentId, price, known, onClose }:
 
   const body = isOpen && (
     <PriceForm
+      symbol={currencySymbolFor(currencyCode)}
       // A fresh form for every day opened.
       key={price === 'new' ? 'new' : price.date}
       instrumentId={instrumentId}
@@ -74,11 +77,13 @@ export default function PriceEditDialog({ instrumentId, price, known, onClose }:
 
 function PriceForm({
   instrumentId,
+  symbol,
   price,
   known,
   onDone,
 }: {
   instrumentId: string
+  symbol: string
   price: InvestmentPrice | 'new'
   known: InvestmentPrice[]
   onDone: () => void
@@ -111,7 +116,7 @@ function PriceForm({
       price.originalPrice !== null ? (
         <Button type="button" variant="outline" disabled={isBusy} onClick={() => void run(() => manual.restore.mutateAsync(price.date))}>
           <RotateCcw className="mr-2 h-4 w-4" />
-          {t('instrumentPrices.restoreTo', { price: formatMoney(price.originalPrice) })}
+          {t('instrumentPrices.restoreTo', { price: formatMoney(price.originalPrice, symbol) })}
         </Button>
       ) : (
         <Button
@@ -164,7 +169,7 @@ function PriceForm({
 
       <p className="text-xs text-muted-foreground">
         {existingDay
-          ? t('instrumentPrices.dayExists', { price: formatMoney(existingDay.price) })
+          ? t('instrumentPrices.dayExists', { price: formatMoney(existingDay.price, symbol) })
           : t('instrumentPrices.manualHint')}
       </p>
 

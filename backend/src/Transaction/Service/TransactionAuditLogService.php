@@ -43,6 +43,7 @@ class TransactionAuditLogService
             'occurredAt' => $this->normalizeOccurredAt($transaction->getOccurredAt()),
             'amount' => $this->normalizeAmount($transaction->getAmount()),
             'currency' => $transaction->getCurrency(),
+            'destinationAmount' => $transaction->getDestinationAmount() !== null ? $this->normalizeAmount($transaction->getDestinationAmount()) : null,
             'foreignAmount' => $transaction->getForeignAmount() !== null ? $this->normalizeAmount($transaction->getForeignAmount()) : null,
             'foreignCurrency' => $transaction->getForeignCurrency(),
             'category' => $this->categoryLabel($transaction->getCategory()),

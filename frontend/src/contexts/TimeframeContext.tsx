@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   addDays,
@@ -176,8 +176,19 @@ const TimeframeContext = createContext<TimeframeContextType | undefined>(undefin
 
 export function TimeframeProvider({ children }: { children: ReactNode }) {
   const [timeframe, setTimeframe] = useState<Timeframe>(() => loadStoredTimeframe())
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const queryClient = useQueryClient()
+
+  // The period the app opens with (Preferences): once per start or login,
+  // after which the user moves freely; "last" keeps the one stored here.
+  const startApplied = useRef<string | null>(null)
+  useEffect(() => {
+    if (!user || startApplied.current === user.id) return
+    startApplied.current = user.id
+    if (user.startPeriod !== 'last') {
+      setTimeframe({ preset: user.startPeriod, ...rangeForPreset(user.startPeriod) })
+    }
+  }, [user])
 
   // "All" is always all: from the first thing recorded to the last (or today),
   // fetched again on every load and whenever a transaction, trade or account

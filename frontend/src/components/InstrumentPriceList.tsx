@@ -12,7 +12,7 @@ import PriceEditDialog from '@/components/PriceEditDialog'
 import { useInvestmentInstrumentPrices } from '@/hooks/use-investments'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { dateLocale, periodLabel } from '@/lib/report-format'
-import { cn, formatDateTime, formatMoney, formatPercent, moneyColorClass } from '@/lib/utils'
+import { cn, currencySymbolFor, formatDateTime, formatMoney, formatPercent, moneyColorClass } from '@/lib/utils'
 import { changesFromPrevious } from '@/lib/instrument-prices'
 import type { InvestmentPrice } from '@/types/investment'
 
@@ -21,6 +21,8 @@ const LOOKBACK_DAYS = 10
 
 interface InstrumentPriceListProps {
   instrumentId: string
+  /** The currency its prices are in. */
+  currencyCode: string
   /** The month opened first: the latest price's, when there is one. */
   initialDate?: string | null
 }
@@ -33,8 +35,9 @@ interface InstrumentPriceListProps {
  * where it is corrected, restored or removed, as "Add a price" adds one.
  * One price per day.
  */
-export default function InstrumentPriceList({ instrumentId, initialDate }: InstrumentPriceListProps) {
+export default function InstrumentPriceList({ instrumentId, currencyCode, initialDate }: InstrumentPriceListProps) {
   const { t, i18n } = useTranslation()
+  const symbol = currencySymbolFor(currencyCode)
   const isMobile = useIsMobile()
   const [month, setMonth] = useState(() => startOfMonth(initialDate ? parseISO(initialDate) : new Date()))
   const [showFilled, setShowFilled] = useState(false)
@@ -65,7 +68,7 @@ export default function InstrumentPriceList({ instrumentId, initialDate }: Instr
     return (
       <span className={cn('tabular-nums', moneyColorClass(change.amount))}>
         {sign}
-        {formatMoney(change.amount)} · {sign}
+        {formatMoney(change.amount, symbol)} · {sign}
         {formatPercent(change.percent)}
       </span>
     )
@@ -78,7 +81,7 @@ export default function InstrumentPriceList({ instrumentId, initialDate }: Instr
   )
   const importedNote = (price: InvestmentPrice) =>
     price.source === 'manual' && price.originalPrice !== null
-      ? t('instrumentPrices.imported', { price: formatMoney(price.originalPrice) })
+      ? t('instrumentPrices.imported', { price: formatMoney(price.originalPrice, symbol) })
       : null
 
   const monthNavigator = (
@@ -154,7 +157,7 @@ export default function InstrumentPriceList({ instrumentId, initialDate }: Instr
                     {importedNote(price)}
                   </span>
                 }
-                value={formatMoney(price.price)}
+                value={formatMoney(price.price, symbol)}
                 valueClassName={cn(price.source === 'filled' && 'text-muted-foreground')}
                 valueDetail={changeLabel(price)}
                 onClick={() => setEditing(price)}
@@ -197,7 +200,7 @@ export default function InstrumentPriceList({ instrumentId, initialDate }: Instr
                       <TableCell
                         className={cn('text-right font-medium tabular-nums', price.source === 'filled' && 'text-muted-foreground')}
                       >
-                        {formatMoney(price.price)}
+                        {formatMoney(price.price, symbol)}
                       </TableCell>
                       <TableCell className="text-right text-sm">{changeLabel(price)}</TableCell>
                     </TableRow>
@@ -209,7 +212,7 @@ export default function InstrumentPriceList({ instrumentId, initialDate }: Instr
         </Card>
       )}
 
-      <PriceEditDialog instrumentId={instrumentId} price={editing} known={prices ?? []} onClose={() => setEditing(null)} />
+      <PriceEditDialog instrumentId={instrumentId} currencyCode={currencyCode} price={editing} known={prices ?? []} onClose={() => setEditing(null)} />
     </div>
   )
 }

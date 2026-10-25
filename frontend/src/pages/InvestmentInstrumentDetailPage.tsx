@@ -19,7 +19,7 @@ import {
   useInvestmentInstrumentPrices,
   useInvestmentInstrumentLivePrice,
 } from '@/hooks/use-investments'
-import { cn, formatDateTime, formatMoney, formatTime24h, moneyColorClass } from '@/lib/utils'
+import { cn, currencySymbolFor, formatDateTime, formatMoney, formatTime24h, moneyColorClass } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatRate, whiteListShareFromRate } from '@/lib/capital-gains-tax'
@@ -65,6 +65,7 @@ export default function InvestmentInstrumentDetailPage() {
   const { data: prices, isLoading: isPricesLoading } = useInvestmentInstrumentPrices(id ?? '', periodFrom)
   const { data: livePrice } = useInvestmentInstrumentLivePrice(id ?? '')
 
+  const currencySymbol = currencySymbolFor(instrument?.currencyCode ?? 'EUR')
   const today = format(new Date(), 'yyyy-MM-dd')
   const hasTodayClose = (prices ?? []).some((p) => p.date === today)
   const showLivePoint = !hasTodayClose && !!livePrice?.price
@@ -141,7 +142,7 @@ export default function InvestmentInstrumentDetailPage() {
                 {displayPrice ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <div className="text-3xl font-semibold tabular-nums">{formatMoney(displayPrice)}</div>
+                      <div className="text-3xl font-semibold tabular-nums">{formatMoney(displayPrice, currencySymbol)}</div>
                       {showLivePoint && (
                         <Badge
                           variant="outline"
@@ -177,7 +178,7 @@ export default function InvestmentInstrumentDetailPage() {
               {change !== null && (
                 <div className={cn('text-sm font-medium tabular-nums', moneyColorClass(change))}>
                   {change >= 0 ? '+' : ''}
-                  {formatMoney(change)}
+                  {formatMoney(change, currencySymbol)}
                 </div>
               )}
             </div>
@@ -232,13 +233,14 @@ export default function InvestmentInstrumentDetailPage() {
       </div>
 
       {view === 'list' ? (
-        <InstrumentPriceList instrumentId={instrument.id} initialDate={instrument.latestPrice?.date} />
+        <InstrumentPriceList instrumentId={instrument.id} currencyCode={instrument.currencyCode} initialDate={instrument.latestPrice?.date} />
       ) : isPricesLoading ? (
         <Skeleton className="h-96 w-full rounded-xl" />
       ) : (
         <BalanceLineChart
           title={t('investmentInstrumentDetail.priceTrend')}
           points={points}
+          currency={currencySymbol}
           emptyLabel={t('charts.noData')}
         />
       )}

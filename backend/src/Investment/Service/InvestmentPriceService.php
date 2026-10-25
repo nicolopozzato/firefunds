@@ -41,8 +41,12 @@ class InvestmentPriceService
      * starting from the day after its latest recorded price (or, for an
      * instrument with no price yet, from its very first available market
      * quote). Instruments sharing the same Yahoo symbol are fetched only once.
+     * A symbol that fails doesn't stop the others.
+     *
+     * @return array{symbols: int, empty: string[], failed: array<string, string>} how many symbols, those the
+     *                                                                             provider returned nothing for, and the error of each one that failed
      */
-    public function updateAllInstruments(): void
+    public function updateAllInstruments(): array
     {
         $yesterday = $this->calendar->yesterday();
 
@@ -54,15 +58,20 @@ class InvestmentPriceService
             }
         }
 
+        $failed = [];
+        $empty = [];
         foreach ($idsBySymbol as $symbol => $ids) {
             try {
                 // Loaded per symbol: after a failure the EntityManager is a new one.
-                $this->backfillGroup($this->instrumentRepository->findBy(['id' => $ids]), $yesterday);
+                if (!$this->backfillGroup($this->instrumentRepository->findBy(['id' => $ids]), $yesterday)) {
+                    $empty[] = (string) $symbol;
+                }
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to update prices for symbol {symbol}: {error}', [
                     'symbol' => $symbol,
                     'error' => $e->getMessage(),
                 ]);
+                $failed[(string) $symbol] = $e->getMessage();
 
                 // A database error closes the EntityManager, which would fail
                 // every symbol after this one: start the next on a fresh one.
@@ -72,6 +81,8 @@ class InvestmentPriceService
                 $this->entityManager->clear();
             }
         }
+
+        return ['symbols' => \count($idsBySymbol), 'empty' => $empty, 'failed' => $failed];
     }
 
     /**
@@ -153,8 +164,10 @@ class InvestmentPriceService
      *                                             import); when null, each instrument starts
      *                                             the day after its own latest recorded price
      *                                             (or from scratch if it has none yet)
+     *
+     * @return bool false when the provider returned nothing for the symbol
      */
-    private function backfillGroup(array $instruments, \DateTimeImmutable $through, ?\DateTimeImmutable $explicitFrom = null): void
+    private function backfillGroup(array $instruments, \DateTimeImmutable $through, ?\DateTimeImmutable $explicitFrom = null): bool
     {
         $representative = $instruments[0];
         $refreshFrom = $through->modify(\sprintf('-%d days', self::REFRESH_WINDOW_DAYS - 1));
@@ -171,7 +184,7 @@ class InvestmentPriceService
         $marketPrices = $this->priceProvider->getClosingPrices($representative, $lookback, $through);
 
         if ($marketPrices === []) {
-            return;
+            return false;
         }
 
         ksort($marketPrices);
@@ -199,6 +212,8 @@ class InvestmentPriceService
         }
 
         $this->entityManager->flush();
+
+        return true;
     }
 
     /**

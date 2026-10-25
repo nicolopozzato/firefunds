@@ -39,7 +39,7 @@ const MORE_PAGES = [
   '/admin/users',
   '/admin/settings',
   '/admin/backups',
-  '/admin/currencies',
+  '/admin/tasks',
 ]
 
 /** Pages whose figures follow the selected period: only there the top bar shows it. */

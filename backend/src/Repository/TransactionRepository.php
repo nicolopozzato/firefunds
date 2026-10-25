@@ -11,9 +11,12 @@ use App\Entity\Category;
 use App\Entity\Tag;
 use App\Entity\Transaction;
 use App\Entity\User;
+use App\Investment\Position\TradeCashEffect;
+use App\Transaction\TransactionKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -41,7 +44,7 @@ class TransactionRepository extends ServiceEntityRepository
         Category|string|null $category = null,
     ): array {
         $qb = $this->createBaseQuery($user, $from, $to);
-        $this->applyKindFilter($qb, $kind);
+        TransactionKind::applyDql($qb, $kind);
 
         if ($account !== null) {
             $qb->andWhere('t.sourceAccount = :account OR t.destinationAccount = :account')
@@ -127,13 +130,13 @@ class TransactionRepository extends ServiceEntityRepository
     ): array {
         $totals = ['withdrawal' => '0', 'deposit' => '0', 'transfer' => '0', 'investmentBuy' => '0', 'investmentSell' => '0'];
 
+        // Each amount at its day's rate, in the currency of the account whose list it is, else the user's.
+        $accountCurrency = $account !== null ? $this->accountCurrency($account) : null;
+        $convertTo = ':convertTo, CAST(%s AS date), :convertUser';
         [$union, $queryParams] = $this->activityUnion(
-            "CASE WHEN src.type = 'asset' AND dst.type = 'asset' THEN 'transfer'
-                  WHEN src.type = 'asset' THEN 'withdrawal'
-                  ELSE 'deposit' END AS kind,
-             t.amount AS amount",
+            TransactionKind::sqlCase().' AS kind, app_convert(t.amount, t.currency, '.\sprintf($convertTo, 't.occurred_at').') AS amount',
             "CASE WHEN it.type = 'buy' THEN 'investmentBuy' ELSE 'investmentSell' END AS kind,
-             CASE WHEN it.type = 'buy' THEN it.amount + it.fees + it.taxes ELSE it.amount - it.fees - it.taxes END AS amount",
+             app_convert(".TradeCashEffect::totalSql('it').', (SELECT c.code FROM account ia JOIN currency c ON c.id = ia.currency_id WHERE ia.id = it.account_id), '.\sprintf($convertTo, 'it.occurred_at').') AS amount',
             $user, $from, $to, $account, $includeMoney, $includeInvestment, $moneyKind, $search,
         );
         if ($union === null) {
@@ -142,10 +145,11 @@ class TransactionRepository extends ServiceEntityRepository
 
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
             "SELECT kind, CAST(SUM(amount) AS numeric(19,4)) AS total FROM ({$union}) combined GROUP BY kind",
-            $queryParams,
+            $queryParams + ['convertTo' => $accountCurrency ?? $user->getCurrency(), 'convertUser' => $user->getId()->toRfc4122()],
         )->fetchAllKeyValue();
 
-        return array_merge($totals, $rows);
+        // A pair that is none of the three kinds (it can't be stored) has no row to show.
+        return array_merge($totals, array_intersect_key($rows, $totals));
     }
 
     /**
@@ -192,14 +196,7 @@ class TransactionRepository extends ServiceEntityRepository
         $parts = [];
 
         if ($includeMoney) {
-            $kindFilter = match ($moneyKind) {
-                null => '',
-                // An external destination is a withdrawal, an external source a deposit.
-                'withdrawal' => "AND src.type = 'asset' AND (dst.type = 'expense' OR t.destination_account_id IS NULL)",
-                'deposit' => "AND (src.type = 'revenue' OR t.source_account_id IS NULL) AND dst.type = 'asset'",
-                'transfer' => "AND src.type = 'asset' AND dst.type = 'asset'",
-                default => throw new \InvalidArgumentException('Invalid kind filter.'),
-            };
+            $kindFilter = $moneyKind === null ? '' : 'AND '.TransactionKind::sql($moneyKind);
             $accountFilter = $account !== null ? 'AND (t.source_account_id = :accountId OR t.destination_account_id = :accountId)' : '';
             $searchJoin = '';
             $searchFilter = '';
@@ -449,28 +446,22 @@ class TransactionRepository extends ServiceEntityRepository
      *   to an investment one, and back. Not an expense: the money is still
      *   there, as another asset.
      * Other transfers move money around and are left out. The same rules as
-     * the dashboard's figures (applyKindFilter), so the two always agree.
+     * the dashboard's figures (TransactionKind), so the two always agree.
      *
      * @return array<array{flow: string, category_id: ?string, category_name: ?string, month: string, total: string}>
      */
     public function sumFlowsByCategoryAndMonth(User $user, \DateTimeInterface $from, \DateTimeInterface $to): array
     {
+        $flow = TransactionKind::sqlFlowCase();
         $sql = <<<SQL
             SELECT flow, category_id, category_name, month, CAST(SUM(amount) AS numeric(19,4)) AS total
             FROM (
                 SELECT
-                    CASE
-                        WHEN src.type = 'asset' AND (t.destination_account_id IS NULL OR dst.type = 'expense') THEN 'expense'
-                        WHEN (t.source_account_id IS NULL OR src.type = 'revenue') AND dst.type = 'asset' THEN 'income'
-                        WHEN src.type = 'asset' AND dst.type = 'asset'
-                            AND src.asset_kind IS DISTINCT FROM 'investment' AND dst.asset_kind = 'investment' THEN 'invested'
-                        WHEN src.type = 'asset' AND dst.type = 'asset'
-                            AND src.asset_kind = 'investment' AND dst.asset_kind IS DISTINCT FROM 'investment' THEN 'divested'
-                    END AS flow,
+                    {$flow} AS flow,
                     t.category_id,
                     c.name AS category_name,
                     to_char(t.occurred_at, 'YYYY-MM') AS month,
-                    t.amount
+                    app_convert(t.amount, t.currency, :currency, CAST(t.occurred_at AS date), :user) AS amount
                 FROM transaction t
                 LEFT JOIN account src ON src.id = t.source_account_id
                 LEFT JOIN account dst ON dst.id = t.destination_account_id
@@ -484,9 +475,23 @@ class TransactionRepository extends ServiceEntityRepository
 
         return $this->getEntityManager()->getConnection()->executeQuery($sql, [
             'user' => $user->getId()->toRfc4122(),
+            'currency' => $user->getCurrency(),
             'from' => $from->format('Y-m-d H:i:s.u'),
             'to' => $to->format('Y-m-d H:i:s.u'),
         ])->fetchAllAssociative();
+    }
+
+    /**
+     * SUM of the amounts in the currency the user reads them in (their own,
+     * or the one given), each amount at its day's rate: what to select where
+     * transactions of accounts in different currencies are added up.
+     */
+    private function convertedSum(QueryBuilder $qb, User $user, ?string $currency = null): string
+    {
+        $qb->setParameter('convertTo', $currency ?? $user->getCurrency())
+            ->setParameter('convertUser', $user->getId()->toRfc4122());
+
+        return 'SUM(CONVERTED(t.amount, t.currency, t.occurredAt, :convertTo, :convertUser))';
     }
 
     /**
@@ -496,13 +501,13 @@ class TransactionRepository extends ServiceEntityRepository
      */
     public function sumByCategory(User $user, string $kind, ?\DateTimeInterface $from, ?\DateTimeInterface $to): array
     {
-        $qb = $this->createBaseQuery($user, $from, $to)
-            ->select('IDENTITY(t.category) AS id', 'c.name AS name', 'SUM(t.amount) AS total')
+        $qb = $this->createBaseQuery($user, $from, $to);
+        $qb->select('IDENTITY(t.category) AS id', 'c.name AS name', $this->convertedSum($qb, $user).' AS total')
             ->leftJoin('t.category', 'c')
             ->groupBy('t.category, c.name')
             ->orderBy('total', 'DESC');
 
-        $this->applyKindFilter($qb, $kind);
+        TransactionKind::applyDql($qb, $kind);
 
         return $qb->getQuery()->getResult();
     }
@@ -514,12 +519,12 @@ class TransactionRepository extends ServiceEntityRepository
      */
     public function sumBySourceAccount(User $user, string $kind, ?\DateTimeInterface $from, ?\DateTimeInterface $to): array
     {
-        $qb = $this->createBaseQuery($user, $from, $to)
-            ->select('IDENTITY(t.sourceAccount) AS id', 'src.name AS name', 'SUM(t.amount) AS total')
+        $qb = $this->createBaseQuery($user, $from, $to);
+        $qb->select('IDENTITY(t.sourceAccount) AS id', 'src.name AS name', $this->convertedSum($qb, $user).' AS total')
             ->groupBy('t.sourceAccount, src.name')
             ->orderBy('total', 'DESC');
 
-        $this->applyKindFilter($qb, $kind);
+        TransactionKind::applyDql($qb, $kind);
 
         return $qb->getQuery()->getResult();
     }
@@ -531,12 +536,12 @@ class TransactionRepository extends ServiceEntityRepository
      */
     public function sumByDestinationAccount(User $user, string $kind, ?\DateTimeInterface $from, ?\DateTimeInterface $to): array
     {
-        $qb = $this->createBaseQuery($user, $from, $to)
-            ->select('IDENTITY(t.destinationAccount) AS id', 'dst.name AS name', 'SUM(t.amount) AS total')
+        $qb = $this->createBaseQuery($user, $from, $to);
+        $qb->select('IDENTITY(t.destinationAccount) AS id', 'dst.name AS name', $this->convertedSum($qb, $user).' AS total')
             ->groupBy('t.destinationAccount, dst.name')
             ->orderBy('total', 'DESC');
 
-        $this->applyKindFilter($qb, $kind);
+        TransactionKind::applyDql($qb, $kind);
 
         return $qb->getQuery()->getResult();
     }
@@ -559,8 +564,8 @@ class TransactionRepository extends ServiceEntityRepository
             return [];
         }
 
-        $qb = $this->createAccountBaseQuery($account, $from, $to)
-            ->select('IDENTITY(t.category) AS id', 'c.name AS name', 'SUM(t.amount) AS total')
+        $qb = $this->createAccountBaseQuery($account, $from, $to);
+        $qb->select('IDENTITY(t.category) AS id', 'c.name AS name', $this->convertedSum($qb, $account->getUser(), $this->accountCurrency($account)).' AS total')
             ->leftJoin('t.category', 'c')
             ->groupBy('t.category, c.name')
             ->orderBy('total', 'DESC');
@@ -568,9 +573,8 @@ class TransactionRepository extends ServiceEntityRepository
         if ($account->getType() === AccountType::Expense) {
             $qb->andWhere('t.destinationAccount = :account');
         } else {
-            $qb->andWhere('t.sourceAccount = :account')
-                ->andWhere('dst.type = :expenseType OR t.destinationAccount IS NULL')
-                ->setParameter('expenseType', AccountType::Expense);
+            $qb->andWhere('t.sourceAccount = :account');
+            TransactionKind::applyDql($qb, TransactionKind::WITHDRAWAL);
         }
 
         return $qb->getQuery()->getResult();
@@ -594,8 +598,8 @@ class TransactionRepository extends ServiceEntityRepository
             return [];
         }
 
-        $qb = $this->createAccountBaseQuery($account, $from, $to)
-            ->select('IDENTITY(t.category) AS id', 'c.name AS name', 'SUM(t.amount) AS total')
+        $qb = $this->createAccountBaseQuery($account, $from, $to);
+        $qb->select('IDENTITY(t.category) AS id', 'c.name AS name', $this->convertedSum($qb, $account->getUser(), $this->accountCurrency($account)).' AS total')
             ->leftJoin('t.category', 'c')
             ->groupBy('t.category, c.name')
             ->orderBy('total', 'DESC');
@@ -603,19 +607,24 @@ class TransactionRepository extends ServiceEntityRepository
         if ($account->getType() === AccountType::Revenue) {
             $qb->andWhere('t.sourceAccount = :account');
         } else {
-            $qb->andWhere('t.destinationAccount = :account')
-                ->andWhere('src.type = :revenueType OR t.sourceAccount IS NULL')
-                ->setParameter('revenueType', AccountType::Revenue);
+            $qb->andWhere('t.destinationAccount = :account');
+            TransactionKind::applyDql($qb, TransactionKind::DEPOSIT);
         }
 
         return $qb->getQuery()->getResult();
+    }
+
+    /** An asset account's amounts are in its own currency; an expense or revenue account collects from several: the user's. */
+    private function accountCurrency(\App\Entity\Account $account): ?string
+    {
+        return $account->getType() === AccountType::Asset ? $account->getCurrency()?->getCode() : null;
     }
 
     private function createAccountBaseQuery(
         \App\Entity\Account $account,
         ?\DateTimeInterface $from,
         ?\DateTimeInterface $to,
-    ): \Doctrine\ORM\QueryBuilder {
+    ): QueryBuilder {
         $qb = $this->createQueryBuilder('t')
             // Left joins: either side may be null ("external").
             ->leftJoin('t.sourceAccount', 'src')
@@ -637,27 +646,7 @@ class TransactionRepository extends ServiceEntityRepository
         return $qb;
     }
 
-    private function applyKindFilter(\Doctrine\ORM\QueryBuilder $qb, string $kind): void
-    {
-        match ($kind) {
-            'all' => null,
-            // An external destination is a withdrawal, an external source a deposit.
-            'withdrawal' => $qb->andWhere('src.type = :sourceType')
-                ->andWhere('dst.type = :destinationType OR t.destinationAccount IS NULL')
-                ->setParameter('sourceType', AccountType::Asset)
-                ->setParameter('destinationType', AccountType::Expense),
-            'deposit' => $qb->andWhere('src.type = :sourceType OR t.sourceAccount IS NULL')
-                ->andWhere('dst.type = :destinationType')
-                ->setParameter('sourceType', AccountType::Revenue)
-                ->setParameter('destinationType', AccountType::Asset),
-            'transfer' => $qb->andWhere('src.type = :assetType')
-                ->andWhere('dst.type = :assetType')
-                ->setParameter('assetType', AccountType::Asset),
-            default => throw new \InvalidArgumentException('Invalid kind filter.'),
-        };
-    }
-
-    private function createBaseQuery(User $user, ?\DateTimeInterface $from, ?\DateTimeInterface $to): \Doctrine\ORM\QueryBuilder
+    private function createBaseQuery(User $user, ?\DateTimeInterface $from, ?\DateTimeInterface $to): QueryBuilder
     {
         $qb = $this->createQueryBuilder('t')
             // Left joins: either side may be null ("external").

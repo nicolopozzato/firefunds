@@ -30,6 +30,13 @@ final readonly class InvestmentInstrumentRequest
         #[Assert\Range(min: 0, max: 100)]
         #[Decimal(precision: 7, scale: 4)]
         public ?string $capitalGainsTaxRate = null,
+
+        /**
+         * ISO 4217 code of the currency it is quoted in. Left out: kept on an
+         * edit, and on a new instrument what Yahoo says, else the user's.
+         */
+        #[Assert\Length(exactly: 3)]
+        public ?string $currencyCode = null,
     ) {
     }
 

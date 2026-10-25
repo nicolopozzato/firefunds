@@ -12,7 +12,6 @@ use App\Auth\DTO\UpdateProfileRequest;
 use App\Auth\DTO\UserResponse;
 use App\Auth\Service\UserService;
 use App\Entity\User;
-use App\Entity\UserTheme;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -120,7 +119,7 @@ class AuthController extends AbstractController
     #[Route('/me/password', name: 'api_auth_change_password', methods: ['PUT'])]
     public function changePassword(#[MapRequestPayload] ChangePasswordRequest $request): JsonResponse
     {
-        $this->userService->changePassword($this->getCurrentUser(), $request->currentPassword, $request->newPassword);
+        $this->userService->changePassword($this->getCurrentUser(), $request->newPassword, $request->currentPassword);
 
         return $this->json(['message' => 'Password updated successfully']);
     }
@@ -128,15 +127,7 @@ class AuthController extends AbstractController
     #[Route('/me/preferences', name: 'api_auth_update_preferences', methods: ['PUT'])]
     public function updatePreferences(#[MapRequestPayload] UpdatePreferencesRequest $request): JsonResponse
     {
-        $user = $this->userService->updatePreferences(
-            $this->getCurrentUser(),
-            $request->locale,
-            UserTheme::from($request->theme),
-            $request->pageSize,
-            $request->timezone,
-            $request->numberFormat,
-            $request->capitalGainsTaxRate,
-        );
+        $user = $this->userService->updatePreferences($this->getCurrentUser(), $request);
 
         return $this->json(UserResponse::fromEntity($user));
     }

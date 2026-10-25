@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatMoney, numberFormatter } from './utils'
+import { formatMoney, formatWholeMoney } from './utils'
 
 /**
  * Categorical hues in fixed order (validated palette): a series keeps its slot, never cycled.
@@ -141,7 +141,7 @@ export function moneyTickLabels(ticks: number[], currency: string | null | undef
   const whole = ticks.every((tick) => Number.isInteger(tick))
   return ticks.map((tick) =>
     whole
-      ? `${numberFormatter({ maximumFractionDigits: 0 }).format(tick)}${currency ? ` ${currency}` : ''}`
+      ? formatWholeMoney(tick, currency)
       : formatMoney(tick, currency ?? null)
   )
 }

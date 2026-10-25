@@ -16,35 +16,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import { OTHER_COLOR, SERIES_COLORS } from '@/lib/chart'
-import { cn, formatMoney, formatPercent, moneyColorClass, numberFormatter } from '@/lib/utils'
+import { cn, formatMoney, formatPercent, formatWholeMoney, moneyColorClass } from '@/lib/utils'
 import type { Dashboard as DashboardData } from '@/types/dashboard'
 import LoadFailed from '@/components/LoadFailed'
+import { useAuth } from '@/contexts/AuthContext'
+import { DEFAULT_DASHBOARD_SECTIONS, useSavePreferences } from '@/hooks/use-preferences'
+import type { DashboardSectionKey, User } from '@/types/auth'
 
 const EXPENSE_COLOR = 'hsl(var(--series-2))'
 const REVENUE_COLOR = 'hsl(var(--series-1))'
 
-type TrendView = 'accounts' | 'investments'
-type InvestmentUnit = 'percent' | 'money'
-const TREND_VIEW_KEY = 'firefunds-dashboard-trend'
-const INVESTMENT_UNIT_KEY = 'firefunds-dashboard-investment-unit'
+type TrendView = User['dashboardTrendView']
+type InvestmentUnit = User['dashboardInvestmentUnit']
 
-/** A choice remembered in this browser only: a convenience, the page works without it. */
-function loadChoice<T extends string>(key: string, options: readonly T[], fallback: T): T {
-  try {
-    const stored = localStorage.getItem(key)
-    return options.find((option) => option === stored) ?? fallback
-  } catch {
-    return fallback
-  }
-}
-
-function saveChoice(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Not remembered: nothing else to do.
-  }
-}
+/** The rankings and the chart: the sections that stack in the main column, in the user's order. */
+const MAIN_SECTIONS: DashboardSectionKey[] = ['trend', 'expensesByCategory', 'expenseAccounts', 'revenueAccounts']
 
 /** A fixed slot per series, in the order given; past the eighth a neutral gray, never a cycled hue. */
 function seriesColor(index: number): string {
@@ -123,19 +109,26 @@ function SummaryCards({ dashboard }: { dashboard: DashboardData }) {
 
 function TrendCard({ dashboard, days }: { dashboard: DashboardData; days: string[] }) {
   const { t } = useTranslation()
-  const [view, setView] = useState<TrendView>(() => loadChoice(TREND_VIEW_KEY, ['accounts', 'investments'], 'accounts'))
-  const [unit, setUnit] = useState<InvestmentUnit>(() => loadChoice(INVESTMENT_UNIT_KEY, ['percent', 'money'], 'percent'))
+  const { user } = useAuth()
+  const savePreferences = useSavePreferences()
+  // From the profile, so every device opens on the last one chosen; saved in the background.
+  const [view, setView] = useState<TrendView>(user?.dashboardTrendView ?? 'accounts')
+  const [unit, setUnit] = useState<InvestmentUnit>(user?.dashboardInvestmentUnit ?? 'percent')
   const currency = dashboard.currencySymbol
   const hasInstruments = dashboard.instruments.length > 0
   const shownView: TrendView = hasInstruments ? view : 'accounts'
 
   const changeView = (next: TrendView) => {
     setView(next)
-    saveChoice(TREND_VIEW_KEY, next)
+    savePreferences({ dashboardTrendView: next }).catch(() => {
+      // Not remembered: the chart still shows it.
+    })
   }
   const changeUnit = (next: InvestmentUnit) => {
     setUnit(next)
-    saveChoice(INVESTMENT_UNIT_KEY, next)
+    savePreferences({ dashboardInvestmentUnit: next }).catch(() => {
+      // Not remembered: the chart still shows it.
+    })
   }
 
   // Investment accounts belong to the investments view: their value would flatten the cash accounts' lines.
@@ -162,7 +155,7 @@ function TrendCard({ dashboard, days }: { dashboard: DashboardData; days: string
     ),
   }))
 
-  const wholeMoney = (value: number) => `${numberFormatter({ maximumFractionDigits: 0 }).format(value)}${currency ? ` ${currency}` : ''}`
+  const wholeMoney = (value: number) => formatWholeMoney(value, currency)
 
   return (
     <div className="rounded-xl border bg-card p-4">
@@ -247,6 +240,11 @@ export default function Dashboard() {
   const from = format(timeframe.from, 'yyyy-MM-dd')
   const to = format(timeframe.to, 'yyyy-MM-dd')
   const { data: dashboard, isLoading, error, refetch } = useDashboard(from, to)
+  const { user } = useAuth()
+  const sections = user?.dashboardSections ?? DEFAULT_DASHBOARD_SECTIONS
+  const shown = (key: DashboardSectionKey) => sections.some((section) => section.key === key && section.visible)
+  const mainSections = sections.filter((section) => section.visible && MAIN_SECTIONS.includes(section.key)).map((section) => section.key)
+  const showsAccounts = shown('accounts')
 
   const days = useMemo(
     () => (timeframe.from <= timeframe.to ? eachDayOfInterval({ start: timeframe.from, end: timeframe.to }).map((day) => format(day, 'yyyy-MM-dd')) : []),
@@ -296,56 +294,85 @@ export default function Dashboard() {
     <div className="space-y-4 md:space-y-6">
       {header}
 
-      <SummaryCards dashboard={dashboard} />
+      {shown('summary') && <SummaryCards dashboard={dashboard} />}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="min-w-0 space-y-4 lg:col-span-2">
-          <TrendCard dashboard={dashboard} days={days} />
+      <div className={cn('grid gap-4', mainSections.length > 0 && showsAccounts && 'lg:grid-cols-3')}>
+        {mainSections.length > 0 && (
+          <div className={cn('min-w-0 space-y-4', showsAccounts && 'lg:col-span-2')}>
+            {mainSections.map((key) => {
+              switch (key) {
+                case 'trend':
+                  return <TrendCard key={key} dashboard={dashboard} days={days} />
+                case 'expensesByCategory':
+                  return (
+                    <RankedBarChart
+                      key={key}
+                      title={t('dashboard.expensesByCategory')}
+                      entries={dashboard.expensesByCategory}
+                      color={EXPENSE_COLOR}
+                      currency={currency}
+                      emptyLabel={t('charts.noData')}
+                    />
+                  )
+                case 'expenseAccounts':
+                  return (
+                    <RankedBarChart
+                      key={key}
+                      title={t('dashboard.expenseAccounts')}
+                      entries={dashboard.expenseAccounts}
+                      color={EXPENSE_COLOR}
+                      currency={currency}
+                      emptyLabel={t('charts.noData')}
+                      nullLabel={t('dashboard.noAccount')}
+                    />
+                  )
+                default:
+                  return (
+                    <RankedBarChart
+                      key={key}
+                      title={t('dashboard.revenueAccounts')}
+                      entries={dashboard.revenueAccounts}
+                      color={REVENUE_COLOR}
+                      currency={currency}
+                      emptyLabel={t('charts.noData')}
+                      nullLabel={t('dashboard.noAccount')}
+                    />
+                  )
+              }
+            })}
+          </div>
+        )}
 
-          <RankedBarChart
-            title={t('dashboard.expensesByCategory')}
-            entries={dashboard.expensesByCategory}
-            color={EXPENSE_COLOR}
-            currency={currency}
-            emptyLabel={t('charts.noData')}
-          />
+        {/* Phones: the accounts right under the summary, before the charts. Alone, they fill the width. */}
+        {showsAccounts && (
+          <div className={cn('min-w-0 max-md:order-first', mainSections.length > 0 ? 'space-y-4' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3')}>
+            {dashboard.accounts.length === 0 ? (
+              <Card>
+                <CardContent className="space-y-2 pt-6 text-sm text-muted-foreground">
+                  <p>{t('dashboard.noAccountsShown')}</p>
+                  <Link to="/preferences?tab=dashboard" className={cn('font-medium text-primary hover:underline')}>
+                    {t('dashboard.chooseAccounts')}
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              dashboard.accounts.map((account, index) => (
+                <DashboardAccountCard key={account.id} account={account} color={seriesColor(index)} to={to} />
+              ))
+            )}
+          </div>
+        )}
 
-          <RankedBarChart
-            title={t('dashboard.expenseAccounts')}
-            entries={dashboard.expenseAccounts}
-            color={EXPENSE_COLOR}
-            currency={currency}
-            emptyLabel={t('charts.noData')}
-            nullLabel={t('dashboard.noAccount')}
-          />
-
-          <RankedBarChart
-            title={t('dashboard.revenueAccounts')}
-            entries={dashboard.revenueAccounts}
-            color={REVENUE_COLOR}
-            currency={currency}
-            emptyLabel={t('charts.noData')}
-            nullLabel={t('dashboard.noAccount')}
-          />
-        </div>
-
-        {/* Phones: the accounts right under the summary, before the charts. */}
-        <div className="min-w-0 space-y-4 max-md:order-first">
-          {dashboard.accounts.length === 0 ? (
-            <Card>
-              <CardContent className="space-y-2 pt-6 text-sm text-muted-foreground">
-                <p>{t('dashboard.noAccountsShown')}</p>
-                <Link to="/preferences?tab=dashboard" className={cn('font-medium text-primary hover:underline')}>
-                  {t('dashboard.chooseAccounts')}
-                </Link>
-              </CardContent>
-            </Card>
-          ) : (
-            dashboard.accounts.map((account, index) => (
-              <DashboardAccountCard key={account.id} account={account} color={seriesColor(index)} to={to} />
-            ))
-          )}
-        </div>
+        {mainSections.length === 0 && !showsAccounts && !shown('summary') && (
+          <Card>
+            <CardContent className="space-y-2 pt-6 text-sm text-muted-foreground">
+              <p>{t('dashboard.nothingShown')}</p>
+              <Link to="/preferences?tab=dashboard" className="font-medium text-primary hover:underline">
+                {t('dashboard.customize')}
+              </Link>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bell, LogOut, User as UserIcon, Settings, ShieldCheck, Users, Coins, DatabaseBackup } from 'lucide-react'
+import { Bell, CalendarClock, DatabaseBackup, LogOut, Settings, ShieldCheck, User as UserIcon, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { getFullName } from '@/types/auth'
 import TimeframeSelector from '@/components/TimeframeSelector'
 import QuickAddButton from '@/components/QuickAddButton'
+import HideAmountsButton from '@/components/HideAmountsButton'
 import SearchBox from '@/components/layout/SearchBox'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,7 @@ export default function Header() {
       <div className="flex items-center gap-3">
         {showsPeriod && <TimeframeSelector />}
         <QuickAddButton />
+        <HideAmountsButton />
 
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -98,9 +100,9 @@ export default function Header() {
                   <DatabaseBackup className="mr-2 h-4 w-4" />
                   {t('admin.backups.title')}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/currencies')}>
-                  <Coins className="mr-2 h-4 w-4" />
-                  {t('admin.currencies.title')}
+                <DropdownMenuItem onClick={() => navigate('/admin/tasks')}>
+                  <CalendarClock className="mr-2 h-4 w-4" />
+                  {t('admin.tasks.title')}
                 </DropdownMenuItem>
               </>
             )}

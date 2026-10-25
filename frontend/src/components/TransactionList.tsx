@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Trash2, ArrowUpCircle, ArrowDownCircle, Repeat, Copy, ArrowDownToLine, ArrowUpToLine } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Copy } from 'lucide-react'
 import Pagination from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +37,8 @@ import { useDeleteInvestmentTransaction } from '@/hooks/use-investment-transacti
 import { handleApiError } from '@/lib/error-handler'
 import AccountName from '@/components/AccountName'
 import { containsTerm, matchExcerpt } from '@/lib/search'
-import { isDeposit, isWithdrawal } from '@/lib/transaction-sides'
+import { amountColorClass, clonePath, detailPath, editPath, isInvestmentRow, signedAmount } from '@/lib/transaction-display'
+import TransactionKindIcon from '@/components/TransactionKindIcon'
 import { cn, currencySymbolFor, formatMoney } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { groupByDay, useDayLabel } from '@/hooks/use-day-groups'
@@ -45,54 +46,6 @@ import { MobileListCard, MobileListIcon, MobileListRow, MobileListSection, Mobil
 import type { Transaction } from '@/types/transaction'
 import type { PaginatedResponse } from '@/types/pagination'
 import EmptyValue from '@/components/EmptyValue'
-
-function isInvestmentRow(transaction: Transaction): boolean {
-  return transaction.kind === 'investmentBuy' || transaction.kind === 'investmentSell'
-}
-
-function detailPath(transaction: Transaction): string {
-  return isInvestmentRow(transaction) ? `/transactions/investments/${transaction.id}` : `/transactions/${transaction.id}`
-}
-
-function editPath(transaction: Transaction): string {
-  return isInvestmentRow(transaction)
-    ? `/transactions/investments/${transaction.id}/edit`
-    : `/transactions/${transaction.id}/edit`
-}
-
-function clonePath(transaction: Transaction): string {
-  return isInvestmentRow(transaction)
-    ? `/transactions/investments/new?cloneFrom=${transaction.id}`
-    : `/transactions/new?cloneFrom=${transaction.id}`
-}
-
-/** Withdrawals and BUYs show as a negative (money leaving), deposits and SELLs stay positive; transfers are neutral. */
-function signedAmount(transaction: Transaction): number {
-  if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return -Number(transaction.amount)
-  return Number(transaction.amount)
-}
-
-function amountColorClass(transaction: Transaction): string {
-  if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return 'text-negative'
-  if (isDeposit(transaction) || transaction.kind === 'investmentSell') return 'text-positive'
-  return ''
-}
-
-function TransactionIcon({ transaction }: { transaction: Transaction }) {
-  if (transaction.kind === 'investmentBuy') {
-    return <ArrowDownToLine className="h-4 w-4 text-negative" />
-  }
-  if (transaction.kind === 'investmentSell') {
-    return <ArrowUpToLine className="h-4 w-4 text-positive" />
-  }
-  if (isDeposit(transaction)) {
-    return <ArrowDownCircle className="h-4 w-4 text-positive" />
-  }
-  if (isWithdrawal(transaction)) {
-    return <ArrowUpCircle className="h-4 w-4 text-negative" />
-  }
-  return <Repeat className="h-4 w-4 text-info" />
-}
 
 /**
  * Under a search result's description, what matched but isn't in a column:
@@ -147,7 +100,7 @@ function TransactionDayList({ data, isLoading, onPageChange, empty, highlight }:
               onClick={() => navigate(detailPath(transaction))}
               leading={
                 <MobileListIcon>
-                  <TransactionIcon transaction={transaction} />
+                  <TransactionKindIcon transaction={transaction} />
                 </MobileListIcon>
               }
               title={transaction.description ? <Highlight text={transaction.description} terms={highlight} /> : <EmptyValue />}
@@ -263,7 +216,7 @@ function TransactionTable({ data, isLoading, onPageChange, empty, highlight }: T
                     onClick={() => navigate(detailPath(transaction))}
                   >
                     <TableCell className="pl-4 pr-0.5">
-                      <TransactionIcon transaction={transaction} />
+                      <TransactionKindIcon transaction={transaction} />
                     </TableCell>
                     <TableCell className="font-medium">
                       {transaction.description ? (

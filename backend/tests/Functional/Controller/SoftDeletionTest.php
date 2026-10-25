@@ -43,7 +43,7 @@ class SoftDeletionTest extends WebTestCaseBase
 
         $eur = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($eur === null) {
-            $eur = new Currency('EUR', 'Euro', '€', 2, true);
+            $eur = new Currency('EUR', 'Euro', '€', 2);
             $this->entityManager->persist($eur);
             $this->entityManager->flush();
         }
@@ -312,21 +312,6 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->assertSame(['updated'], $this->auditActions('transaction_audit_log', 'transaction_id', $transaction));
     }
 
-    public function testDeletedCurrencyIsKeptAndItsCodeCanBeCreatedAgain(): void
-    {
-        $this->user->setRoles(['ROLE_ADMIN']);
-        $this->entityManager->flush();
-        static::authenticate($this->client, $this->user);
-        $currency = $this->currency('XTS');
-
-        $this->request('DELETE', '/api/admin/currencies/'.$this->id($currency));
-        $this->assertResponseStatusCodeSame(204);
-        $this->assertMarkedDeleted('currency', $currency);
-
-        $this->request('POST', '/api/admin/currencies', ['code' => 'XTS', 'name' => 'Test', 'symbol' => 'T', 'decimalPlaces' => 2, 'isEnabled' => true]);
-        $this->assertResponseStatusCodeSame(201);
-    }
-
     private function assetAccount(string $name, AssetAccountKind $kind, ?Currency $currency = null, string $opening = '0.0000'): Account
     {
         $account = new Account($this->user, AccountType::Asset, $name);
@@ -361,7 +346,7 @@ class SoftDeletionTest extends WebTestCaseBase
     {
         $currency = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => $code]);
         if ($currency === null) {
-            $currency = new Currency($code, $code, $code, 2, true);
+            $currency = new Currency($code, $code, $code, 2);
             $this->entityManager->persist($currency);
             $this->entityManager->flush();
         }

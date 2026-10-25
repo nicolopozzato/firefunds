@@ -1,5 +1,6 @@
 import { api } from './api'
-import type { AdminCurrency, AdminUser, BackupSettings, BackupsOverview, CurrencyRequest, ServerSettings } from '@/types/admin'
+import type { AdminUser, AdminUserFields, BackupSettings, CreateUserRequest, BackupsOverview, ServerSettings, SetPasswordRequest, TaskKey, TaskRun, TasksOverview } from '@/types/admin'
+import type { PaginatedResponse } from '@/types/pagination'
 
 export const adminApi = {
   async getSettings(): Promise<ServerSettings> {
@@ -38,27 +39,44 @@ export const adminApi = {
     URL.revokeObjectURL(url)
   },
 
+  async getTasks(): Promise<TasksOverview> {
+    const response = await api.get<TasksOverview>('/api/admin/tasks')
+    return response.data
+  },
+
+  async getTaskRuns(key: TaskKey, page: number, pageSize: number): Promise<PaginatedResponse<TaskRun>> {
+    const response = await api.get<PaginatedResponse<TaskRun>>(`/api/admin/tasks/${key}/runs`, { params: { page, pageSize } })
+    return response.data
+  },
+
+  /** Runs a task while the request waits: a backup or a first price history can take a minute. */
+  async runTask(key: TaskKey): Promise<TasksOverview> {
+    const response = await api.post<TasksOverview>(`/api/admin/tasks/${key}/run`, null, { timeout: 10 * 60 * 1000 })
+    return response.data
+  },
+
   async listUsers(): Promise<AdminUser[]> {
     const response = await api.get<AdminUser[]>('/api/admin/users')
     return response.data
   },
 
-  async listCurrencies(): Promise<AdminCurrency[]> {
-    const response = await api.get<AdminCurrency[]>('/api/admin/currencies')
+  async createUser(data: CreateUserRequest): Promise<AdminUser> {
+    const response = await api.post<AdminUser>('/api/admin/users', data)
     return response.data
   },
 
-  async createCurrency(data: CurrencyRequest): Promise<AdminCurrency> {
-    const response = await api.post<AdminCurrency>('/api/admin/currencies', data)
+  async updateUser(id: string, data: AdminUserFields): Promise<AdminUser> {
+    const response = await api.put<AdminUser>(`/api/admin/users/${id}`, data)
     return response.data
   },
 
-  async updateCurrency(id: string, data: CurrencyRequest): Promise<AdminCurrency> {
-    const response = await api.put<AdminCurrency>(`/api/admin/currencies/${id}`, data)
+  async setUserPassword(id: string, data: SetPasswordRequest): Promise<AdminUser> {
+    const response = await api.put<AdminUser>(`/api/admin/users/${id}/password`, data)
     return response.data
   },
 
-  async removeCurrency(id: string): Promise<void> {
-    await api.delete(`/api/admin/currencies/${id}`)
+  async setUserActive(id: string, active: boolean): Promise<AdminUser> {
+    const response = await api.post<AdminUser>(`/api/admin/users/${id}/${active ? 'enable' : 'disable'}`)
+    return response.data
   },
 }

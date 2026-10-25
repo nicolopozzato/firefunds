@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { formatMoney, formatQuantity, fromDatetimeLocal, parseDate, setNumberFormat, toDatetimeLocal } from './utils'
+import { formatMoney, formatQuantity, formatWholeMoney, fromDatetimeLocal, parseDate, setAmountsHidden, setNumberFormat, toDatetimeLocal } from './utils'
 
 describe('parseDate', () => {
   it('reads a day as that day here, not as UTC midnight', () => {
@@ -44,5 +44,21 @@ describe('number format', () => {
   it('shows quantities with up to six decimals', () => {
     expect(formatQuantity('1.500000')).toBe('1,5')
     expect(formatQuantity('0.1234567')).toBe('0,123457')
+  })
+})
+
+describe('hidden amounts', () => {
+  afterEach(() => setAmountsHidden(false))
+
+  it('shows dots instead of every amount, keeping the currency', () => {
+    setAmountsHidden(true)
+    expect(formatMoney(-1234.56, '€')).toBe('••••• €')
+    expect(formatMoney(10, null)).toBe('•••••')
+    expect(formatWholeMoney(7550, '$')).toBe('••••• $')
+  })
+
+  it('shows them again when turned off', () => {
+    setAmountsHidden(false)
+    expect(formatWholeMoney(7550, null)).not.toContain('•')
   })
 })

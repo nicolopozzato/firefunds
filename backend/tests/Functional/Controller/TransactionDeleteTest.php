@@ -68,7 +68,7 @@ class TransactionDeleteTest extends WebTestCaseBase
 
         $currency = $entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($currency === null) {
-            $currency = new Currency('EUR', 'Euro', '€', 2, true);
+            $currency = new Currency('EUR', 'Euro', '€', 2);
             $entityManager->persist($currency);
         }
 

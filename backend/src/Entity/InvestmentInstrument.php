@@ -54,6 +54,14 @@ class InvestmentInstrument implements SoftDeletable
     #[ORM\Column(length: 20, enumType: InvestmentInstrumentType::class)]
     private InvestmentInstrumentType $type;
 
+    /**
+     * ISO 4217 code of the currency the instrument is quoted in: its prices
+     * (and a trade's unit price) are in it, whatever the currency of the
+     * account that holds it. A quote in pence (GBp) is kept in pounds.
+     */
+    #[ORM\Column(length: 3)]
+    private string $currency;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -69,6 +77,8 @@ class InvestmentInstrument implements SoftDeletable
         $this->user = $user;
         $this->name = $name;
         $this->type = $type;
+        // Starts in the user's own currency; the form (or Yahoo) says otherwise.
+        $this->currency = $user->getCurrency();
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
     }
@@ -91,6 +101,17 @@ class InvestmentInstrument implements SoftDeletable
     public function setName(string $name): static
     {
         $this->name = $name;
+        return $this;
+    }
+
+    public function getCurrency(): string
+    {
+        return $this->currency;
+    }
+
+    public function setCurrency(string $currency): static
+    {
+        $this->currency = strtoupper($currency);
         return $this;
     }
 

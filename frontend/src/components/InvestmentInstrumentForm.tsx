@@ -15,7 +15,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCreateInvestmentInstrument, useUpdateInvestmentInstrument } from '@/hooks/use-investments'
+import { useCurrencyOptions } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
+import Combobox from '@/components/Combobox'
 import { handleApiError } from '@/lib/error-handler'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatRate, rateFromWhiteListShare } from '@/lib/capital-gains-tax'
@@ -38,6 +40,8 @@ interface FormState {
   yahooTicker: string
   isin: string
   capitalGainsTaxRate: string
+  /** Empty on a new instrument: worked out (Yahoo, else the user's own). */
+  currencyCode: string
 }
 
 function initialState(instrument?: InvestmentInstrument): FormState {
@@ -48,6 +52,7 @@ function initialState(instrument?: InvestmentInstrument): FormState {
     yahooTicker: instrument?.yahooTicker ?? '',
     isin: instrument?.isin ?? '',
     capitalGainsTaxRate: instrument?.capitalGainsTaxRate != null ? String(Number(instrument.capitalGainsTaxRate)) : '',
+    currencyCode: instrument?.currencyCode ?? '',
   }
 }
 
@@ -59,6 +64,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
 
   const [form, setForm] = useState<FormState>(initialState(instrument))
   const { user } = useAuth()
+  const currencyOptions = useCurrencyOptions()
   const userRate = Number(user?.capitalGainsTaxRate ?? '26')
   // Only an input aid: typing the white-list share fills in the rate (the share itself isn't saved).
   const [whiteListShare, setWhiteListShare] = useState('')
@@ -93,6 +99,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
       yahooTicker: form.yahooTicker || null,
       isin: form.isin || null,
       capitalGainsTaxRate: form.capitalGainsTaxRate || null,
+      currencyCode: form.currencyCode || undefined,
     }
 
     try {
@@ -148,6 +155,18 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-3 sm:max-w-md">
+              <Label>{t('investmentInstruments.currency')}</Label>
+              <Combobox
+                options={currencyOptions}
+                value={form.currencyCode}
+                onChange={(value) => setForm({ ...form, currencyCode: value })}
+                placeholder={t('investmentInstruments.currencyAutomatic')}
+                clearable={!isEditing}
+              />
+              <p className="text-xs text-muted-foreground">{t('investmentInstruments.currencyHint')}</p>
             </div>
           </CardContent>
         </Card>

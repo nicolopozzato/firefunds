@@ -6,6 +6,8 @@ import {
   getThemePreference,
   onSystemModeChange,
   subscribeThemeMode,
+  type ColorScheme,
+  type Density,
 } from '@/lib/theme'
 
 /** The mode on screen (light or dark), re-rendering when it changes. */
@@ -14,17 +16,20 @@ export function useThemeMode() {
 }
 
 /**
- * Applies the user's theme preference (Preferences, User::theme) once known;
- * signed out (login page), the last one used on this device. "system" follows
- * the device live, e.g. when the phone switches to dark at sunset.
+ * Applies the user's theme preference, colour scheme and density
+ * (Preferences) once known; signed out (login page), the last ones used on
+ * this device. "system" follows the device live, e.g. when the phone
+ * switches to dark at sunset.
  */
 export function useApplyThemePreference(): void {
   const { user } = useAuth()
   const preference = user?.theme ?? getThemePreference()
+  const colorScheme = user?.colorScheme as ColorScheme | undefined
+  const density = user?.density as Density | undefined
 
   useEffect(() => {
-    applyThemePreference(preference)
+    applyThemePreference(preference, { colorScheme, density })
     if (preference !== 'system') return
     return onSystemModeChange(() => applyThemePreference('system'))
-  }, [preference])
+  }, [preference, colorScheme, density])
 }

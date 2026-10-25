@@ -2,6 +2,7 @@
 
 namespace App\Tests\Integration\Service;
 
+use App\Account\Service\AssetValueHistory;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Entity\Account;
@@ -49,7 +50,7 @@ class InvestmentTransactionServiceTest extends KernelTestCase
 
         $currency = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($currency === null) {
-            $currency = new Currency('EUR', 'Euro', '€', 2, true);
+            $currency = new Currency('EUR', 'Euro', '€', 2);
             $this->entityManager->persist($currency);
         }
 
@@ -396,26 +397,22 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         ));
         $this->entityManager->flush();
 
-        $history = $this->investmentTransactionRepository->getDailyInvestedValueHistory(
-            $this->brokerAccount,
+        $values = self::getContainer()->get(AssetValueHistory::class)->forAccounts(
+            [$this->brokerAccount],
             new \DateTimeImmutable('2026-09-28'),
             new \DateTimeImmutable('2026-09-29'),
         );
+        $id = $this->brokerAccount->getId()->toRfc4122();
 
-        $byDate = [];
-        foreach ($history as $point) {
-            $byDate[$point['date']] = $point['value'];
-        }
-
-        $this->assertSame('0.0000', $byDate['2026-09-28']);
-        $this->assertSame('80.0000', $byDate['2026-09-29']);
+        $this->assertSame('0.0000', $values->investedOn($id, '2026-09-28'));
+        $this->assertSame('80.0000', $values->investedOn($id, '2026-09-29'));
     }
 
     /**
      * Units bought (and partly sold) before the range still count on its
      * first day: a chart for "this year" must not start from zero.
      */
-    public function testDailyInvestedValueHistoryIncludesHoldingsFromBeforeTheRange(): void
+    public function testTheValueHeldIncludesHoldingsFromBeforeTheRange(): void
     {
         $this->entityManager->persist(new \App\Entity\InvestmentPrice($this->instrument, new \DateTimeImmutable('2025-06-01'), '100.0000'));
         $this->entityManager->persist(new \App\Entity\InvestmentPrice($this->instrument, new \DateTimeImmutable('2026-09-01'), '150.0000'));
@@ -423,16 +420,15 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         $this->service->create($this->user, $this->trade('sell', '1', '100.0000'));
         $this->entityManager->flush();
 
-        $history = $this->investmentTransactionRepository->getDailyInvestedValueHistory(
-            $this->brokerAccount,
+        $values = self::getContainer()->get(AssetValueHistory::class)->forAccounts(
+            [$this->brokerAccount],
             new \DateTimeImmutable('2026-09-01'),
             new \DateTimeImmutable('2026-09-02'),
         );
+        $id = $this->brokerAccount->getId()->toRfc4122();
 
-        $this->assertSame([
-            ['date' => '2026-09-01', 'value' => '300.0000'],
-            ['date' => '2026-09-02', 'value' => '300.0000'],
-        ], $history);
+        $this->assertSame('300.0000', $values->investedOn($id, '2026-09-01'));
+        $this->assertSame('300.0000', $values->investedOn($id, '2026-09-02'));
     }
 
     /**
@@ -616,16 +612,12 @@ class InvestmentTransactionServiceTest extends KernelTestCase
         $this->assertSame('10001.0000', $this->cashBalance());
     }
 
-    public function testAmountFarFromQuantityTimesUnitPriceIsRejected(): void
+    public function testAmountFarFromQuantityTimesUnitPriceIsKeptAsEntered(): void
     {
-        try {
-            $this->service->create($this->user, $this->trade('buy', '0.12', '100.0000', amount: '120.00'));
-            $this->fail('An implausible amount was accepted.');
-        } catch (ApiException $e) {
-            $this->assertSame(ErrorCode::AmountFarFromQuantityTimesPrice, $e->errorCode);
-            $this->assertSame(['amount' => '120.00', 'expected' => '12.0000'], $e->params);
-            $this->assertStringContainsString('too far from quantity × unit price', $e->getMessage());
-        }
+        // Fees, rounding and another currency make the broker's figure its own: never checked.
+        $investment = $this->service->create($this->user, $this->trade('buy', '0.12', '100.0000', amount: '120.00'));
+
+        $this->assertSame('120.0000', $investment->transaction->getAmount());
     }
 
     public function testUpdateChangesTheAmount(): void

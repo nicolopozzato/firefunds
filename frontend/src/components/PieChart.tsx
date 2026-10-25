@@ -77,7 +77,7 @@ interface PieChartProps {
   nullLabel?: string
 }
 
-export default function PieChart({ title, entries, currency = '€', emptyLabel, nullLabel }: PieChartProps) {
+export default function PieChart({ title, entries, currency, emptyLabel, nullLabel }: PieChartProps) {
   const { t } = useTranslation()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 

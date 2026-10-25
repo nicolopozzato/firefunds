@@ -41,6 +41,11 @@ final readonly class TransactionResponse
         public ?string $unitPrice = null,
         public ?string $fees = null,
         public ?string $taxes = null,
+        /** Investment BUY/SELL only: the currency the unit price is in (the instrument's quote currency). */
+        public ?string $unitPriceCurrency = null,
+        /** A transfer between currencies: what arrived on the destination account, in its currency (`amount` left the source). */
+        public ?string $destinationAmount = null,
+        public ?string $destinationCurrency = null,
     ) {
     }
 
@@ -68,6 +73,8 @@ final readonly class TransactionResponse
             notes: $transaction->getNotes(),
             createdAt: $transaction->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $transaction->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            destinationAmount: $transaction->getDestinationAmount(),
+            destinationCurrency: $transaction->getDestinationAmount() !== null ? $transaction->getDestinationAccount()?->getCurrency()?->getCode() : null,
         );
     }
 
@@ -112,6 +119,7 @@ final readonly class TransactionResponse
             unitPrice: $transaction->getUnitPrice(),
             fees: $transaction->getFees(),
             taxes: $transaction->getTaxes(),
+            unitPriceCurrency: $instrument->getCurrency(),
         );
     }
 }

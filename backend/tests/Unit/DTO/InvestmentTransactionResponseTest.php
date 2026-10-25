@@ -21,7 +21,7 @@ class InvestmentTransactionResponseTest extends TestCase
         $user = new User();
         $broker = new Account($user, AccountType::Asset, 'Broker');
         $broker->setAssetKind(AssetAccountKind::Investment);
-        $broker->setCurrency(new Currency('EUR', 'Euro', '€', 2, true));
+        $broker->setCurrency(new Currency('EUR', 'Euro', '€', 2));
 
         $transaction = new InvestmentTransaction(
             user: $user,

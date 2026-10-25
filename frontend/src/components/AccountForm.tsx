@@ -8,15 +8,10 @@ import FormSection from '@/components/FormSection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import Combobox from '@/components/Combobox'
 import { useCreateAccount, useUpdateAccount } from '@/hooks/use-accounts'
-import { useCurrencies } from '@/hooks/use-currencies'
+import { useAuth } from '@/contexts/AuthContext'
+import { currencyLabel, useCurrencies, useCurrencyOptions } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { handleApiError } from '@/lib/error-handler'
 import { cn } from '@/lib/utils'
@@ -55,7 +50,7 @@ const ASSET_KIND_ICONS: Record<AssetAccountKind, typeof Landmark> = {
   investment: TrendingUp,
 }
 
-function initialState(account?: Account): FormState {
+function initialState(account?: Account, defaultCurrency = ''): FormState {
   return {
     name: account?.name ?? '',
     iban: account?.iban ?? '',
@@ -63,7 +58,7 @@ function initialState(account?: Account): FormState {
     accountNumber: account?.accountNumber ?? '',
     notes: account?.notes ?? '',
     isActive: account?.isActive ?? true,
-    currencyCode: account?.currencyCode ?? '',
+    currencyCode: account?.currencyCode ?? defaultCurrency,
     openingBalance: account?.openingBalance ?? '0.00',
     openingBalanceDate: account?.openingBalanceDate ?? '',
     adjustments: adjustmentRows(account?.adjustments),
@@ -80,17 +75,21 @@ function initialState(account?: Account): FormState {
  * and, when editing, its history (right); one column on tablets and phones.
  */
 export default function AccountForm({ type, title, description, account }: AccountFormProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { data: currencies } = useCurrencies()
+  const currencyOptions = useCurrencyOptions()
   const createAccount = useCreateAccount(type)
   const updateAccount = useUpdateAccount()
 
-  const [form, setForm] = useState<FormState>(initialState(account))
+  // A new account of money starts in the user's own currency.
+  const { user } = useAuth()
+  const defaultCurrency = type === 'asset' ? (user?.currency ?? '') : ''
+  const [form, setForm] = useState<FormState>(initialState(account, defaultCurrency))
   const [isSubmitted, setIsSubmitted] = useState(false)
 
   // Once per account, not on every refetch: see useFormFill.
-  useFormFill(account?.id ?? 'new', () => setForm(initialState(account)))
+  useFormFill(account?.id ?? 'new', () => setForm(initialState(account, defaultCurrency)))
 
   const isEditing = !!account
   const isAsset = type === 'asset'
@@ -194,26 +193,18 @@ export default function AccountForm({ type, title, description, account }: Accou
       {isCurrencyLocked ? (
         <>
           <div id="currencyCode" className="flex h-10 items-center text-sm">
-            {selectedCurrency
-              ? `${selectedCurrency.code} — ${selectedCurrency.name} (${selectedCurrency.symbol})`
-              : form.currencyCode}
+            {selectedCurrency ? currencyLabel(selectedCurrency, i18n.language) : form.currencyCode}
           </div>
           <p className="text-xs text-muted-foreground">{t('accountsCommon.currencyLockedHint')}</p>
         </>
       ) : (
         <>
-          <Select value={form.currencyCode} onValueChange={(value) => setForm({ ...form, currencyCode: value })}>
-            <SelectTrigger id="currencyCode">
-              <SelectValue placeholder={t('accountsCommon.selectCurrency')} />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies?.map((currency) => (
-                <SelectItem key={currency.code} value={currency.code}>
-                  {currency.code} — {currency.name} ({currency.symbol})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={currencyOptions}
+            value={form.currencyCode}
+            onChange={(value) => setForm({ ...form, currencyCode: value })}
+            placeholder={t('accountsCommon.selectCurrency')}
+          />
           {isSubmitted && isCurrencyMissing && (
             <p className="text-xs text-destructive">{t('accountsCommon.currencyRequired')}</p>
           )}

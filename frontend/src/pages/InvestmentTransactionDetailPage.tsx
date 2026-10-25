@@ -211,7 +211,7 @@ export default function InvestmentTransactionDetailPage() {
                   <span className="tabular-nums">{formatQuantity(transaction.quantity)}</span>
                 </DetailField>
                 <DetailField label={t('investmentTransactions.unitPrice')}>
-                  <span className="tabular-nums">{formatMoney(transaction.unitPrice, currencySymbol)}</span>
+                  <span className="tabular-nums">{formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency))}</span>
                 </DetailField>
                 {/* Quantity x unit price; with fees and taxes it adds up to the headline total, which isn't repeated here. */}
                 <DetailField label={t('investmentTransactions.countervalue')}>

@@ -1,21 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  Banknote,
-  ChevronRight,
-  Coins,
-  FileBarChart,
-  LogOut,
-  Settings,
-  ShieldCheck,
-  ShoppingCart,
-  Tag,
-  Tags,
-  Users,
-  Wallet,
-  type LucideIcon,
-  DatabaseBackup,
-} from 'lucide-react'
+import { Banknote, CalendarClock, ChevronRight, DatabaseBackup, FileBarChart, LogOut, Settings, ShieldCheck, ShoppingCart, Tag, Tags, Users, Wallet, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getFullName } from '@/types/auth'
 import { cn } from '@/lib/utils'
@@ -117,7 +102,7 @@ export default function More() {
             { label: t('admin.users.title'), href: '/admin/users', icon: Users, tone: 'bg-muted text-muted-foreground' },
             { label: t('admin.settings.title'), href: '/admin/settings', icon: ShieldCheck, tone: 'bg-muted text-muted-foreground' },
             { label: t('admin.backups.title'), href: '/admin/backups', icon: DatabaseBackup, tone: 'bg-muted text-muted-foreground' },
-            { label: t('admin.currencies.title'), href: '/admin/currencies', icon: Coins, tone: 'bg-muted text-muted-foreground' },
+            { label: t('admin.tasks.title'), href: '/admin/tasks', icon: CalendarClock, tone: 'bg-muted text-muted-foreground' },
           ]}
         />
       )}

@@ -52,7 +52,8 @@ services:
     ports:
       - "127.0.0.1:${PORT:-8080}:8000"
 
-  # Symfony Scheduler (daily investment prices): exits every hour and is restarted.
+  # Symfony Scheduler (prices, exchange rates, backups; Administration → Scheduled tasks):
+  # exits every hour and is restarted.
   scheduler:
     <<: *app
     command: php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=128M -v

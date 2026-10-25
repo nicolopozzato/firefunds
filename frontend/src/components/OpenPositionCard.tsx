@@ -4,7 +4,7 @@ import { differenceInCalendarDays, format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { Card, CardContent } from '@/components/ui/card'
 import PositionMiniChart from '@/components/PositionMiniChart'
-import { cn, formatMoney, formatPercent, formatQuantity, moneyColorClass, parseDate } from '@/lib/utils'
+import { cn, currencySymbolFor, formatMoney, formatPercent, formatQuantity, moneyColorClass, parseDate } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
 import type { OpenPosition } from '@/types/investment'
@@ -85,6 +85,11 @@ export default function OpenPositionCard({ position, currencySymbol, weight, wei
               </PositionStat>
               <PositionStat label={t('accountDetail.positionCurrentPrice')}>
                 {position.currentPrice !== null ? formatMoney(position.currentPrice, currencySymbol) : <EmptyValue />}
+                {position.quotePrice != null && position.quoteCurrency && position.quoteCurrency !== position.currencyCode && (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    ({formatMoney(position.quotePrice, currencySymbolFor(position.quoteCurrency))})
+                  </span>
+                )}
               </PositionStat>
               <PositionStat label={weightLabel}>{weight !== null ? formatPercent(weight, 1) : <EmptyValue />}</PositionStat>
               <PositionStat label={t('accountDetail.positionOpenedOn')}>

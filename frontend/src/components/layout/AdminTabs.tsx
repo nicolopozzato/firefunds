@@ -10,8 +10,8 @@ export default function AdminTabs() {
   const links = [
     { value: '/admin/settings', label: t('admin.settings.title') },
     { value: '/admin/backups', label: t('admin.backups.title') },
+    { value: '/admin/tasks', label: t('admin.tasks.title') },
     { value: '/admin/users', label: t('admin.users.title') },
-    { value: '/admin/currencies', label: t('admin.currencies.title') },
   ]
   const current = links.find((link) => link.value === location.pathname)?.value ?? links[0].value
 

@@ -121,8 +121,12 @@ class TransactionService
     private function applyOptionalFields(Transaction $transaction, User $user, CreateTransactionRequest $request): void
     {
         $transaction->setDescription($request->description);
-        $transaction->setForeignAmount($request->foreignAmount);
-        $transaction->setForeignCurrency($request->foreignCurrency !== null ? strtoupper($request->foreignCurrency) : null);
+        $transaction->setDestinationAmount($this->destinationAmount($transaction, $request));
+        // A transfer has its own second amount (destinationAmount): an "original amount" makes no sense there.
+        $isTransfer = $transaction->getSourceAccount()?->getType() === AccountType::Asset
+            && $transaction->getDestinationAccount()?->getType() === AccountType::Asset;
+        $transaction->setForeignAmount($isTransfer ? null : $request->foreignAmount);
+        $transaction->setForeignCurrency($isTransfer || $request->foreignCurrency === null ? null : strtoupper($request->foreignCurrency));
         $transaction->setNotes($request->notes);
 
         if ($request->hasName($request->newCategoryName)) {
@@ -206,6 +210,29 @@ class TransactionService
         }
 
         return $account;
+    }
+
+    /**
+     * What arrived, for a transfer between accounts in two currencies (the
+     * rate between them is the two amounts); null for anything else.
+     */
+    private function destinationAmount(Transaction $transaction, CreateTransactionRequest $request): ?string
+    {
+        $source = $transaction->getSourceAccount();
+        $destination = $transaction->getDestinationAccount();
+        if ($source?->getType() !== AccountType::Asset || $destination?->getType() !== AccountType::Asset
+            || $source->getCurrency()?->getCode() === $destination->getCurrency()?->getCode()) {
+            return null;
+        }
+
+        if ($request->destinationAmount === null || $request->destinationAmount === '') {
+            throw new ApiException(ErrorCode::DestinationAmountRequired, [
+                'source' => $source->getCurrency()?->getCode() ?? '—',
+                'destination' => $destination->getCurrency()?->getCode() ?? '—',
+            ]);
+        }
+
+        return bcadd($request->destinationAmount, '0', 4);
     }
 
     private function assertValidAccountPair(?Account $source, ?Account $destination): void

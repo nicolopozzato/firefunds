@@ -13,6 +13,16 @@ export type ThemeMode = 'light' | 'dark'
 export type ThemePreference = ThemeMode | 'system'
 export type Density = 'compact' | 'comfortable' | 'spacious'
 
+/** The schemes the user can pick (Preferences): "neutral" is too close to "zinc" to offer both. */
+export const PICKABLE_COLOR_SCHEMES: ColorScheme[] = ['blue', 'violet', 'rose', 'orange', 'zinc']
+export const DENSITIES: Density[] = ['compact', 'comfortable', 'spacious']
+
+/** A scheme's primary colour, and the colour drawn on it, in a mode: for a swatch. */
+export function schemeSwatch(scheme: ColorScheme, mode: ThemeMode): { background: string; foreground: string } {
+  const colors = mode === 'dark' ? DARK_PRIMARY[scheme] : colorSchemes[scheme].light
+  return { background: `hsl(${colors.primary})`, foreground: `hsl(${colors.primaryForeground})` }
+}
+
 export interface ThemeConfig {
   colorScheme: ColorScheme
   mode: ThemeMode
@@ -432,14 +442,27 @@ export function resolveThemeMode(preference: ThemePreference): ThemeMode {
   return window.matchMedia?.(DARK_QUERY).matches ? 'dark' : 'light'
 }
 
-/** Applies a preference (and remembers it); "system" is followed live by useThemePreference. */
-export function applyThemePreference(preference: ThemePreference): void {
+/**
+ * Applies a preference (and remembers it, with the user's colour scheme and
+ * density when given); "system" is followed live by useApplyThemePreference.
+ */
+export function applyThemePreference(
+  preference: ThemePreference,
+  appearance: Partial<Pick<ThemeConfig, 'colorScheme' | 'density'>> = {}
+): void {
   try {
     localStorage.setItem(PREFERENCE_KEY, preference)
   } catch {
     // Not remembered: it still applies now.
   }
-  saveTheme({ ...getTheme(), mode: resolveThemeMode(preference) })
+  const colorScheme = appearance.colorScheme && appearance.colorScheme in colorSchemes ? appearance.colorScheme : undefined
+  const density = appearance.density && DENSITIES.includes(appearance.density) ? appearance.density : undefined
+  saveTheme({
+    ...getTheme(),
+    ...(colorScheme && { colorScheme }),
+    ...(density && { density }),
+    mode: resolveThemeMode(preference),
+  })
 }
 
 /** Calls back when the device switches between light and dark (e.g. at sunset). */

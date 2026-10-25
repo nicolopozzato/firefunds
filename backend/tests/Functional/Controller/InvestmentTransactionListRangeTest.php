@@ -29,7 +29,7 @@ class InvestmentTransactionListRangeTest extends WebTestCaseBase
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $currency = $entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($currency === null) {
-            $currency = new Currency('EUR', 'Euro', '€', 2, true);
+            $currency = new Currency('EUR', 'Euro', '€', 2);
             $entityManager->persist($currency);
         }
 

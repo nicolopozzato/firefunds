@@ -18,8 +18,22 @@ final readonly class UserResponse
         public int $pageSize,
         public string $timezone,
         public string $numberFormat,
+        /** The currency (code) shown where different currencies are added up. */
+        public string $currency,
         /** Percentage used to estimate the tax on capital gains (see User::$capitalGainsTaxRate). */
         public string $capitalGainsTaxRate,
+        /** An administrator set the password: the app asks for a new one before anything else. */
+        public bool $mustChangePassword,
+        public string $colorScheme,
+        public string $density,
+        public string $startPage,
+        public string $startPeriod,
+        /** Null when none, or the one chosen was deleted or deactivated. */
+        public ?string $defaultAccountId,
+        /** @var list<array{key: string, visible: bool}> */
+        public array $dashboardSections,
+        public string $dashboardTrendView,
+        public string $dashboardInvestmentUnit,
     ) {
     }
 
@@ -37,7 +51,17 @@ final readonly class UserResponse
             pageSize: $user->getPageSize(),
             timezone: $user->getTimezone(),
             numberFormat: $user->getNumberFormat(),
+            currency: $user->getCurrency(),
             capitalGainsTaxRate: $user->getCapitalGainsTaxRate(),
+            mustChangePassword: $user->mustChangePassword(),
+            colorScheme: $user->getColorScheme(),
+            density: $user->getDensity(),
+            startPage: $user->getStartPage(),
+            startPeriod: $user->getStartPeriod(),
+            defaultAccountId: $user->getUsableDefaultAccount()?->getId()->toRfc4122(),
+            dashboardSections: $user->getDashboardSections(),
+            dashboardTrendView: $user->getDashboardTrendView(),
+            dashboardInvestmentUnit: $user->getDashboardInvestmentUnit(),
         );
     }
 }

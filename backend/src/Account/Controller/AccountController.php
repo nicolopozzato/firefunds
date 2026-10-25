@@ -18,11 +18,11 @@ use App\Account\DTO\UpdateAccountRequest;
 use App\Account\DTO\DeleteAccountQuery;
 use App\Account\Service\AccountDeletionService;
 use App\Account\Service\AccountService;
+use App\Account\Service\AssetValueHistory;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Core\Period\UserDayRange;
 use App\Entity\AccountType;
-use App\Entity\AssetAccountKind;
 use App\Investment\Service\OpenPositionService;
 use App\Repository\AccountAdjustmentRepository;
 use App\Repository\AccountAuditLogRepository;
@@ -52,6 +52,7 @@ class AccountController extends AbstractController
         private readonly OpenPositionService $openPositionService,
         private readonly AccountAdjustmentRepository $accountAdjustmentRepository,
         private readonly AccountAuditLogRepository $accountAuditLogRepository,
+        private readonly AssetValueHistory $assetValueHistory,
     ) {
     }
 
@@ -110,26 +111,15 @@ class AccountController extends AbstractController
         $account = $this->findOwnedAccount($id);
         [$from, $to] = CalendarRange::orThisMonth($request->query->get('from'), $request->query->get('to'), $this->getCurrentUser());
 
-        $availableByDate = [];
-        foreach ($this->accountRepository->getDailyBalanceHistory($account, $from, $to) as $point) {
-            $availableByDate[$point['date']] = $point['balance'];
-        }
-
-        $investedByDate = [];
-        if ($account->getType() === AccountType::Asset && $account->getAssetKind() === AssetAccountKind::Investment) {
-            foreach ($this->investmentTransactionRepository->getDailyInvestedValueHistory($account, $from, $to) as $point) {
-                $investedByDate[$point['date']] = $point['value'];
-            }
-        }
+        $values = $this->assetValueHistory->forAccounts([$account], $from, $to);
 
         $points = [];
-        foreach ($availableByDate as $date => $available) {
-            $invested = $investedByDate[$date] ?? '0.0000';
+        foreach (array_keys($values->cashByAccount[$account->getId()->toRfc4122()] ?? []) as $date) {
             $points[] = new AccountValueHistoryPointResponse(
                 date: $date,
-                available: $available,
-                invested: $invested,
-                total: bcadd($available, $invested, 4),
+                available: $values->cashOn($account->getId()->toRfc4122(), $date),
+                invested: $values->investedOn($account->getId()->toRfc4122(), $date),
+                total: $values->valueOn($account->getId()->toRfc4122(), $date),
             );
         }
 

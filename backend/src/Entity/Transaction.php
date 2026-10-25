@@ -54,6 +54,14 @@ class Transaction implements SoftDeletable
     #[ORM\Column(length: 3)]
     private string $currency;
 
+    /**
+     * Only for a transfer between asset accounts in different currencies:
+     * what arrived on the destination account, in its currency (`amount` is
+     * what left the source, in `currency`). The rate between them is these two.
+     */
+    #[ORM\Column(type: 'decimal', precision: 19, scale: 4, nullable: true)]
+    private ?string $destinationAmount = null;
+
     #[ORM\Column(type: 'decimal', precision: 19, scale: 4, nullable: true)]
     private ?string $foreignAmount = null;
 
@@ -165,6 +173,18 @@ class Transaction implements SoftDeletable
     public function setCurrency(string $currency): static
     {
         $this->currency = $currency;
+        return $this;
+    }
+
+    public function getDestinationAmount(): ?string
+    {
+        return $this->destinationAmount;
+    }
+
+    public function setDestinationAmount(?string $destinationAmount): static
+    {
+        $this->destinationAmount = $destinationAmount;
+
         return $this;
     }
 

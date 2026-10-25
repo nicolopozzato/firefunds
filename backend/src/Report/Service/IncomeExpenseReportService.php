@@ -18,6 +18,7 @@ use App\Report\DTO\ReportAccountResponse;
 use App\Report\DTO\ReportPeriodResponse;
 use App\Report\Period\ReportColumn;
 use App\Report\Period\ReportRange;
+use App\Repository\CurrencyRepository;
 use App\Repository\TransactionRepository;
 
 /**
@@ -39,6 +40,7 @@ class IncomeExpenseReportService
     public function __construct(
         private readonly AssetValueHistory $assetValueHistory,
         private readonly TransactionRepository $transactionRepository,
+        private readonly CurrencyRepository $currencies,
     ) {
     }
 
@@ -84,7 +86,8 @@ class IncomeExpenseReportService
         );
 
         return new IncomeExpenseReportResponse(
-            currencySymbol: ($values->accounts[0] ?? null)?->getCurrency()?->getSymbol(),
+            // Everything added up is in the user's currency.
+            currencySymbol: $this->currencies->symbolOf($user->getCurrency()),
             from: $range->from->format('Y-m-d'),
             to: $range->to->format('Y-m-d'),
             by: $by,
@@ -178,8 +181,10 @@ class IncomeExpenseReportService
         $accounts = [];
         foreach ($values->accounts as $account) {
             $id = $account->getId()->toRfc4122();
-            $start = $values->valueOn($id, $startDay);
-            $end = $values->valueOn($id, $lastDay);
+            $own = $account->getCurrency()?->getCode();
+            // In the user's currency, each end at its own day's rate.
+            $start = $values->inUserCurrency($values->valueOn($id, $startDay), $own, $startDay);
+            $end = $values->inUserCurrency($values->valueOn($id, $lastDay), $own, $lastDay);
             if (!$account->isActive() && bccomp($start, '0', 4) === 0 && bccomp($end, '0', 4) === 0) {
                 continue;
             }
@@ -193,8 +198,9 @@ class IncomeExpenseReportService
                 start: $start,
                 end: $end,
                 change: bcsub($end, $start, 4),
-                investedStart: $isInvestment ? $values->investedOn($id, $startDay) : null,
-                investedEnd: $isInvestment ? $values->investedOn($id, $lastDay) : null,
+                investedStart: $isInvestment ? $values->inUserCurrency($values->investedOn($id, $startDay), $own, $startDay) : null,
+                investedEnd: $isInvestment ? $values->inUserCurrency($values->investedOn($id, $lastDay), $own, $lastDay) : null,
+                currencyCode: $own,
             );
         }
 

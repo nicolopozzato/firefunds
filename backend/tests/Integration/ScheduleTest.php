@@ -5,47 +5,54 @@ namespace App\Tests\Integration;
 use App\Schedule;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
+/**
+ * The scheduler's times, in Rome whatever the server's own (UTC) clock says.
+ * Messages in order: the retry, then the tasks as the administrator's page
+ * lists them (prices, rates, backup, cleanup).
+ */
 class ScheduleTest extends KernelTestCase
 {
-    /**
-     * The price fetch runs shortly after midnight Rome time and is retried
-     * every 4 hours until noon, whatever the server's own (UTC) clock says.
-     */
+    /** The price fetch runs shortly after midnight Rome time, then every 4 hours until noon. */
     public function testPriceFetchRunsShortlyAfterLocalMidnightAndRetries(): void
     {
-        self::bootKernel();
-        $schedule = self::getContainer()->get(Schedule::class)->getSchedule();
-        [$message] = $schedule->getRecurringMessages();
-
-        $rome = new \DateTimeZone('Europe/Rome');
-        $run = new \DateTimeImmutable('2026-09-30 23:00:00', $rome);
-        $runs = [];
-        for ($i = 0; $i < 5; ++$i) {
-            $run = $message->getTrigger()->getNextRunDate($run);
-            $runs[] = $run->setTimezone($rome)->format('Y-m-d H:i');
-        }
-
         $this->assertSame(
             ['2026-10-01 00:10', '2026-10-01 04:10', '2026-10-01 08:10', '2026-10-01 12:10', '2026-10-02 00:10'],
-            $runs
+            $this->nextRuns(1, '2026-09-30 23:00:00', 5, 'Y-m-d H:i'),
         );
     }
 
-    /** The backup command is checked every hour; the administrator's settings decide whether a backup is due. */
+    /** The exchange rates are fetched shortly after the prices, a few times a day. */
+    public function testExchangeRatesAreFetchedThreeTimesADay(): void
+    {
+        $this->assertSame(['01 06:20', '01 12:20', '02 00:20', '02 06:20'], $this->nextRuns(2, '2026-10-01 01:00:00', 4, 'd H:i'));
+    }
+
+    /** The backup task is checked every hour; the administrator's settings decide whether a backup is due. */
     public function testBackupsAreCheckedHourly(): void
     {
+        $this->assertSame(['10:05', '11:05', '12:05'], $this->nextRuns(3, '2026-10-01 10:00:00', 3, 'H:i'));
+    }
+
+    /** The retry, every 15 minutes, never at a minute a task runs (5, 10, 20, 30): it would race the run it repeats. */
+    public function testFailedRunsAreRetriedEveryQuarterOfAnHourBetweenTheTasks(): void
+    {
+        $this->assertSame(['10:07', '10:22', '10:37', '10:52'], $this->nextRuns(0, '2026-10-01 10:00:00', 4, 'H:i'));
+    }
+
+    /** @return string[] */
+    private function nextRuns(int $index, string $from, int $count, string $format): array
+    {
         self::bootKernel();
-        $schedule = self::getContainer()->get(Schedule::class)->getSchedule();
-        $message = $schedule->getRecurringMessages()[2];
+        $message = self::getContainer()->get(Schedule::class)->getSchedule()->getRecurringMessages()[$index];
 
         $rome = new \DateTimeZone('Europe/Rome');
-        $run = new \DateTimeImmutable('2026-10-01 10:00:00', $rome);
+        $run = new \DateTimeImmutable($from, $rome);
         $runs = [];
-        for ($i = 0; $i < 3; ++$i) {
+        for ($i = 0; $i < $count; ++$i) {
             $run = $message->getTrigger()->getNextRunDate($run);
-            $runs[] = $run->setTimezone($rome)->format('H:i');
+            $runs[] = $run->setTimezone($rome)->format($format);
         }
 
-        $this->assertSame(['10:05', '11:05', '12:05'], $runs);
+        return $runs;
     }
 }

@@ -13,8 +13,14 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * and may change without notice - kept behind PriceProviderInterface so it can
  * be swapped for an official/paid provider later without touching callers.
  */
-class YahooFinancePriceProvider implements PriceProviderInterface
+class YahooFinancePriceProvider implements PriceProviderInterface, QuoteCurrencyProviderInterface
 {
+    /**
+     * Quotes in a hundredth of the currency: Yahoo's `meta.currency` for them
+     * => the currency itself. Their prices are divided by 100.
+     */
+    private const MINOR_UNITS = ['GBp' => 'GBP', 'GBX' => 'GBP', 'ZAc' => 'ZAR', 'ILA' => 'ILS'];
+
     /** A chart answer is a few hundred KB at most, even decades of daily closes. */
     private const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
@@ -64,6 +70,7 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         }
 
         $timezone = $this->exchangeTimezone($result['meta'] ?? []);
+        $divisor = $this->divisor($result['meta'] ?? []);
         $timestamps = $result['timestamp'] ?? [];
         $closes = $result['indicators']['quote'][0]['close'] ?? [];
 
@@ -73,7 +80,7 @@ class YahooFinancePriceProvider implements PriceProviderInterface
             $date = $this->localDate($timestamp, $timezone);
             $close = $closes[$index] ?? null;
 
-            $price = self::price($close);
+            $price = self::price($close, $divisor);
             if ($price === null) {
                 // A real holiday has no bar at all; a bar with a null close
                 // is a trading day Yahoo simply has no daily close for.
@@ -84,10 +91,40 @@ class YahooFinancePriceProvider implements PriceProviderInterface
             $prices[$date] = $price;
         }
 
-        $prices += $this->lastIntradayCloses($symbol, $missingDates, $timezone);
+        $prices += $this->lastIntradayCloses($symbol, $missingDates, $timezone, $divisor);
         ksort($prices);
 
         return $prices;
+    }
+
+    public function getQuoteCurrency(InvestmentInstrument $instrument): ?string
+    {
+        $symbol = $this->symbolFor($instrument);
+        if ($symbol === null) {
+            return null;
+        }
+
+        try {
+            $meta = $this->chart($symbol, ['query' => ['range' => '1d', 'interval' => '1d']])->toArray(false)['chart']['result'][0]['meta'] ?? null;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Yahoo Finance currency lookup failed for {symbol}: {error}', ['symbol' => $symbol, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        $currency = $meta['currency'] ?? null;
+        if (!\is_string($currency)) {
+            return null;
+        }
+        $currency = self::MINOR_UNITS[$currency] ?? $currency;
+
+        return preg_match('/^[A-Za-z]{3}$/', $currency) === 1 ? strtoupper($currency) : null;
+    }
+
+    /** 100 for a quote in a hundredth of its currency (pence), else 1. @param array<string, mixed> $meta */
+    private function divisor(array $meta): int
+    {
+        return isset(self::MINOR_UNITS[$meta['currency'] ?? '']) ? 100 : 1;
     }
 
     public function getLiveQuote(InvestmentInstrument $instrument): LiveQuote
@@ -123,7 +160,7 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         }
 
         return new LiveQuote(
-            price: self::price($meta['regularMarketPrice'] ?? null),
+            price: self::price($meta['regularMarketPrice'] ?? null, $this->divisor($meta)),
             marketState: $this->marketStateFrom($meta),
         );
     }
@@ -141,7 +178,7 @@ class YahooFinancePriceProvider implements PriceProviderInterface
      *
      * @return array<string, string>
      */
-    private function lastIntradayCloses(string $symbol, array $dates, \DateTimeZone $timezone): array
+    private function lastIntradayCloses(string $symbol, array $dates, \DateTimeZone $timezone, int $divisor = 1): array
     {
         $today = (new \DateTimeImmutable('now', $timezone))->format('Y-m-d');
         $dates = array_values(array_filter($dates, static fn (string $date) => $date < $today));
@@ -179,7 +216,7 @@ class YahooFinancePriceProvider implements PriceProviderInterface
         $prices = [];
         foreach ($timestamps as $index => $timestamp) {
             $date = $this->localDate($timestamp, $timezone);
-            $close = self::price($closes[$index] ?? null);
+            $close = self::price($closes[$index] ?? null, $divisor);
 
             // Bars come in ascending order, so the last one per day wins.
             if ($close !== null && isset($wanted[$date])) {
@@ -270,13 +307,13 @@ class YahooFinancePriceProvider implements PriceProviderInterface
      * zero once rounded, absurdly large. Rounding a float straight to a
      * string would write "1.0E+15", which the column refuses.
      */
-    private static function price(mixed $value): ?string
+    private static function price(mixed $value, int $divisor = 1): ?string
     {
         if (!is_numeric($value) || !is_finite((float) $value)) {
             return null;
         }
 
-        $price = number_format((float) $value, 4, '.', '');
+        $price = number_format((float) $value / $divisor, 4, '.', '');
 
         return bccomp($price, '0', 4) > 0 && strlen(explode('.', $price)[0]) <= 15 ? $price : null;
     }

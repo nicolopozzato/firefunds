@@ -6,7 +6,6 @@ use App\Auth\DTO\UpdatePreferencesRequest;
 use App\Auth\DTO\UserResponse;
 use App\Auth\Service\UserService;
 use App\Entity\User;
-use App\Entity\UserTheme;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -29,7 +28,7 @@ class UserPreferencesTest extends KernelTestCase
 
         self::assertSame('it-IT', UserResponse::fromEntity($user)->numberFormat);
 
-        $container->get(UserService::class)->updatePreferences($user, 'en', UserTheme::System, 50, 'Europe/Rome', 'en-US');
+        $container->get(UserService::class)->updatePreferences($user, new UpdatePreferencesRequest('en', 'system', 50, 'Europe/Rome', 'en-US'));
         $entityManager->clear();
 
         $reloaded = $entityManager->getRepository(User::class)->find($user->getId());

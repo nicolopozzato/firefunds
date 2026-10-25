@@ -12,22 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { cn, formatMoney, moneyColorClass, parseDate } from '@/lib/utils'
-import { isTransfer } from '@/lib/transaction-sides'
+import { cn, currencySymbolFor, formatMoney, parseDate } from '@/lib/utils'
+import { amountColorClass, amountCurrency, detailPath, signedAmount } from '@/lib/transaction-display'
 import type { DashboardAccount } from '@/types/dashboard'
-import type { Transaction } from '@/types/transaction'
-
-/** What the transaction did to this account's cash: positive = money in. */
-function signedAmount(transaction: Transaction, accountId: string): number {
-  const amount = Number(transaction.amount)
-  if (transaction.kind === 'investmentBuy') return -amount
-  if (transaction.kind === 'investmentSell') return amount
-  return transaction.destinationAccount?.id === accountId ? amount : -amount
-}
-
-function detailPath(transaction: Transaction): string {
-  return transaction.kind === 'money' ? `/transactions/${transaction.id}` : `/transactions/investments/${transaction.id}`
-}
 
 interface DashboardAccountCardProps {
   account: DashboardAccount
@@ -78,9 +65,9 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
                       {format(parseDate(transaction.occurredAt), 'd MMM', { locale })}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{transaction.description ?? '—'}</span>
-                    <span className={cn('shrink-0 text-sm font-medium tabular-nums', isTransfer(transaction) ? 'text-info' : moneyColorClass(amount))}>
+                    <span className={cn('shrink-0 text-sm font-medium tabular-nums', amountColorClass(transaction))}>
                       {amount > 0 ? '+' : ''}
-                      {formatMoney(amount, account.currencySymbol)}
+                      {formatMoney(amount, currencySymbolFor(amountCurrency(transaction, account.id)))}
                     </span>
                   </Link>
                 </li>

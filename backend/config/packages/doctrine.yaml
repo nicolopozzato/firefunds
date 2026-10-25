@@ -19,6 +19,10 @@ doctrine:
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
         auto_mapping: true
+        dql:
+            string_functions:
+                # SUM(CONVERTED(amount, currency, day, :target, :user)): each amount at its day's rate.
+                CONVERTED: App\Core\Doctrine\ConvertedFunction
         mappings:
             App:
                 type: attribute

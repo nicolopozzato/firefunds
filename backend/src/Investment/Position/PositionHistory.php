@@ -28,13 +28,7 @@ final class PositionHistory
         $firstDay = $from->format('Y-m-d');
         $lastDay = $to->format('Y-m-d');
 
-        $lastPrice = null;
-        foreach ($priceByDate as $date => $price) {
-            if ($date >= $firstDay) {
-                break;
-            }
-            $lastPrice = $price;
-        }
+        $lastPrice = PriceSeries::before($priceByDate, $firstDay);
 
         $points = [];
         for ($date = new \DateTimeImmutable($firstDay); ($day = $date->format('Y-m-d')) <= $lastDay; $date = $date->modify('+1 day')) {

@@ -229,7 +229,7 @@ class CrossUserIsolationTest extends WebTestCaseBase
     {
         $eur = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if (null === $eur) {
-            $eur = new Currency('EUR', 'Euro', '€', 2, true);
+            $eur = new Currency('EUR', 'Euro', '€', 2);
             $this->entityManager->persist($eur);
         }
 

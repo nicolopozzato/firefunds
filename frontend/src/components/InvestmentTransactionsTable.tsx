@@ -154,7 +154,7 @@ export default function InvestmentTransactionsTable() {
                 </MobileListIcon>
               }
               title={transaction.instrumentTicker ?? transaction.instrumentName}
-              subtitle={`${transaction.account.name} · ${transaction.quantity} × ${formatMoney(transaction.unitPrice)}`}
+              subtitle={`${transaction.account.name} · ${transaction.quantity} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency))}`}
               value={formatMoney(signedTotal(transaction), currencySymbolFor(transaction.currency))}
               valueClassName={transaction.type === 'buy' ? 'text-negative' : 'text-positive'}
             />
@@ -296,7 +296,7 @@ export default function InvestmentTransactionsTable() {
                     </TableCell>
                     <TableCell>{transaction.account.name}</TableCell>
                     <TableCell className="text-right tabular-nums">{transaction.quantity}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(transaction.unitPrice)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency))}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(transaction.fees)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(transaction.taxes)}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

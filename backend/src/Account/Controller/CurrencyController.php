@@ -19,7 +19,7 @@ class CurrencyController extends AbstractController
     #[Route('', name: 'api_currencies_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        $currencies = $this->currencyRepository->findEnabled();
+        $currencies = $this->currencyRepository->findAllOrdered();
 
         return $this->json(array_map(
             static fn ($currency) => CurrencyResponse::fromEntity($currency),

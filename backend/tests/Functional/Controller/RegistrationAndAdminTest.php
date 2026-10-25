@@ -66,8 +66,8 @@ class RegistrationAndAdminTest extends WebTestCaseBase
             ['GET', '/api/admin/users', null],
             ['GET', '/api/admin/settings', null],
             ['PUT', '/api/admin/settings', ['registrationEnabled' => true]],
-            ['GET', '/api/admin/currencies', null],
-            ['POST', '/api/admin/currencies', ['code' => 'CHF', 'name' => 'Franc', 'symbol' => 'Fr', 'decimalPlaces' => 2]],
+            ['GET', '/api/admin/backups', null],
+            ['POST', '/api/admin/backups', null],
         ] as [$method, $uri, $body]) {
             $this->request($method, $uri, $body);
             $this->assertResponseStatusCodeSame(403, "$method $uri");

@@ -17,6 +17,8 @@ final readonly class ReportAccountResponse
         /** Investment accounts: the market value of what is held, part of start and end; null otherwise. */
         public ?string $investedStart,
         public ?string $investedEnd,
+        /** The account's own currency (code): start, end, change and the invested values are in the user's, each at its day's rate. */
+        public ?string $currencyCode = null,
     ) {
     }
 }

@@ -21,6 +21,7 @@ import {
 import { useTransaction, useDeleteTransaction, useTransactionAuditLog } from '@/hooks/use-transactions'
 import AccountName from '@/components/AccountName'
 import { handleApiError } from '@/lib/error-handler'
+import { amountColorClass, signedAmount } from '@/lib/transaction-display'
 import { isDeposit, isWithdrawal } from '@/lib/transaction-sides'
 import { currencySymbolFor, formatDateTime, formatMoney, formatTime24h } from '@/lib/utils'
 import { useState } from 'react'
@@ -30,18 +31,6 @@ import { isEmptyValue } from '@/lib/audit-log'
 import EmptyValue from '@/components/EmptyValue'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadFailed from '@/components/LoadFailed'
-
-/** Withdrawals show as a negative (money leaving), deposits stay positive; transfers are neutral. */
-function signedAmount(transaction: Transaction): number {
-  if (isWithdrawal(transaction)) return -Number(transaction.amount)
-  return Number(transaction.amount)
-}
-
-function amountColorClass(transaction: Transaction): string {
-  if (isWithdrawal(transaction)) return 'text-negative'
-  if (isDeposit(transaction)) return 'text-positive'
-  return ''
-}
 
 function AccountTypeIcon({ type }: { type: NonNullable<Transaction['sourceAccount']>['type'] }) {
   if (type === 'expense') return <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -90,6 +79,7 @@ const HISTORY_FIELD_KEYS = new Set([
   'occurredAt',
   'amount',
   'currency',
+  'destinationAmount',
   'foreignAmount',
   'foreignCurrency',
   'category',
@@ -107,7 +97,7 @@ function TransactionHistoryCard({ transactionId }: { transactionId: string }) {
     if ((field === 'sourceAccount' || field === 'destinationAccount') && value === null) return '—'
     if (isEmptyValue(value)) return null
     if (field === 'occurredAt') return `${formatDateTime(String(value))} · ${formatTime24h(String(value))}`
-    if (field === 'amount' || field === 'foreignAmount') return formatMoney(String(value), null)
+    if (field === 'amount' || field === 'destinationAmount' || field === 'foreignAmount') return formatMoney(String(value), null)
     if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : null
     return String(value)
   }
@@ -208,6 +198,11 @@ export default function TransactionDetailPage() {
                         currencySymbol={currencySymbolFor(transaction.currency)}
                         className={amountColorClass(transaction)}
                       />
+                      {transaction.destinationAmount && transaction.destinationCurrency && (
+                        <span className="text-sm tabular-nums text-muted-foreground">
+                          → {formatMoney(transaction.destinationAmount, currencySymbolFor(transaction.destinationCurrency))}
+                        </span>
+                      )}
                       {transaction.foreignAmount !== null && transaction.foreignCurrency && (
                         <span className="text-sm tabular-nums text-muted-foreground">
                           ({formatMoney(transaction.foreignAmount, currencySymbolFor(transaction.foreignCurrency))})

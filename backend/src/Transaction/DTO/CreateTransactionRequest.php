@@ -33,6 +33,14 @@ final readonly class CreateTransactionRequest
         #[Decimal]
         public string $amount,
 
+        /**
+         * A transfer between asset accounts in different currencies: what
+         * arrived on the destination account, in its currency. Otherwise left out.
+         */
+        #[Assert\Positive]
+        #[Decimal]
+        public ?string $destinationAmount = null,
+
         #[Assert\Positive]
         #[Decimal]
         public ?string $foreignAmount = null,

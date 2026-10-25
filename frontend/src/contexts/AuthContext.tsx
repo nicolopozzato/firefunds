@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useState, useEffect, ReactNode 
 import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../lib/auth-api';
-import { setNumberFormat } from '../lib/utils';
+import { setDefaultCurrency, setNumberFormat } from '../lib/utils';
 import type { User, LoginRequest, RegisterRequest } from '../types/auth';
 
 interface AuthContextType {
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // triggers already formats every amount with the user's separators.
   const applyUser = (userData: User) => {
     setNumberFormat(userData.numberFormat);
+    setDefaultCurrency(userData.currency);
     setUser(userData);
   };
 

@@ -24,6 +24,7 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
     App\Investment\PriceProvider\PriceProviderInterface: '@App\Investment\PriceProvider\YahooFinancePriceProvider'
+    App\Investment\PriceProvider\QuoteCurrencyProviderInterface: '@App\Investment\PriceProvider\YahooFinancePriceProvider'
 
     # Where login_throttling (security.yaml) counts failed logins.
     login_throttling.storage:
@@ -35,6 +36,12 @@ when@test:
         app.backup_directory: '%kernel.project_dir%/var/backups-test'
 
     services:
+        # No exchange rate is fetched from the internet in a test.
+        App\Currency\Service\ExchangeRateService:
+            autowire: true
+            arguments:
+                $providers: []
+
         # In memory and never reset between requests: each test starts from
         # zero and failed logins don't pile up across test runs.
         login_throttling.storage:

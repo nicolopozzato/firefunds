@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import CurrencyTag from '@/components/CurrencyTag'
 import { MobileListCard, MobileListRow } from '@/components/MobileList'
 import { formatMoney, moneyColorClass } from '@/lib/utils'
 import { signedMoney } from '@/lib/report-format'
@@ -31,6 +32,7 @@ export default function ReportAccountsList({ accounts, summary, currency }: Repo
             title={
               <span className={account.isActive ? undefined : 'text-muted-foreground'}>
                 {account.name}
+                <CurrencyTag code={account.currencyCode} />
                 {!account.isActive && <span className="ml-1.5 text-xs font-normal">({t('reports.closed')})</span>}
               </span>
             }

@@ -29,8 +29,7 @@ class CurrencyResponseTest extends TestCase
             code: 'USD',
             name: 'US Dollar',
             symbol: '$',
-            decimalPlaces: 2,
-            isEnabled: true
+            decimalPlaces: 2
         );
 
         $response = CurrencyResponse::fromEntity($currency);
@@ -48,8 +47,7 @@ class CurrencyResponseTest extends TestCase
             code: 'JPY',
             name: 'Japanese Yen',
             symbol: '¥',
-            decimalPlaces: 0,
-            isEnabled: true
+            decimalPlaces: 0
         );
 
         $response = CurrencyResponse::fromEntity($currency);

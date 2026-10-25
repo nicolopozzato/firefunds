@@ -1,6 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { dataChanged } from '@/lib/data-changed'
 import { adminApi } from '@/lib/admin-api'
-import type { BackupSettings, CurrencyRequest, ServerSettings } from '@/types/admin'
+import type {
+  AdminUserFields,
+  BackupSettings,
+  CreateUserRequest,
+  ServerSettings,
+  SetPasswordRequest,
+  TaskKey,
+} from '@/types/admin'
 
 export function useServerSettings() {
   return useQuery({
@@ -45,6 +53,36 @@ export function useCreateBackup() {
   })
 }
 
+export function useTasks() {
+  return useQuery({
+    queryKey: ['admin', 'tasks'],
+    queryFn: () => adminApi.getTasks(),
+  })
+}
+
+export function useTaskRuns(key: TaskKey, page: number, pageSize: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin', 'task-runs', key, page, pageSize],
+    queryFn: () => adminApi.getTaskRuns(key, page, pageSize),
+    enabled,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** A task run now: prices and rates change figures everywhere, so everything else is refetched too. */
+export function useRunTask() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (key: TaskKey) => adminApi.runTask(key),
+    onSuccess: (overview) => {
+      queryClient.setQueryData(['admin', 'tasks'], overview)
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'task-runs'] })
+      void dataChanged(queryClient)
+    },
+  })
+}
+
 export function useAdminUsers() {
   return useQuery({
     queryKey: ['admin', 'users'],
@@ -52,45 +90,24 @@ export function useAdminUsers() {
   })
 }
 
-export function useAdminCurrencies() {
-  return useQuery({
-    queryKey: ['admin', 'currencies'],
-    queryFn: () => adminApi.listCurrencies(),
-  })
-}
-
-export function useCreateAdminCurrency() {
+/** Create, edit, set the password of, disable and enable a user; each refetches the list (its order follows who is active). */
+export function useAdminUserMutations() {
   const queryClient = useQueryClient()
+  const onSuccess = () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
 
-  return useMutation({
-    mutationFn: (data: CurrencyRequest) => adminApi.createCurrency(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'currencies'] })
-      queryClient.invalidateQueries({ queryKey: ['currencies'] })
-    },
-  })
-}
-
-export function useUpdateAdminCurrency() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CurrencyRequest }) => adminApi.updateCurrency(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'currencies'] })
-      queryClient.invalidateQueries({ queryKey: ['currencies'] })
-    },
-  })
-}
-
-export function useDeleteAdminCurrency() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (id: string) => adminApi.removeCurrency(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'currencies'] })
-      queryClient.invalidateQueries({ queryKey: ['currencies'] })
-    },
-  })
+  return {
+    create: useMutation({ mutationFn: (data: CreateUserRequest) => adminApi.createUser(data), onSuccess }),
+    update: useMutation({
+      mutationFn: ({ id, data }: { id: string; data: AdminUserFields }) => adminApi.updateUser(id, data),
+      onSuccess,
+    }),
+    setPassword: useMutation({
+      mutationFn: ({ id, data }: { id: string; data: SetPasswordRequest }) => adminApi.setUserPassword(id, data),
+      onSuccess,
+    }),
+    setActive: useMutation({
+      mutationFn: ({ id, active }: { id: string; active: boolean }) => adminApi.setUserActive(id, active),
+      onSuccess,
+    }),
+  }
 }

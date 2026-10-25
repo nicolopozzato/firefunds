@@ -35,12 +35,6 @@ class CurrencyRepositoryTest extends KernelTestCase
         $this->assertInstanceOf(CurrencyRepository::class, $this->repository);
     }
 
-    public function testFindEnabledReturnsArray(): void
-    {
-        $result = $this->repository->findEnabled();
-        $this->assertIsArray($result);
-    }
-
     public function testFindAllOrderedReturnsArray(): void
     {
         $result = $this->repository->findAllOrdered();
@@ -53,9 +47,17 @@ class CurrencyRepositoryTest extends KernelTestCase
         $this->assertNull($result);
     }
 
-    public function testFindOneByIdReturnsNullForNonExistent(): void
+    public function testTheFixedListHasTheCurrenciesWithTheirMinorUnits(): void
     {
-        $result = $this->repository->findOneById('00000000-0000-0000-0000-000000000000');
-        $this->assertNull($result);
+        $decimals = [];
+        foreach ($this->repository->findAllOrdered() as $currency) {
+            $decimals[$currency->getCode()] = $currency->getDecimalPlaces();
+        }
+
+        $this->assertGreaterThan(150, \count($decimals));
+        $this->assertSame(2, $decimals['EUR']);
+        $this->assertSame(2, $decimals['USD']);
+        $this->assertSame(0, $decimals['JPY']);
+        $this->assertSame(3, $decimals['KWD']);
     }
 }

@@ -11,6 +11,7 @@ use App\Entity\AccountAdjustment;
 use App\Entity\AccountType;
 use App\Entity\User;
 use App\Repository\AccountAdjustmentRepository;
+use App\Currency\Service\ExchangeRateService;
 use App\Repository\AccountRepository;
 use App\Repository\CurrencyRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,7 @@ class AccountService
         private readonly AccountRepository $accountRepository,
         private readonly AccountAdjustmentRepository $accountAdjustmentRepository,
         private readonly AccountAuditLogService $auditLog,
+        private readonly ExchangeRateService $exchangeRates,
     ) {
     }
 
@@ -95,6 +97,7 @@ class AccountService
         $this->entityManager->persist($account);
         $this->auditLog->logCreated($account, $user);
         $this->entityManager->flush();
+        $this->exchangeRates->syncForUser($user);
 
         return $account;
     }
@@ -115,6 +118,7 @@ class AccountService
 
         $this->auditLog->logUpdated($account, $account->getUser(), $before, $adjustments);
         $this->entityManager->flush();
+        $this->exchangeRates->syncForUser($account->getUser());
 
         return $account;
     }
@@ -200,7 +204,7 @@ class AccountService
         ?string $openingBalanceDate,
     ): void {
         if ($currencyCode !== null) {
-            $currency = $this->currencyRepository->findOneBy(['code' => strtoupper($currencyCode), 'isEnabled' => true]);
+            $currency = $this->currencyRepository->findOneByCode($currencyCode);
 
             if ($currency === null) {
                 throw new ApiException(ErrorCode::CurrencyNotAvailable, ['currency' => $currencyCode]);

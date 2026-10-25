@@ -4,8 +4,10 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import MobileTopBar from './MobileTopBar'
 import BottomNav from './BottomNav'
+import ExchangeRateWarning from './ExchangeRateWarning'
 import PullToRefresh from './PullToRefresh'
 import { useIsMobile } from '@/hooks/use-media-query'
+import { useHideAmounts } from '@/hooks/use-hide-amounts'
 
 /** "0.1.0" -> "0.1": major.minor is enough to tell versions apart at a glance. */
 const APP_VERSION = __APP_VERSION__.split('.').slice(0, 2).join('.')
@@ -58,6 +60,8 @@ export default function Layout({ children }: LayoutProps) {
   const mainRef = useRef<HTMLElement>(null)
   useScrollRestoration(mainRef)
   const isMobile = useIsMobile()
+  // The amounts are formatted while rendering: hiding or showing them draws the page again.
+  const [amountsHidden] = useHideAmounts()
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-background">
@@ -74,7 +78,8 @@ export default function Layout({ children }: LayoutProps) {
             {/* Phones: room at the bottom for the navigation bar (and the home indicator under it), and at the top
                 for the top bar, which lies over the page (3.5rem high, under the status bar). */}
             <div className="mx-auto flex min-h-full max-w-[1600px] flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+4.5rem)] md:p-6">
-              <div>{children}</div>
+              <ExchangeRateWarning />
+              <div key={amountsHidden ? 'hidden' : 'shown'}>{children}</div>
               {/* Signature at the bottom of every page: also leaves some air under the last table. On phones it is on the "More" page. */}
               <footer className="mt-auto hidden pt-10 text-xs text-muted-foreground/60 md:block">
                 FireFunds <span className="text-[10px]">v{APP_VERSION}</span>

@@ -17,6 +17,12 @@ enum ErrorCode: string
     case CurrentPasswordIncorrect = 'current_password_incorrect';
     case TooManyLoginAttempts = 'too_many_login_attempts';
     case UserNotFound = 'user_not_found';
+    case AccountDisabled = 'account_disabled';
+    case PasswordChangeRequired = 'password_change_required';
+    case PasswordUnchanged = 'password_unchanged';
+
+    // Users (admin)
+    case LastAdministrator = 'last_administrator';
 
     // Something looked up by id that doesn't exist (or isn't the user's)
     case AccountNotFound = 'account_not_found';
@@ -36,20 +42,17 @@ enum ErrorCode: string
 
     // Transactions
     case AccountWithoutCurrency = 'account_without_currency';
+    case AmountRequiredOtherCurrency = 'amount_required_other_currency';
     case AccountPairNotAllowed = 'account_pair_not_allowed';
+    case DestinationAmountRequired = 'destination_amount_required';
 
     // Investments
     case InvestmentAccountRequired = 'investment_account_required';
-    case AmountFarFromQuantityTimesPrice = 'amount_far_from_quantity_times_price';
     case InstrumentInUse = 'instrument_in_use';
     case PriceNotFound = 'price_not_found';
     case PriceDateInFuture = 'price_date_in_future';
     case PriceWithoutProviderValue = 'price_without_provider_value';
     case PriceFromProvider = 'price_from_provider';
-
-    // Currencies (admin)
-    case CurrencyCodeTaken = 'currency_code_taken';
-    case CurrencyInUse = 'currency_in_use';
 
     // Backups (admin)
     case BackupNotFound = 'backup_not_found';
@@ -57,6 +60,15 @@ enum ErrorCode: string
     case BackupInProgress = 'backup_in_progress';
     case BackupFromNewerVersion = 'backup_from_newer_version';
     case BackupUnreadable = 'backup_unreadable';
+
+    // Exchange rates
+    case RateCurrencyInvalid = 'rate_currency_invalid';
+    case RateDateInFuture = 'rate_date_in_future';
+    case RateNotFound = 'rate_not_found';
+
+    // Scheduled tasks
+    case TaskNotFound = 'task_not_found';
+    case TaskAlreadyRunning = 'task_already_running';
 
     // Periods
     case InvalidDateRange = 'invalid_date_range';
@@ -74,6 +86,10 @@ enum ErrorCode: string
             self::CurrentPasswordIncorrect => 'Current password is incorrect.',
             self::TooManyLoginAttempts => 'Too many failed login attempts: try again in {minutes} minute(s).',
             self::UserNotFound => 'User not found.',
+            self::AccountDisabled => 'This user has been disabled.',
+            self::PasswordChangeRequired => 'Choose a new password first.',
+            self::PasswordUnchanged => 'The new password must be different from the current one.',
+            self::LastAdministrator => 'There must be at least one active administrator.',
             self::AccountNotFound => 'Account not found.',
             self::CategoryNotFound => 'Category not found.',
             self::TagNotFound => 'Tag not found.',
@@ -87,21 +103,25 @@ enum ErrorCode: string
             self::AccountCurrencyLocked => 'The currency of an account with transactions cannot be changed.',
             self::CurrencyNotAvailable => 'Currency "{currency}" is not available.',
             self::AccountWithoutCurrency => 'The asset account involved in this transaction has no currency set.',
+            self::DestinationAmountRequired => 'A transfer from {source} to {destination} needs the amount that arrived.',
+            self::AmountRequiredOtherCurrency => 'The instrument is quoted in {instrument} and the account is in {account}, with no rate for that day: enter the amount the broker charged.',
             self::AccountPairNotAllowed => 'A transaction from {source} to {destination} is not allowed.',
             self::InvestmentAccountRequired => 'Investment transactions require an investment asset account.',
-            self::AmountFarFromQuantityTimesPrice => 'The amount {amount} is too far from quantity × unit price ({expected}): check the figures.',
             self::InstrumentInUse => 'This instrument has {transactions} investment transaction(s): confirm deleting them too.',
             self::PriceNotFound => 'No price recorded on that day.',
             self::PriceDateInFuture => 'A price can only be recorded for today or a day before.',
             self::PriceWithoutProviderValue => 'This price was entered by hand: there is no imported value to restore.',
             self::PriceFromProvider => 'An imported price cannot be removed: restore the imported value instead.',
-            self::CurrencyCodeTaken => 'A currency with this code already exists.',
-            self::CurrencyInUse => 'This currency is in use by one or more accounts and cannot be deleted.',
             self::BackupNotFound => 'Backup not found.',
             self::BackupFailed => 'The backup or restore could not be completed: {reason}',
             self::BackupInProgress => 'Another backup or restore is running: try again in a moment.',
             self::BackupFromNewerVersion => 'This backup comes from FireFunds {version}, newer than the {current} that is running: update FireFunds first.',
             self::BackupUnreadable => 'This file is not a FireFunds backup, or it is damaged.',
+            self::RateCurrencyInvalid => 'There is no rate for {currency} against your currency.',
+            self::RateDateInFuture => 'A rate can only be entered for today or a day before.',
+            self::RateNotFound => 'You have not entered a rate for that day.',
+            self::TaskNotFound => 'There is no such scheduled task.',
+            self::TaskAlreadyRunning => 'This task is running already: try again in a moment.',
             self::InvalidDateRange => 'Invalid date range.',
             self::DateRangeInverted => '"from" must be on or before "to".',
             self::DateRangeTooLong => 'A date range can span at most {years} years.',

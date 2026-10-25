@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatPercent, numberFormatter } from '@/lib/utils'
+import { formatPercent, formatWholeMoney, numberFormatter } from '@/lib/utils'
 import { monthlyChanges, monthlyValues, remainder, sumRows, withOpening, type MonthlyValues } from '@/lib/net-worth'
 import type { NetWorthReport, NetWorthRow } from '@/types/report'
 
 export type NetWorthView = 'values' | 'changes'
 
-export type Kind = 'money' | 'signed' | 'price' | 'percent'
+export type Kind = 'money' | 'signed' | 'price' | 'rate' | 'percent'
 
 export interface Line {
   key: string
@@ -26,7 +26,7 @@ export interface LineGroup {
   lines: Line[]
 }
 
-const whole = (value: number) => numberFormatter({ maximumFractionDigits: 0 }).format(value)
+const whole = (value: number) => formatWholeMoney(value, null)
 
 export function formatCell(value: number, kind: Kind): string {
   switch (kind) {
@@ -36,6 +36,8 @@ export function formatCell(value: number, kind: Kind): string {
       return `${value > 0 ? '+' : ''}${whole(value)}`
     case 'price':
       return numberFormatter({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+    case 'rate':
+      return numberFormatter({ minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(value)
     case 'percent':
       return `${value > 0 ? '+' : ''}${formatPercent(value, 1)}`
   }
@@ -65,7 +67,13 @@ export function useNetWorthGroups(report: NetWorthReport, view: NetWorthView): L
   const rowLine = (row: NetWorthRow, prefix: string): Line => ({
     key: `${prefix}-${row.id}`,
     // An instrument goes by its ticker (VWCE), the full name on hover; an account, or an instrument without one, by its name.
-    label: <span title={row.name ?? undefined}>{row.ticker ?? row.name}</span>,
+    label: (
+      <span title={row.name ?? undefined}>
+        {row.ticker ?? row.name}
+        {/* A price is in its own currency and a cash row in its account's: said, when it isn't the user's. */}
+        {row.currencyCode && <span className="ml-1 text-xs font-normal text-muted-foreground">{row.currencyCode}</span>}
+      </span>
+    ),
     data: shown(withOpening(row)),
     kind: valueKind,
   })
@@ -74,7 +82,9 @@ export function useNetWorthGroups(report: NetWorthReport, view: NetWorthView): L
   const totalChange = monthlyChanges(total)
   const saved = monthlyValues(report.saved)
   const market = monthlyValues(report.market)
-  const other = remainder(totalChange, saved, market)
+  const exchange = report.exchange ? monthlyValues(report.exchange) : null
+  const hasExchange = exchange !== null && [...exchange.values, ...exchange.previousValues].some((value) => value !== null && Math.abs(value) >= 0.005)
+  const other = remainder(totalChange, saved, market, ...(exchange ? [exchange] : []))
   const hasOther = [...other.values, ...other.previousValues].some((value) => value !== null && Math.abs(value) >= 0.005)
 
   const groups: LineGroup[] = [
@@ -106,6 +116,7 @@ export function useNetWorthGroups(report: NetWorthReport, view: NetWorthView): L
       { key: 'change-percent', label: t('reports.netWorthReport.changePercent'), data: monthlyChanges(total, true), kind: 'percent', part: true },
       { key: 'saved', label: t('reports.netWorthReport.fromSaving'), data: saved, kind: 'signed', part: true },
       { key: 'market', label: t('reports.netWorthReport.fromMarket'), data: market, kind: 'signed', part: true },
+      ...(hasExchange && exchange ? [{ key: 'exchange', label: t('reports.netWorthReport.fromExchange'), data: exchange, kind: 'signed' as const, part: true }] : []),
       ...(hasOther ? [{ key: 'other', label: t('reports.netWorthReport.fromOther'), data: other, kind: 'signed' as const, part: true }] : []),
     ],
   })
@@ -117,6 +128,35 @@ export function useNetWorthGroups(report: NetWorthReport, view: NetWorthView): L
         ...rowLine(row, 'price'),
         data: changes ? monthlyChanges(withOpening(row), true) : monthlyValues(row),
         kind: changes ? 'percent' : 'price',
+      })),
+    })
+  }
+
+  const byCurrency = report.currencies ?? []
+  if (byCurrency.length > 0) {
+    // Between the total and the prices: what the net worth is made of, currency by currency.
+    const totalIndex = groups.findIndex((group) => group.key === 'total')
+    groups.splice(totalIndex + 1, 0, {
+      key: 'currencies',
+      title: t('reports.netWorthReport.byCurrency'),
+      lines: byCurrency.map((row) => ({
+        key: `currency-${row.id}`,
+        label: <span>{row.name}</span>,
+        data: shown(withOpening(row)),
+        kind: valueKind,
+      })),
+    })
+  }
+
+  const rates = report.rates ?? []
+  if (rates.length > 0) {
+    groups.push({
+      key: 'rates',
+      title: changes ? t('reports.netWorthReport.rateChanges') : t('reports.netWorthReport.rates'),
+      lines: rates.map((row) => ({
+        ...rowLine(row, 'rate'),
+        data: changes ? monthlyChanges(withOpening(row), true) : monthlyValues(row),
+        kind: changes ? 'percent' : 'rate',
       })),
     })
   }

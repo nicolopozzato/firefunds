@@ -45,7 +45,7 @@ class AccountRepositoryLastActivityTest extends KernelTestCase
 
         $currency = $this->entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($currency === null) {
-            $currency = new Currency('EUR', 'Euro', '€', 2, true);
+            $currency = new Currency('EUR', 'Euro', '€', 2);
             $this->entityManager->persist($currency);
         }
 

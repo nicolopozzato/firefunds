@@ -6,8 +6,11 @@ use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
 use App\Entity\Currency;
+use App\Entity\ExchangeRateSource;
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentInstrumentType;
+use App\Entity\User;
+use App\Repository\ExchangeRateRepository;
 use App\Tests\Functional\WebTestCaseBase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -18,19 +21,20 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 class InvestmentTransactionAmountTest extends WebTestCaseBase
 {
     private KernelBrowser $client;
+    private User $user;
     private string $accountId;
     private string $instrumentId;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-        $user = static::createUser();
+        $user = $this->user = static::createUser();
         static::authenticate($this->client, $user);
 
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $currency = $entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']);
         if ($currency === null) {
-            $currency = new Currency('EUR', 'Euro', '€', 2, true);
+            $currency = new Currency('EUR', 'Euro', '€', 2);
             $entityManager->persist($currency);
         }
 
@@ -65,12 +69,51 @@ class InvestmentTransactionAmountTest extends WebTestCaseBase
         $this->assertSame('12.0000', $response['amount']);
     }
 
-    public function testImplausibleAmountIsA400(): void
+    public function testAmountFarFromQuantityTimesPriceIsAccepted(): void
     {
         $response = $this->post(['quantity' => '0.12', 'unitPrice' => '100', 'amount' => '120']);
 
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame('120.0000', $response['amount']);
+    }
+
+    public function testAnInstrumentInAnotherCurrencyIsConvertedAtTheDaysRateWhenTheAmountIsLeftOut(): void
+    {
+        $dollars = $this->dollarInstrument();
+        static::getContainer()->get(ExchangeRateRepository::class)->upsert('USD', ['2026-01-01' => ['1.25000000', ExchangeRateSource::Ecb]]);
+
+        $response = $this->post(['quantity' => '2', 'unitPrice' => '100', 'instrumentId' => $dollars]);
+
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame('160.0000', $response['amount'], '200 USD at 1 EUR = 1.25 USD');
+        $this->assertSame('EUR', $response['currency']);
+        $this->assertSame('USD', $response['unitPriceCurrency']);
+        $this->assertSame('100', $response['unitPrice']);
+    }
+
+    public function testWithoutARateTheAmountMustBeGiven(): void
+    {
+        $dollars = $this->dollarInstrument();
+
+        $response = $this->post(['quantity' => '2', 'unitPrice' => '100', 'instrumentId' => $dollars]);
         $this->assertResponseStatusCodeSame(400);
-        $this->assertStringContainsString('too far from quantity × unit price', $response['message'] ?? json_encode($response));
+        $this->assertSame('amount_required_other_currency', $response['code']);
+        $this->assertSame(['instrument' => 'USD', 'account' => 'EUR'], $response['params']);
+
+        $response = $this->post(['quantity' => '2', 'unitPrice' => '100', 'instrumentId' => $dollars, 'amount' => '158.20']);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame('158.2000', $response['amount']);
+    }
+
+    private function dollarInstrument(): string
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $instrument = new InvestmentInstrument($this->user, 'S&P 500', InvestmentInstrumentType::Etf);
+        $instrument->setCurrency('USD');
+        $entityManager->persist($instrument);
+        $entityManager->flush();
+
+        return (string) $instrument->getId();
     }
 
     /**

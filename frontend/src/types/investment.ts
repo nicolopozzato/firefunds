@@ -6,6 +6,8 @@ export interface InvestmentInstrument {
   id: string
   name: string
   type: InvestmentInstrumentType
+  /** ISO 4217 code of the currency the instrument is quoted in (its prices are in it). */
+  currencyCode: string
   ticker: string | null
   yahooTicker: string | null
   isin: string | null
@@ -24,6 +26,8 @@ export interface InvestmentInstrumentRequest {
   yahooTicker?: string | null
   isin?: string | null
   capitalGainsTaxRate?: string | null
+  /** Left out on a new instrument: Yahoo's, else the user's. Left out on an edit: unchanged. */
+  currencyCode?: string
 }
 
 /** market: the provider's close; filled: carried over from the day before (no close that day); manual: the user's. */
@@ -72,8 +76,10 @@ export interface InvestmentTransaction {
   /** Taxes the broker withheld on the trade (capital gains on a SELL, Tobin tax on a BUY). */
   taxes: string
   totalAmount: string
-  /** The broker account's currency code (unit price, fees, taxes and total are in it). */
+  /** The broker account's currency code (amount, fees, taxes and total are in it). */
   currency: string
+  /** The currency the unit price is in: the instrument's quote currency. */
+  unitPriceCurrency: string
   /** The clock time where it happened, no offset: show it as it is. */
   occurredAt: string
   /** Where it happened (IANA). */
@@ -126,7 +132,13 @@ export interface OpenPosition {
   averageCost: string | null
   /** Day (YYYY-MM-DD, as written where the trade happened) the current holding was opened. */
   openedOn: string | null
+  /** The latest price in the account's currency (what the value is worked out from). */
   currentPrice: string | null
+  /** The same price as quoted, in the instrument's currency (an account's own positions only). */
+  quotePrice?: string | null
+  quoteCurrency?: string | null
+  /** The account's currency: value, cost and gain are in it. */
+  currencyCode?: string | null
   currentValue: string | null
   gainAmount: string | null
   gainPercent: string | null

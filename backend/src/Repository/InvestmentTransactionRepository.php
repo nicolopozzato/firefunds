@@ -9,6 +9,7 @@ use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentTransaction;
 use App\Entity\User;
 use App\Investment\Position\AverageCostPosition;
+use App\Investment\Position\TradeCashEffect;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
@@ -69,7 +70,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
     /**
      * Sum of the trades' totals (what the list shows: a BUY with its costs, a
      * SELL net of them), grouped by instrument type, instrument or account,
-     * for the same period as the list. Biggest first.
+     * for the same period as the list, in the user's currency. Biggest first.
      *
      * @param 'instrumentType'|'instrument'|'account' $groupBy
      * @return array<array{id: string, name: string, total: string}>
@@ -79,7 +80,8 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
         [$idColumn, $nameColumn] = self::TOTAL_GROUPS[$groupBy];
 
         $dateFilter = '';
-        $params = ['userId' => $user->getId()->toRfc4122()];
+        // Each trade's total at its day's rate, in the user's currency (accounts can be in different ones).
+        $params = ['userId' => $user->getId()->toRfc4122(), 'currency' => $user->getCurrency()];
         if ($from !== null) {
             $dateFilter .= ' AND it.occurred_at >= :from';
             $params['from'] = $from->format('Y-m-d H:i:s.u');
@@ -89,16 +91,18 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             $params['to'] = $to->format('Y-m-d H:i:s.u');
         }
 
+        $total = TradeCashEffect::totalSql('it');
         $sql = <<<SQL
             SELECT
                 CAST({$idColumn} AS text) AS id,
                 {$nameColumn} AS name,
                 CAST(SUM(
-                    CASE WHEN it.type = 'buy' THEN it.amount + it.fees + it.taxes ELSE it.amount - it.fees - it.taxes END
+                    app_convert({$total}, ac.code, :currency, CAST(it.occurred_at AS date), :userId)
                 ) AS numeric(19,4)) AS total
             FROM investment_transaction it
             JOIN investment_instrument i ON i.id = it.instrument_id
             JOIN account a ON a.id = it.account_id
+            LEFT JOIN currency ac ON ac.id = a.currency_id
             WHERE it.user_id = :userId AND it.deleted_at IS NULL {$dateFilter}
             GROUP BY {$idColumn}, {$nameColumn}
             ORDER BY total DESC
@@ -148,7 +152,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * day (as written where it happened) the current holding was opened, i.e. the trade
      * that last took the quantity away from zero (or across it).
      *
-     * @return array<array{instrumentId: string, instrumentName: string, instrumentTicker: ?string, quantity: string, costBasis: string, averageCost: string, openedOn: ?string, taxRate: ?string}>
+     * @return array<array{instrumentId: string, instrumentName: string, instrumentTicker: ?string, quantity: string, costBasis: string, averageCost: string, openedOn: ?string, taxRate: ?string, quoteCurrency: ?string, accountCurrency: ?string}>
      */
     public function getPositions(Account $account): array
     {
@@ -188,7 +192,7 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
      * account first (e.g. the whole accounts list page at once).
      *
      * @param Account[] $accounts
-     * @return array<array{account_id: string, instrument_id: string, instrument_name: string, instrument_ticker: ?string, type: string, quantity: string, amount: string, costs: string, day: string}>
+     * @return array<array{account_id: string, instrument_id: string, instrument_name: string, instrument_ticker: ?string, instrument_currency: string, account_currency: ?string, type: string, quantity: string, amount: string, costs: string, day: string}>
      */
     public function findTradeRowsForAccounts(array $accounts): array
     {
@@ -200,10 +204,13 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             <<<SQL
                 SELECT it.account_id, it.instrument_id, i.name AS instrument_name, i.ticker AS instrument_ticker,
                        i.capital_gains_tax_rate AS instrument_tax_rate,
+                       i.currency AS instrument_currency, ac.code AS account_currency,
                        it.type, it.quantity, it.amount, it.fees + it.taxes AS costs,
                        CAST(it.occurred_at AS date) AS day
                 FROM investment_transaction it
                 JOIN investment_instrument i ON i.id = it.instrument_id
+                JOIN account a ON a.id = it.account_id
+                LEFT JOIN currency ac ON ac.id = a.currency_id
                 WHERE it.account_id IN (:accountIds) AND it.deleted_at IS NULL
                 ORDER BY it.account_id, it.instrument_id, it.occurred_at, it.id
                 SQL,
@@ -225,6 +232,8 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             $byInstrument[$row['instrument_id']]['name'] ??= $row['instrument_name'];
             $byInstrument[$row['instrument_id']]['ticker'] ??= $row['instrument_ticker'];
             $byInstrument[$row['instrument_id']]['taxRate'] ??= $row['instrument_tax_rate'] ?? null;
+            $byInstrument[$row['instrument_id']]['quoteCurrency'] ??= $row['instrument_currency'] ?? null;
+            $byInstrument[$row['instrument_id']]['accountCurrency'] ??= $row['account_currency'] ?? null;
             $byInstrument[$row['instrument_id']]['rows'][] = $row;
         }
 
@@ -246,102 +255,13 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
                 'openedOn' => $openedOn,
                 // The instrument's own capital gains tax rate, null = the user's.
                 'taxRate' => $data['taxRate'] ?? null,
+                // What the instrument is quoted in, and the account's own currency (its amounts, cost included, are in it).
+                'quoteCurrency' => $data['quoteCurrency'] ?? null,
+                'accountCurrency' => $data['accountCurrency'] ?? null,
             ];
         }
 
         return $positions;
-    }
-
-    /**
-     * Market value of everything held on this account at the end of each day in
-     * [from, to]: for each instrument, the running quantity held as of that day
-     * (cumulative BUYs minus SELLs up to and including that day, trades before
-     * `from` included) times the
-     * instrument's price on or before that day (InvestmentPriceRepository::
-     * EFFECTIVE_PRICES; the history is itself carried over weekends and
-     * holidays, so this only falls back further for a day before the first).
-     *
-     * A trade's day is the date in its `occurred_at`, the clock time where it
-     * happened (App\Entity\OccursLocally).
-     *
-     * @return array<array{date: string, value: string}>
-     */
-    public function getDailyInvestedValueHistory(Account $account, \DateTimeInterface $from, \DateTimeInterface $to): array
-    {
-        $connection = $this->getEntityManager()->getConnection();
-        $id = $account->getId()->toRfc4122();
-        $prices = InvestmentPriceRepository::EFFECTIVE_PRICES;
-
-        $sql = <<<SQL
-            WITH RECURSIVE days AS (
-                SELECT CAST(:from AS date) AS day
-                UNION ALL
-                SELECT (day + INTERVAL '1 day')::date FROM days WHERE day < CAST(:to AS date)
-            ),
-            instruments AS (
-                SELECT DISTINCT instrument_id FROM investment_transaction WHERE account_id = :id AND deleted_at IS NULL
-            ),
-            -- The instruments' prices as everywhere else (InvestmentPriceRepository::EFFECTIVE_PRICES).
-            effective_price AS MATERIALIZED (
-                SELECT * FROM ({$prices}) prices WHERE instrument_id IN (SELECT instrument_id FROM instruments)
-            ),
-            quantity_changes AS (
-                SELECT instrument_id, day, SUM(delta) AS delta FROM (
-                    SELECT
-                        instrument_id,
-                        CAST(occurred_at AS date) AS day,
-                        CASE WHEN type = 'buy' THEN quantity ELSE -quantity END AS delta
-                    FROM investment_transaction
-                    WHERE account_id = :id AND deleted_at IS NULL
-                ) raw_changes
-                GROUP BY instrument_id, day
-            ),
-            -- What was already held when the range starts: trades before it count too.
-            opening_quantity AS (
-                SELECT instrument_id, SUM(delta) AS quantity
-                FROM quantity_changes
-                WHERE day < CAST(:from AS date)
-                GROUP BY instrument_id
-            ),
-            daily_quantity AS (
-                SELECT
-                    i.instrument_id,
-                    d.day,
-                    COALESCE(oq.quantity, 0) + COALESCE(SUM(qc.delta) OVER (
-                        PARTITION BY i.instrument_id ORDER BY d.day
-                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-                    ), 0) AS quantity
-                FROM instruments i
-                CROSS JOIN days d
-                LEFT JOIN opening_quantity oq ON oq.instrument_id = i.instrument_id
-                LEFT JOIN quantity_changes qc ON qc.instrument_id = i.instrument_id AND qc.day = d.day
-            ),
-            daily_price AS (
-                SELECT
-                    dq.instrument_id,
-                    dq.day,
-                    dq.quantity,
-                    (
-                        SELECT ip.price FROM effective_price ip
-                        WHERE ip.instrument_id = dq.instrument_id AND ip.date <= dq.day
-                        ORDER BY ip.date DESC
-                        LIMIT 1
-                    ) AS price
-                FROM daily_quantity dq
-            )
-            SELECT
-                day::text AS date,
-                CAST(COALESCE(SUM(quantity * COALESCE(price, 0)), 0) AS numeric(19,4)) AS value
-            FROM daily_price
-            GROUP BY day
-            ORDER BY day
-            SQL;
-
-        return $connection->executeQuery($sql, [
-            'id' => $id,
-            'from' => $from->format('Y-m-d'),
-            'to' => $to->format('Y-m-d'),
-        ])->fetchAllAssociative();
     }
 
     /**

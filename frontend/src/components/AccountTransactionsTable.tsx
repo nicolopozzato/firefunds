@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Trash2, Plus, ArrowUpCircle, ArrowDownCircle, Repeat, CalendarRange, ListFilter, Copy, ArrowDownToLine, ArrowUpToLine } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Plus, CalendarRange, ListFilter, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -42,7 +42,8 @@ import { useTransactions, useDeleteTransaction } from '@/hooks/use-transactions'
 import { useDeleteInvestmentTransaction } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
 import AccountName from '@/components/AccountName'
-import { isDeposit, isTransfer, isWithdrawal } from '@/lib/transaction-sides'
+import { amountColorClass, amountCurrency, clonePath, detailPath, editPath, isInvestmentRow, signedAmount } from '@/lib/transaction-display'
+import TransactionKindIcon from '@/components/TransactionKindIcon'
 import { cn, currencySymbolFor, formatMoney, formatQuantity } from '@/lib/utils'
 import type { Transaction, TransactionListKind } from '@/types/transaction'
 import EmptyValue from '@/components/EmptyValue'
@@ -62,57 +63,6 @@ interface AccountTransactionsTableProps {
    * trades only / cash only.
    */
   isInvestmentAccount?: boolean
-}
-
-function isInvestmentRow(transaction: Transaction): boolean {
-  return transaction.kind === 'investmentBuy' || transaction.kind === 'investmentSell'
-}
-
-function detailPath(transaction: Transaction): string {
-  return isInvestmentRow(transaction) ? `/transactions/investments/${transaction.id}` : `/transactions/${transaction.id}`
-}
-
-function editPath(transaction: Transaction): string {
-  return isInvestmentRow(transaction)
-    ? `/transactions/investments/${transaction.id}/edit`
-    : `/transactions/${transaction.id}/edit`
-}
-
-function clonePath(transaction: Transaction): string {
-  return isInvestmentRow(transaction)
-    ? `/transactions/investments/new?cloneFrom=${transaction.id}`
-    : `/transactions/new?cloneFrom=${transaction.id}`
-}
-
-/** Withdrawals and BUYs show as a negative (money leaving), deposits and SELLs stay positive; a transfer is seen from this account. */
-function signedAmount(transaction: Transaction, accountId: string): number {
-  if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return -Number(transaction.amount)
-  if (isTransfer(transaction) && transaction.sourceAccount?.id === accountId) return -Number(transaction.amount)
-  return Number(transaction.amount)
-}
-
-function amountColorClass(transaction: Transaction): string {
-  if (isWithdrawal(transaction) || transaction.kind === 'investmentBuy') return 'text-negative'
-  if (isDeposit(transaction) || transaction.kind === 'investmentSell') return 'text-positive'
-  if (isTransfer(transaction)) return 'text-info'
-  return ''
-}
-
-/** The icon in front of a phone list row, by kind of transaction. */
-function TransactionIcon({ transaction }: { transaction: Transaction }) {
-  if (transaction.kind === 'investmentBuy') {
-    return <ArrowDownToLine className="h-4 w-4 text-negative" />
-  }
-  if (transaction.kind === 'investmentSell') {
-    return <ArrowUpToLine className="h-4 w-4 text-positive" />
-  }
-  if (isDeposit(transaction)) {
-    return <ArrowDownCircle className="h-4 w-4 text-positive" />
-  }
-  if (isWithdrawal(transaction)) {
-    return <ArrowUpCircle className="h-4 w-4 text-negative" />
-  }
-  return <Repeat className="h-4 w-4 text-info" />
 }
 
 export default function AccountTransactionsTable({ accountId, isInvestmentAccount = false }: AccountTransactionsTableProps) {
@@ -212,7 +162,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                   const other = outgoing ? transaction.destinationAccount : transaction.sourceAccount
                   const trade =
                     isInvestmentRow(transaction) && transaction.quantity && transaction.unitPrice
-                      ? `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.currency))}`
+                      ? `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency ?? transaction.currency))}`
                       : null
                   return (
                     <MobileListRow
@@ -220,7 +170,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                       onClick={() => navigate(detailPath(transaction))}
                       leading={
                         <MobileListIcon>
-                          <TransactionIcon transaction={transaction} />
+                          <TransactionKindIcon transaction={transaction} />
                         </MobileListIcon>
                       }
                       title={transaction.description ?? <EmptyValue />}
@@ -230,7 +180,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                       ]
                         .filter(Boolean)
                         .join(' · ')}
-                      value={formatMoney(signedAmount(transaction, accountId), currencySymbolFor(transaction.currency))}
+                      value={formatMoney(signedAmount(transaction, accountId), currencySymbolFor(amountCurrency(transaction, accountId)))}
                       valueClassName={amountColorClass(transaction)}
                     />
                   )
@@ -331,7 +281,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                       onClick={() => navigate(detailPath(transaction))}
                     >
                       <TableCell className="pl-4 pr-0.5">
-                        <TransactionIcon transaction={transaction} />
+                        <TransactionKindIcon transaction={transaction} />
                       </TableCell>
                       <TableCell className="font-medium">
                         {transaction.description ?? <EmptyValue />}
@@ -341,7 +291,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                           {/* Trade cells stay empty on money rows: nothing to show there. */}
                           <TableCell className="whitespace-nowrap text-right tabular-nums">
                             {transaction.quantity !== null && transaction.unitPrice !== null &&
-                              `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.currency))}`}
+                              `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency ?? transaction.currency))}`}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {transaction.fees !== null && formatMoney(transaction.fees, currencySymbolFor(transaction.currency))}
@@ -352,7 +302,7 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                         </>
                       )}
                       <TableCell className={cn('text-right tabular-nums', isInvestmentAccount && 'font-medium', amountColorClass(transaction))}>
-                        {formatMoney(signedAmount(transaction, accountId), currencySymbolFor(transaction.currency))}
+                        {formatMoney(signedAmount(transaction, accountId), currencySymbolFor(amountCurrency(transaction, accountId)))}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         <DateWithTime date={transaction.occurredAt} />

@@ -5,11 +5,13 @@ namespace App\Report\Service;
 use App\Account\Service\AssetValueHistory;
 use App\Account\Service\AssetValues;
 use App\Core\Period\UserDayRange;
-use App\Entity\InvestmentTransactionType;
 use App\Entity\User;
+use App\Investment\Position\PriceSeries;
+use App\Investment\Position\TradeCashEffect;
 use App\Report\DTO\NetWorthMonthResponse;
 use App\Report\DTO\NetWorthReportResponse;
 use App\Report\DTO\NetWorthRowResponse;
+use App\Repository\CurrencyRepository;
 use App\Repository\TransactionRepository;
 
 /**
@@ -23,6 +25,7 @@ class NetWorthReportService
     public function __construct(
         private readonly AssetValueHistory $assetValueHistory,
         private readonly TransactionRepository $transactionRepository,
+        private readonly CurrencyRepository $currencies,
     ) {
     }
 
@@ -42,19 +45,22 @@ class NetWorthReportService
         $values = $this->assetValueHistory->forUser($user, new \DateTimeImmutable($previousOpening), new \DateTimeImmutable($lastDate));
         [$firstTransaction] = $this->transactionRepository->findDateRange($user);
 
-        $row = static fn (?string $id, ?string $name, ?string $ticker, callable $valueOn) => new NetWorthRowResponse(
+        $row = static fn (?string $id, ?string $name, ?string $ticker, callable $valueOn, ?string $currencyCode = null) => new NetWorthRowResponse(
             id: $id,
             name: $name,
             ticker: $ticker,
             values: array_map(static fn (NetWorthMonthResponse $month) => $month->date !== null ? $valueOn($month->date) : null, $months),
             previousValues: array_map(static fn (NetWorthMonthResponse $month) => $month->date !== null ? $valueOn($month->date) : null, $previousMonths),
             previousOpening: $valueOn($previousOpening),
+            currencyCode: $currencyCode,
         );
 
         $cash = [];
         foreach ($values->accounts as $account) {
             $id = $account->getId()->toRfc4122();
-            $accountRow = $row($id, $account->getName(), null, static fn (string $day) => $values->cashOn($id, $day));
+            $own = $account->getCurrency()?->getCode();
+            // In the user's currency, each month at its end's rate; the account's own currency is named.
+            $accountRow = $row($id, $account->getName(), null, static fn (string $day) => $values->inUserCurrency($values->cashOn($id, $day), $own, $day), $own !== $values->currency ? $own : null);
             // An account empty all along the two years (a securities-only account, one not used yet or any more) would be a row of zeros.
             if ($this->isEverNonZero($accountRow)) {
                 $cash[] = $accountRow;
@@ -62,8 +68,10 @@ class NetWorthReportService
         }
 
         $names = [];
+        $quoteCurrency = [];
         foreach ($values->trades as $trade) {
             $names[$trade['instrument_id']] ??= [$trade['instrument_name'], $trade['instrument_ticker']];
+            $quoteCurrency[$trade['instrument_id']] ??= $trade['instrument_currency'];
         }
         $investments = [];
         $prices = [];
@@ -73,17 +81,53 @@ class NetWorthReportService
                 continue;
             }
             $investments[] = $instrumentRow;
-            $prices[] = $row($instrumentId, $names[$instrumentId][0], $names[$instrumentId][1], $this->priceOn($values->prices[$instrumentId] ?? []));
+            $prices[] = $row($instrumentId, $names[$instrumentId][0], $names[$instrumentId][1], $this->priceOn($values->prices[$instrumentId] ?? []), $quoteCurrency[$instrumentId]);
         }
         $lastIndex = $this->lastIndex($months, $previousMonths);
         usort($investments, static fn (NetWorthRowResponse $a, NetWorthRowResponse $b) => bccomp(self::at($b, $lastIndex), self::at($a, $lastIndex), 4) ?: strcasecmp((string) $a->name, (string) $b->name));
         $order = array_flip(array_map(static fn (NetWorthRowResponse $r) => $r->id, $investments));
         usort($prices, static fn (NetWorthRowResponse $a, NetWorthRowResponse $b) => $order[$a->id] <=> $order[$b->id]);
 
-        [$saved, $market] = $this->changes($user, $values, $months, $previousMonths, $previousOpening);
+        [$saved, $market, $exchange] = $this->changes($user, $values, $months, $previousMonths, $previousOpening);
+
+        // What 1 unit of each other currency in play was worth in the user's, at each month's end.
+        $others = array_values(array_unique(array_filter(
+            [...array_values($values->currencyByAccount), ...array_values($quoteCurrency)],
+            static fn (?string $code) => $code !== null && $code !== $values->currency,
+        )));
+        sort($others);
+        $rates = array_map(
+            fn (string $code) => $row($code, $code, null, static fn (string $day) => ($rate = $values->rates->rate($code, $values->currency, $day)) !== null ? bcadd($rate, '0', 6) : null, $code),
+            $others,
+        );
+
+        // The net worth by currency: cash by its account's, what is held by the one it is quoted in.
+        $byCurrency = [];
+        if ($others !== []) {
+            foreach (array_unique([$values->currency, ...$others]) as $code) {
+                $byCurrency[] = $row($code, $code, null, function (string $day) use ($values, $code, $quoteCurrency): string {
+                    $sum = '0';
+                    foreach ($values->accounts as $account) {
+                        $id = $account->getId()->toRfc4122();
+                        $own = $account->getCurrency()?->getCode();
+                        if ($own === $code) {
+                            $sum = bcadd($sum, $values->inUserCurrency($values->cashOn($id, $day), $own, $day), 4);
+                        }
+                    }
+                    foreach ($values->valueByInstrument as $instrumentId => $instrumentValues) {
+                        if (($quoteCurrency[$instrumentId] ?? null) === $code) {
+                            $sum = bcadd($sum, $instrumentValues[$day] ?? '0', 4);
+                        }
+                    }
+
+                    return $sum;
+                }, $code);
+            }
+            $byCurrency = array_values(array_filter($byCurrency, $this->isEverNonZero(...)));
+        }
 
         return new NetWorthReportResponse(
-            currencySymbol: ($values->accounts[0] ?? null)?->getCurrency()?->getSymbol(),
+            currencySymbol: $this->currencies->symbolOf($values->currency),
             year: $year,
             firstYear: min($year, $firstTransaction !== null ? (int) $firstTransaction->format('Y') : $currentYear),
             currentYear: $currentYear,
@@ -95,16 +139,26 @@ class NetWorthReportService
             saved: $saved,
             market: $market,
             prices: $prices,
+            exchange: $exchange,
+            rates: $rates,
+            currencies: $byCurrency,
         );
     }
 
     /**
-     * What was saved (income - expenses) and what the market did (change in
-     * the value held - money put in, fees and taxes included) each month.
+     * What was saved (income - expenses), what the market did (the change in
+     * the value held - money put in, fees and taxes included) and what the
+     * exchange rates did, each month, all in the user's currency.
+     *
+     * Saved and money put in are valued at the day they happened, and a
+     * holding's change day by day at that day's rate: what is left of the
+     * change in net worth, once those are counted, is the exchange effect: what
+     * the opening value and each day's change gained or lost between that day's
+     * rate and the month's end. With one currency it is nothing.
      *
      * @param NetWorthMonthResponse[] $months
      * @param NetWorthMonthResponse[] $previousMonths
-     * @return array{0: NetWorthRowResponse, 1: NetWorthRowResponse}
+     * @return array{0: NetWorthRowResponse, 1: NetWorthRowResponse, 2: NetWorthRowResponse}
      */
     private function changes(User $user, AssetValues $values, array $months, array $previousMonths, string $previousOpening): array
     {
@@ -126,41 +180,71 @@ class NetWorthReportService
             $sum = '0';
             foreach ($values->trades as $trade) {
                 if ($trade['day'] > $after && $trade['day'] <= $until) {
-                    $sum = bcadd($sum, $trade['type'] === InvestmentTransactionType::Buy->value
-                        ? bcadd($trade['amount'], $trade['costs'], 4)
-                        : bcsub('0', bcsub($trade['amount'], $trade['costs'], 4), 4), 4);
+                    $contribution = TradeCashEffect::contribution($trade['type'], $trade['amount'], $trade['costs']);
+                    $sum = bcadd($sum, $values->inUserCurrency($contribution, $trade['account_currency'] ?? null, $trade['day']), 4);
                 }
             }
 
             return $sum;
         };
 
-        /** @return array{0: array<?string>, 1: array<?string>} */
-        $series = function (array $months, string $opening) use ($values, $savedByMonth, $contributed): array {
+        /**
+         * What each holding changed by day by day, valued at that day's rate,
+         * between two days: everything, and the investments alone.
+         *
+         * @return array{0: string, 1: string} [all, investments]
+         */
+        $localChanges = function (string $after, string $until) use ($values): array {
+            $all = '0';
+            $invested = '0';
+            foreach ($values->accounts as $account) {
+                $id = $account->getId()->toRfc4122();
+                $own = $account->getCurrency()?->getCode();
+                $previousValue = $values->valueOn($id, $after);
+                $previousInvested = $values->investedOn($id, $after);
+                for ($day = (new \DateTimeImmutable($after))->modify('+1 day'); ($key = $day->format('Y-m-d')) <= $until; $day = $day->modify('+1 day')) {
+                    $rate = $values->rateOf($own, $key);
+                    $value = $values->valueOn($id, $key);
+                    $investedNow = $values->investedOn($id, $key);
+                    $all = bcadd($all, bcmul(bcsub($value, $previousValue, 4), $rate, 10), 10);
+                    $invested = bcadd($invested, bcmul(bcsub($investedNow, $previousInvested, 4), $rate, 10), 10);
+                    [$previousValue, $previousInvested] = [$value, $investedNow];
+                }
+            }
+
+            return [$all, $invested];
+        };
+
+        /** @return array{0: array<?string>, 1: array<?string>, 2: array<?string>} */
+        $series = function (array $months, string $opening) use ($values, $savedByMonth, $contributed, $localChanges): array {
             $saved = [];
             $market = [];
+            $exchange = [];
             $previousDate = $opening;
             foreach ($months as $month) {
                 if ($month->date === null) {
                     $saved[] = null;
                     $market[] = null;
+                    $exchange[] = null;
                     continue;
                 }
+                [$all, $invested] = $localChanges($previousDate, $month->date);
                 $saved[] = bcadd($savedByMonth[$month->month] ?? '0', '0', 4);
-                $change = bcsub($values->investmentsOn($month->date), $values->investmentsOn($previousDate), 4);
-                $market[] = bcsub($change, $contributed($previousDate, $month->date), 4);
+                $market[] = bcadd(bcsub($invested, $contributed($previousDate, $month->date), 10), '0', 4);
+                $exchange[] = bcadd(bcsub(bcsub($values->netWorthOn($month->date), $values->netWorthOn($previousDate), 4), $all, 10), '0', 4);
                 $previousDate = $month->date;
             }
 
-            return [$saved, $market];
+            return [$saved, $market, $exchange];
         };
 
-        [$savedPrevious, $marketPrevious] = $series($previousMonths, $previousOpening);
-        [$savedValues, $marketValues] = $series($months, end($previousMonths)->date ?? $previousOpening);
+        [$savedPrevious, $marketPrevious, $exchangePrevious] = $series($previousMonths, $previousOpening);
+        [$savedValues, $marketValues, $exchangeValues] = $series($months, end($previousMonths)->date ?? $previousOpening);
 
         return [
             new NetWorthRowResponse(null, null, null, $savedValues, $savedPrevious, null),
             new NetWorthRowResponse(null, null, null, $marketValues, $marketPrevious, null),
+            new NetWorthRowResponse(null, null, null, $exchangeValues, $exchangePrevious, null),
         ];
     }
 
@@ -204,13 +288,7 @@ class NetWorthReportService
     private function priceOn(array $priceByDate): callable
     {
         return static function (string $day) use ($priceByDate): ?string {
-            $price = null;
-            foreach ($priceByDate as $date => $value) {
-                if ($date > $day) {
-                    break;
-                }
-                $price = $value;
-            }
+            $price = PriceSeries::onOrBefore($priceByDate, $day);
 
             return $price !== null ? bcadd($price, '0', 4) : null;
         };
