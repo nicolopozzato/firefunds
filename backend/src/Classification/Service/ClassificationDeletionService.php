@@ -5,6 +5,8 @@ namespace App\Classification\Service;
 use App\Classification\DTO\ClassificationDeletionPreviewResponse;
 use App\Entity\Category;
 use App\Entity\Tag;
+use App\Recurring\Service\RecurringAuditLogService;
+use App\Repository\RecurringTransactionRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\Service\TransactionAuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -12,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Deleting a category or tag never removes it: it is marked as deleted (kept
  * for history) and taken off every transaction it was set on, each change
- * recorded in that transaction's audit log.
+ * recorded in that transaction's audit log; recurring transactions lose it too.
  */
 class ClassificationDeletionService
 {
@@ -20,6 +22,8 @@ class ClassificationDeletionService
         private readonly EntityManagerInterface $entityManager,
         private readonly TransactionRepository $transactionRepository,
         private readonly TransactionAuditLogService $auditLog,
+        private readonly RecurringTransactionRepository $recurringRepository,
+        private readonly RecurringAuditLogService $recurringAuditLog,
     ) {
     }
 
@@ -35,6 +39,12 @@ class ClassificationDeletionService
                 $before = $this->auditLog->snapshot($transaction);
                 $transaction->setCategory(null);
                 $this->auditLog->logUpdated($transaction, $transaction->getUser(), $before);
+            }
+
+            foreach ($this->recurringRepository->findByCategory($category) as $recurring) {
+                $before = $this->recurringAuditLog->snapshot($recurring);
+                $recurring->setCategory(null);
+                $this->recurringAuditLog->logUpdated($recurring, $recurring->getUser(), $before);
             }
 
             $category->markDeleted();
@@ -53,6 +63,12 @@ class ClassificationDeletionService
                 $before = $this->auditLog->snapshot($transaction);
                 $transaction->removeTag($tag);
                 $this->auditLog->logUpdated($transaction, $transaction->getUser(), $before);
+            }
+
+            foreach ($this->recurringRepository->findByTag($tag) as $recurring) {
+                $before = $this->recurringAuditLog->snapshot($recurring);
+                $recurring->removeTag($tag);
+                $this->recurringAuditLog->logUpdated($recurring, $recurring->getUser(), $before);
             }
 
             $tag->markDeleted();

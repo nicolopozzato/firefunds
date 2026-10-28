@@ -1,14 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { useDeleteInvestmentInstrument, useInstrumentDeletionPreview } from '@/hooks/use-investments'
 import { handleApiError } from '@/lib/error-handler'
 import type { InvestmentInstrument } from '@/types/investment'
@@ -44,34 +36,23 @@ export default function DeleteInstrumentDialog({ instrument, onClose, onDeleted 
   }
 
   return (
-    <Dialog open={!!instrument} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('investmentInstruments.deleteConfirmTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('investmentInstruments.deleteConfirmDescription', { name: instrument?.name })}
-          </DialogDescription>
-        </DialogHeader>
-
-        {inUse && preview && (
-          <div className="space-y-2 text-sm">
-            <ul className="list-disc space-y-1 pl-5">
-              <li>{t('accountsCommon.deleteInvestmentTransactionsCount', { count: preview.investmentTransactions })}</li>
-              {preview.openPositions > 0 && <li>{t('accountsCommon.deleteOpenPositionsCount', { count: preview.openPositions })}</li>}
-            </ul>
-            <p className="text-muted-foreground">{t('investmentInstruments.deleteInUseWarning')}</p>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={isLoading || !preview || deleteInstrument.isPending}>
-            {t('common.delete')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={!!instrument}
+      onOpenChange={(open) => !open && onClose()}
+      title={t('investmentInstruments.deleteConfirmTitle')}
+      description={t('investmentInstruments.deleteConfirmDescription', { name: instrument?.name })}
+      onConfirm={handleConfirm}
+      pending={isLoading || !preview || deleteInstrument.isPending}
+    >
+      {inUse && preview && (
+        <div className="space-y-2 text-sm">
+          <ul className="list-disc space-y-1 pl-5">
+            <li>{t('accountsCommon.deleteInvestmentTransactionsCount', { count: preview.investmentTransactions })}</li>
+            {preview.openPositions > 0 && <li>{t('accountsCommon.deleteOpenPositionsCount', { count: preview.openPositions })}</li>}
+          </ul>
+          <p className="text-muted-foreground">{t('investmentInstruments.deleteInUseWarning')}</p>
+        </div>
+      )}
+    </ConfirmDialog>
   )
 }

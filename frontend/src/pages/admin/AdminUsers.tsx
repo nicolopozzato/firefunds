@@ -31,6 +31,7 @@ import { useIsMobile } from '@/hooks/use-media-query'
 import { handleApiError } from '@/lib/error-handler'
 import { cn, formatDateTime } from '@/lib/utils'
 import type { AdminUser } from '@/types/admin'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface UserAction {
   label: string
@@ -108,7 +109,6 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <AdminTabs />
       <PageHeader
         title={t('admin.users.title')}
         description={t('admin.users.description')}
@@ -119,9 +119,10 @@ export default function AdminUsers() {
           </Button>
         }
       />
+      <AdminTabs />
 
       {isLoading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">{t('common.loading')}</div>
+        <Skeleton className="h-48 w-full rounded-xl" />
       ) : isMobile ? (
         <MobileListCard>
           {users?.map((user) => (
@@ -141,8 +142,8 @@ export default function AdminUsers() {
           ))}
         </MobileListCard>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -224,7 +225,7 @@ export default function AdminUsers() {
             </DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
-            <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+            <div className="divide-y overflow-hidden surface">
               {menuFor &&
                 actionsFor(menuFor).map((action) => (
                   <button

@@ -84,15 +84,18 @@ export function areAmountsHidden(): boolean {
   return amountsHidden
 }
 
+/** Between an amount and its symbol: a space that never breaks, so "€" doesn't wrap onto a line of its own. */
+const SYMBOL_SPACE = '\u00a0'
+
 /** An amount without decimals, for chart axes: "7.550 €". */
 export function formatWholeMoney(amount: number, symbol: string | null | undefined): string {
   const formatted = amountsHidden ? AMOUNT_MASK : numberFormatter({ maximumFractionDigits: 0 }).format(amount)
-  return symbol ? `${formatted} ${symbol}` : formatted
+  return symbol ? `${formatted}${SYMBOL_SPACE}${symbol}` : formatted
 }
 
 export function formatMoney(amount: number | string, symbol?: string | null): string {
   const shown = symbol === undefined ? defaultSymbol : symbol
-  if (amountsHidden) return shown ? `${AMOUNT_MASK} ${shown}` : AMOUNT_MASK
+  if (amountsHidden) return shown ? `${AMOUNT_MASK}${SYMBOL_SPACE}${shown}` : AMOUNT_MASK
   const value = typeof amount === 'string' ? Number(amount) : amount
   const formatted = numberFormatter({
     minimumFractionDigits: 2,
@@ -100,7 +103,7 @@ export function formatMoney(amount: number | string, symbol?: string | null): st
   }).format(Math.abs(value))
 
   const sign = value < 0 ? '-' : ''
-  return shown ? `${sign}${formatted} ${shown}` : `${sign}${formatted}`
+  return shown ? `${sign}${formatted}${SYMBOL_SPACE}${shown}` : `${sign}${formatted}`
 }
 
 /** An exchange rate: "0,9091", at most 8 decimals. */
@@ -188,7 +191,7 @@ export function deviceTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
-function dateLocale(): string {
+export function dateLocale(): string {
   return i18n.language?.startsWith('it') ? 'it-IT' : 'en-US'
 }
 
@@ -196,6 +199,15 @@ export function formatDateTime(date: string | Date): string {
   return new Intl.DateTimeFormat(dateLocale(), {
     year: 'numeric',
     month: 'long',
+    day: 'numeric',
+  }).format(parseDate(date))
+}
+
+/** A day in a table cell, short so it stays on one line: "28 ott 2026". */
+export function formatShortDate(date: string | Date): string {
+  return new Intl.DateTimeFormat(dateLocale(), {
+    year: 'numeric',
+    month: 'short',
     day: 'numeric',
   }).format(parseDate(date))
 }

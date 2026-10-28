@@ -31,14 +31,12 @@ class UserPreferencesTest extends WebTestCaseBase
     public function testDefaultsAndSavedValues(): void
     {
         $me = $this->send('GET', '/api/auth/me');
-        $this->assertSame('blue', $me['colorScheme']);
         $this->assertSame('dashboard', $me['startPage']);
         $this->assertSame('last', $me['startPeriod']);
         $this->assertNull($me['defaultAccountId']);
         $this->assertSame(['summary', 'trend', 'expensesByCategory', 'expenseAccounts', 'revenueAccounts', 'accounts'], array_column($me['dashboardSections'], 'key'));
 
         $saved = $this->send('PUT', '/api/auth/me/preferences', self::BASE + [
-            'colorScheme' => 'violet',
             'density' => 'compact',
             'startPage' => 'investments',
             'startPeriod' => 'currentYear',
@@ -50,7 +48,6 @@ class UserPreferencesTest extends WebTestCaseBase
             ],
         ]);
         $this->assertResponseIsSuccessful();
-        $this->assertSame('violet', $saved['colorScheme']);
         $this->assertSame('compact', $saved['density']);
         $this->assertSame('investments', $saved['dashboardTrendView']);
         $this->assertSame(
@@ -62,7 +59,7 @@ class UserPreferencesTest extends WebTestCaseBase
 
         $this->send('PUT', '/api/auth/me/preferences', self::BASE);
         $me = $this->send('GET', '/api/auth/me');
-        $this->assertSame('violet', $me['colorScheme'], 'left out = unchanged');
+        $this->assertSame('compact', $me['density'], 'left out = unchanged');
         $this->assertSame('currentYear', $me['startPeriod']);
 
         // One preference alone: the others stay as they are.
@@ -71,12 +68,12 @@ class UserPreferencesTest extends WebTestCaseBase
         $me = $this->send('GET', '/api/auth/me');
         $this->assertSame('dark', $me['theme']);
         $this->assertSame('it', $me['locale']);
-        $this->assertSame('violet', $me['colorScheme']);
+        $this->assertSame('compact', $me['density']);
     }
 
     public function testUnknownChoicesAreRejected(): void
     {
-        $this->send('PUT', '/api/auth/me/preferences', self::BASE + ['colorScheme' => 'green']);
+        $this->send('PUT', '/api/auth/me/preferences', self::BASE + ['density' => 'huge']);
         $this->assertResponseStatusCodeSame(422);
 
         $this->send('PUT', '/api/auth/me/preferences', self::BASE + ['dashboardSections' => [['key' => 'budget', 'visible' => true]]]);

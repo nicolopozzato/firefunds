@@ -14,10 +14,12 @@ use App\Account\DTO\AccountValueHistoryPointResponse;
 use App\Account\DTO\BalancePointResponse;
 use App\Account\DTO\CreateAccountRequest;
 use App\Account\DTO\MoveAccountRequest;
+use App\Account\DTO\ReconcileAccountRequest;
 use App\Account\DTO\UpdateAccountRequest;
 use App\Account\DTO\DeleteAccountQuery;
 use App\Account\Service\AccountDeletionService;
 use App\Account\Service\AccountService;
+use App\Account\Service\AccountReconciliation;
 use App\Account\Service\AssetValueHistory;
 use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
@@ -53,6 +55,7 @@ class AccountController extends AbstractController
         private readonly AccountAdjustmentRepository $accountAdjustmentRepository,
         private readonly AccountAuditLogRepository $accountAuditLogRepository,
         private readonly AssetValueHistory $assetValueHistory,
+        private readonly AccountReconciliation $accountReconciliation,
     ) {
     }
 
@@ -198,6 +201,24 @@ class AccountController extends AbstractController
     /**
      * What deleting this account would affect, for the confirmation dialog.
      */
+    /**
+     * The bank's balance at the end of a day: the account is marked as
+     * checked when it matches, else 409 (`reconciliation_difference`) unless
+     * the difference is to be recorded (`settle`). See AccountReconciliation.
+     */
+    #[Route('/{id}/reconcile', name: 'api_accounts_reconcile', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function reconcile(string $id, #[MapRequestPayload] ReconcileAccountRequest $request): JsonResponse
+    {
+        $account = $this->findOwnedAccount($id);
+        $result = $this->accountReconciliation->reconcile($account, $request);
+
+        return $this->json([
+            'difference' => $result['difference'],
+            'transactionId' => $result['transaction']?->getId()?->toRfc4122(),
+            'account' => $this->toResponse($account),
+        ]);
+    }
+
     #[Route('/{id}/deletion-preview', name: 'api_accounts_deletion_preview', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function deletionPreview(string $id): JsonResponse
     {

@@ -1,210 +1,23 @@
 /**
- * Theme Configuration System
- *
- * Colour schemes (the primary colour) in light and dark mode, applied as the
- * CSS variables Tailwind's tokens read (bg-background, text-positive…).
- * Dark mode is "graphite": near-black neutral surfaces shared by every scheme,
- * each scheme only bringing its primary colour.
+ * Theme: light and dark mode, applied as the CSS variables Tailwind's tokens
+ * read (bg-background, text-positive…). One accent colour (blue) for
+ * everyone. Light mode is a soft grey page with white cards; dark mode is
+ * "graphite": near-black neutral surfaces.
  */
 
-export type ColorScheme = 'blue' | 'violet' | 'rose' | 'orange' | 'neutral' | 'zinc'
 export type ThemeMode = 'light' | 'dark'
 /** The user's choice (User::theme): a mode, or whatever the device uses. */
 export type ThemePreference = ThemeMode | 'system'
 export type Density = 'compact' | 'comfortable' | 'spacious'
 
-/** The schemes the user can pick (Preferences): "neutral" is too close to "zinc" to offer both. */
-export const PICKABLE_COLOR_SCHEMES: ColorScheme[] = ['blue', 'violet', 'rose', 'orange', 'zinc']
 export const DENSITIES: Density[] = ['compact', 'comfortable', 'spacious']
 
-/** A scheme's primary colour, and the colour drawn on it, in a mode: for a swatch. */
-export function schemeSwatch(scheme: ColorScheme, mode: ThemeMode): { background: string; foreground: string } {
-  const colors = mode === 'dark' ? DARK_PRIMARY[scheme] : colorSchemes[scheme].light
-  return { background: `hsl(${colors.primary})`, foreground: `hsl(${colors.primaryForeground})` }
-}
-
 export interface ThemeConfig {
-  colorScheme: ColorScheme
   mode: ThemeMode
   density: Density
 }
 
-/**
- * Color scheme definitions using HSL format
- * Each color scheme can have light and dark mode variants
- */
-export const colorSchemes: Record<ColorScheme, { light: ColorSchemeColors }> = {
-  blue: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '222.2 47.4% 11.2%',
-      card: '0 0% 100%',
-      cardForeground: '222.2 47.4% 11.2%',
-      popover: '0 0% 100%',
-      popoverForeground: '222.2 47.4% 11.2%',
-      primary: '221.2 83.2% 53.3%',
-      primaryForeground: '210 40% 98%',
-      secondary: '210 40% 96.1%',
-      secondaryForeground: '222.2 47.4% 11.2%',
-      muted: '210 40% 96.1%',
-      mutedForeground: '215.4 16.3% 46.9%',
-      accent: '210 40% 96.1%',
-      accentForeground: '222.2 47.4% 11.2%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '210 40% 98%',
-      border: '214.3 31.8% 91.4%',
-      input: '214.3 31.8% 91.4%',
-      ring: '221.2 83.2% 53.3%',
-      chart1: '221.2 83.2% 53.3%',
-      chart2: '212 95% 68%',
-      chart3: '216 92% 60%',
-      chart4: '210 98% 78%',
-      chart5: '212 97% 87%',
-    },
-  },
-  violet: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '222.2 47.4% 11.2%',
-      card: '0 0% 100%',
-      cardForeground: '222.2 47.4% 11.2%',
-      popover: '0 0% 100%',
-      popoverForeground: '222.2 47.4% 11.2%',
-      primary: '262.1 83.3% 57.8%',
-      primaryForeground: '210 40% 98%',
-      secondary: '270 40% 96.1%',
-      secondaryForeground: '222.2 47.4% 11.2%',
-      muted: '270 40% 96.1%',
-      mutedForeground: '215.4 16.3% 46.9%',
-      accent: '270 40% 96.1%',
-      accentForeground: '222.2 47.4% 11.2%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '210 40% 98%',
-      border: '214.3 31.8% 91.4%',
-      input: '214.3 31.8% 91.4%',
-      ring: '262.1 83.3% 57.8%',
-      chart1: '262.1 83.3% 57.8%',
-      chart2: '270 95% 75%',
-      chart3: '265 92% 70%',
-      chart4: '270 98% 85%',
-      chart5: '270 97% 90%',
-    },
-  },
-  rose: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '222.2 47.4% 11.2%',
-      card: '0 0% 100%',
-      cardForeground: '222.2 47.4% 11.2%',
-      popover: '0 0% 100%',
-      popoverForeground: '222.2 47.4% 11.2%',
-      primary: '346.8 77.2% 49.8%',
-      primaryForeground: '210 40% 98%',
-      secondary: '350 40% 96.1%',
-      secondaryForeground: '222.2 47.4% 11.2%',
-      muted: '350 40% 96.1%',
-      mutedForeground: '215.4 16.3% 46.9%',
-      accent: '350 40% 96.1%',
-      accentForeground: '222.2 47.4% 11.2%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '210 40% 98%',
-      border: '214.3 31.8% 91.4%',
-      input: '214.3 31.8% 91.4%',
-      ring: '346.8 77.2% 49.8%',
-      chart1: '346.8 77.2% 49.8%',
-      chart2: '350 95% 71%',
-      chart3: '348 92% 65%',
-      chart4: '350 98% 80%',
-      chart5: '350 97% 88%',
-    },
-  },
-  orange: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '222.2 47.4% 11.2%',
-      card: '0 0% 100%',
-      cardForeground: '222.2 47.4% 11.2%',
-      popover: '0 0% 100%',
-      popoverForeground: '222.2 47.4% 11.2%',
-      primary: '24.6 95% 53.1%',
-      primaryForeground: '210 40% 98%',
-      secondary: '25 40% 96.1%',
-      secondaryForeground: '222.2 47.4% 11.2%',
-      muted: '25 40% 96.1%',
-      mutedForeground: '215.4 16.3% 46.9%',
-      accent: '25 40% 96.1%',
-      accentForeground: '222.2 47.4% 11.2%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '210 40% 98%',
-      border: '214.3 31.8% 91.4%',
-      input: '214.3 31.8% 91.4%',
-      ring: '24.6 95% 53.1%',
-      chart1: '24.6 95% 53.1%',
-      chart2: '25 95% 68%',
-      chart3: '20 92% 60%',
-      chart4: '25 98% 78%',
-      chart5: '25 97% 87%',
-    },
-  },
-  neutral: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '0 0% 3.9%',
-      card: '0 0% 100%',
-      cardForeground: '0 0% 3.9%',
-      popover: '0 0% 100%',
-      popoverForeground: '0 0% 3.9%',
-      primary: '0 0% 9%',
-      primaryForeground: '0 0% 98%',
-      secondary: '0 0% 96.1%',
-      secondaryForeground: '0 0% 9%',
-      muted: '0 0% 96.1%',
-      mutedForeground: '0 0% 45.1%',
-      accent: '0 0% 96.1%',
-      accentForeground: '0 0% 9%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '0 0% 98%',
-      border: '0 0% 89.8%',
-      input: '0 0% 89.8%',
-      ring: '0 0% 3.9%',
-      chart1: '0 0% 9%',
-      chart2: '0 0% 30%',
-      chart3: '0 0% 50%',
-      chart4: '0 0% 70%',
-      chart5: '0 0% 85%',
-    },
-  },
-  zinc: {
-    light: {
-      background: '0 0% 100%',
-      foreground: '240 10% 3.9%',
-      card: '0 0% 100%',
-      cardForeground: '240 10% 3.9%',
-      popover: '0 0% 100%',
-      popoverForeground: '240 10% 3.9%',
-      primary: '240 5.9% 10%',
-      primaryForeground: '0 0% 98%',
-      secondary: '240 4.8% 95.9%',
-      secondaryForeground: '240 5.9% 10%',
-      muted: '240 4.8% 95.9%',
-      mutedForeground: '240 3.8% 46.1%',
-      accent: '240 4.8% 95.9%',
-      accentForeground: '240 5.9% 10%',
-      destructive: '0 84.2% 60.2%',
-      destructiveForeground: '0 0% 98%',
-      border: '240 5.9% 90%',
-      input: '240 5.9% 90%',
-      ring: '240 5.9% 10%',
-      chart1: '240 5.9% 10%',
-      chart2: '240 5% 30%',
-      chart3: '240 5% 50%',
-      chart4: '240 5% 70%',
-      chart5: '240 5% 85%',
-    },
-  },
-}
-
-export interface ColorSchemeColors {
+export interface SurfaceColors {
   background: string
   foreground: string
   card: string
@@ -224,46 +37,53 @@ export interface ColorSchemeColors {
   border: string
   input: string
   ring: string
-  chart1: string
-  chart2: string
-  chart3: string
-  chart4: string
-  chart5: string
 }
 
-/** Dark surfaces, the same whatever the colour scheme ("graphite"). */
-const GRAPHITE: Omit<ColorSchemeColors, 'primary' | 'primaryForeground' | 'ring'> = {
-  background: '240 8% 5%',
-  foreground: '240 6% 93%',
-  card: '240 7% 8%',
-  cardForeground: '240 6% 93%',
-  popover: '240 6% 10%',
-  popoverForeground: '240 6% 93%',
-  secondary: '240 5% 15%',
-  secondaryForeground: '240 6% 93%',
-  muted: '240 5% 14%',
-  mutedForeground: '240 5% 62%',
-  accent: '240 5% 16%',
-  accentForeground: '240 6% 93%',
-  destructive: '0 70% 52%',
-  destructiveForeground: '0 0% 98%',
-  border: '240 5% 17%',
-  input: '240 5% 19%',
-  chart1: '240 5% 90%',
-  chart2: '240 5% 70%',
-  chart3: '240 5% 50%',
-  chart4: '240 5% 35%',
-  chart5: '240 5% 22%',
-}
-
-/** Each scheme's primary colour on dark surfaces: a touch lighter, to keep its contrast. */
-const DARK_PRIMARY: Record<ColorScheme, Pick<ColorSchemeColors, 'primary' | 'primaryForeground' | 'ring'>> = {
-  blue: { primary: '217 91% 60%', primaryForeground: '0 0% 100%', ring: '217 91% 60%' },
-  violet: { primary: '263 75% 66%', primaryForeground: '0 0% 100%', ring: '263 75% 66%' },
-  rose: { primary: '346 80% 62%', primaryForeground: '0 0% 100%', ring: '346 80% 62%' },
-  orange: { primary: '24 92% 56%', primaryForeground: '240 8% 5%', ring: '24 92% 56%' },
-  neutral: { primary: '0 0% 92%', primaryForeground: '240 8% 5%', ring: '0 0% 70%' },
-  zinc: { primary: '240 5% 92%', primaryForeground: '240 8% 5%', ring: '240 5% 70%' },
+const SURFACES: Record<ThemeMode, SurfaceColors> = {
+  // Neutral greys with a hint of blue-violet (zinc), not shadcn's slate:
+  // the page a step darker than the cards, so cards stand out without shadows.
+  light: {
+    background: '240 7% 97%',
+    foreground: '240 10% 9%',
+    card: '0 0% 100%',
+    cardForeground: '240 10% 9%',
+    popover: '0 0% 100%',
+    popoverForeground: '240 10% 9%',
+    primary: '221 83% 53%',
+    primaryForeground: '0 0% 100%',
+    secondary: '240 6% 94%',
+    secondaryForeground: '240 10% 9%',
+    muted: '240 6% 95%',
+    mutedForeground: '240 4% 43%',
+    accent: '240 6% 94%',
+    accentForeground: '240 10% 9%',
+    destructive: '0 72% 51%',
+    destructiveForeground: '0 0% 100%',
+    border: '240 6% 90%',
+    input: '240 6% 86%',
+    ring: '221 83% 53%',
+  },
+  dark: {
+    background: '240 8% 5%',
+    foreground: '240 6% 93%',
+    card: '240 7% 8%',
+    cardForeground: '240 6% 93%',
+    popover: '240 6% 10%',
+    popoverForeground: '240 6% 93%',
+    primary: '217 91% 60%',
+    primaryForeground: '0 0% 100%',
+    secondary: '240 5% 15%',
+    secondaryForeground: '240 6% 93%',
+    muted: '240 5% 14%',
+    mutedForeground: '240 5% 62%',
+    accent: '240 5% 16%',
+    accentForeground: '240 6% 93%',
+    destructive: '0 70% 52%',
+    destructiveForeground: '0 0% 98%',
+    border: '240 5% 17%',
+    input: '240 5% 21%',
+    ring: '217 91% 60%',
+  },
 }
 
 /**
@@ -325,11 +145,8 @@ const SEMANTIC: Record<ThemeMode, SemanticColors> = {
   },
 }
 
-function paletteFor(config: ThemeConfig): ColorSchemeColors & SemanticColors {
-  const scheme = config.mode === 'dark'
-    ? { ...GRAPHITE, ...DARK_PRIMARY[config.colorScheme] }
-    : colorSchemes[config.colorScheme].light
-  return { ...scheme, ...SEMANTIC[config.mode] }
+function paletteFor(config: ThemeConfig): SurfaceColors & SemanticColors {
+  return { ...SURFACES[config.mode], ...SEMANTIC[config.mode] }
 }
 
 /** The mode on screen, for the few components that can't follow the CSS variables (toasts). */
@@ -398,14 +215,14 @@ export function getTheme(): ThemeConfig {
   const stored = localStorage.getItem('theme-config')
   if (stored) {
     try {
-      return JSON.parse(stored)
+      const { mode, density } = JSON.parse(stored)
+      return { mode: mode === 'dark' ? 'dark' : 'light', density: DENSITIES.includes(density) ? density : 'comfortable' }
     } catch {
       // Fall through to default
     }
   }
 
   return {
-    colorScheme: 'blue',
     mode: 'light',
     density: 'comfortable',
   }
@@ -443,23 +260,21 @@ export function resolveThemeMode(preference: ThemePreference): ThemeMode {
 }
 
 /**
- * Applies a preference (and remembers it, with the user's colour scheme and
- * density when given); "system" is followed live by useApplyThemePreference.
+ * Applies a preference (and remembers it, with the user's density when
+ * given); "system" is followed live by useApplyThemePreference.
  */
 export function applyThemePreference(
   preference: ThemePreference,
-  appearance: Partial<Pick<ThemeConfig, 'colorScheme' | 'density'>> = {}
+  appearance: Partial<Pick<ThemeConfig, 'density'>> = {}
 ): void {
   try {
     localStorage.setItem(PREFERENCE_KEY, preference)
   } catch {
     // Not remembered: it still applies now.
   }
-  const colorScheme = appearance.colorScheme && appearance.colorScheme in colorSchemes ? appearance.colorScheme : undefined
   const density = appearance.density && DENSITIES.includes(appearance.density) ? appearance.density : undefined
   saveTheme({
     ...getTheme(),
-    ...(colorScheme && { colorScheme }),
     ...(density && { density }),
     mode: resolveThemeMode(preference),
   })

@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bell, CalendarClock, DatabaseBackup, LogOut, Settings, ShieldCheck, User as UserIcon, Users } from 'lucide-react'
+import { CalendarClock, DatabaseBackup, LogOut, Settings, ShieldCheck, User as UserIcon, Users } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { getFullName } from '@/types/auth'
@@ -43,10 +44,7 @@ export default function Header() {
         <QuickAddButton />
         <HideAmountsButton />
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

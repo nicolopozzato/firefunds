@@ -49,7 +49,7 @@ export default function HistoryCard({
       <details className="group">
         <summary
           className={cn(
-            'flex cursor-pointer list-none items-center gap-2 p-6 text-sm font-medium text-muted-foreground max-md:p-4 [&::-webkit-details-marker]:hidden',
+            'flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-medium text-muted-foreground sm:p-5 [&::-webkit-details-marker]:hidden',
             flush && 'max-md:px-0'
           )}
         >
@@ -70,6 +70,8 @@ export default function HistoryCard({
                   </div>
                   {entry.action === 'created' ? (
                     <div className="text-sm">{createdLabel}</div>
+                  ) : entry.action === 'deleted' || entry.action === 'restored' ? (
+                    <div className="text-sm">{t(`history.${entry.action}`)}</div>
                   ) : (
                     <ul className="space-y-1">
                       {(entry.changes ?? []).map((change, index) => (

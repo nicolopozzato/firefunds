@@ -22,20 +22,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { useClassificationDeletionPreview, useClassificationList, useDeleteClassification } from '@/hooks/use-classification'
 import { handleApiError } from '@/lib/error-handler'
 import type { ClassificationResource } from '@/lib/classification-api'
 import type { Classification } from '@/types/classification'
 import EmptyValue from '@/components/EmptyValue'
+import DateWithTime from '@/components/DateWithTime'
+import { MobileListCard, MobileListSkeleton } from '@/components/MobileList'
+import { useIsMobile } from '@/hooks/use-media-query'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface ClassificationTableProps {
   resource: ClassificationResource
@@ -56,6 +53,7 @@ export default function ClassificationTable({
 }: ClassificationTableProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { page, setPage } = useListPage()
   const { data, isLoading, isPlaceholderData } = useClassificationList(resource, page)
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
@@ -74,6 +72,26 @@ export default function ClassificationTable({
     }
   }
 
+  const actionsMenu = (item: Classification) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={t('common.moreActions')}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => navigate(`${basePath}/${item.id}/edit`)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          {t('common.edit')}
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setItemToDelete(item)}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          {t('common.delete')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -91,122 +109,111 @@ export default function ClassificationTable({
         }
       />
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('classificationCommon.name')}</TableHead>
-                  <TableHead>{t('classificationCommon.notes')}</TableHead>
-                  <TableHead className="text-right">{t('classificationCommon.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableSkeleton
-                columns={[
-                  { skeletonClassName: 'w-40' },
-                  { skeletonClassName: 'w-56' },
-                  { cellClassName: 'text-right', skeletonClassName: 'ml-auto h-8 w-8 rounded-full' },
-                ]}
-              />
-            </Table>
-          ) : !items || items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Plus className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{emptyTitle}</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                {emptyDescription}
-              </p>
-              <Button onClick={() => navigate(`${basePath}/new`)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t('classificationCommon.add')}
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('classificationCommon.name')}</TableHead>
-                  <TableHead>{t('classificationCommon.notes')}</TableHead>
-                  <TableHead className="text-right">{t('classificationCommon.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.notes ?? <EmptyValue />}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`${basePath}/${item.id}/edit`)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            {t('common.edit')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setItemToDelete(item)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t('common.delete')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+      {isMobile ? (
+        isLoading ? (
+          <MobileListSkeleton />
+        ) : !items || items.length === 0 ? (
+          <MobileListCard>
+            <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('classificationCommon.add'), onClick: () => navigate(`${basePath}/new`) }} />
+          </MobileListCard>
+        ) : (
+          <div className="space-y-4">
+            <MobileListCard>
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 py-1 pl-4 pr-2">
+                  <button type="button" className="min-w-0 flex-1 py-2 text-left" onClick={() => navigate(`${basePath}/${item.id}`)}>
+                    <span className="block truncate font-medium">{item.name}</span>
+                    {item.notes && <span className="block truncate text-xs text-muted-foreground">{item.notes}</span>}
+                  </button>
+                  {actionsMenu(item)}
+                </div>
+              ))}
+            </MobileListCard>
+            {data && data.total > data.pageSize && (
+              <MobileListCard className="[&>div]:border-t-0">
+                <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
+              </MobileListCard>
+            )}
+          </div>
+        )
+      ) : (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
+            {isLoading ? (
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[32%]">{t('classificationCommon.name')}</TableHead>
+                    <TableHead>{t('classificationCommon.notes')}</TableHead>
+                    <TableHead className="w-40">{t('classificationDetail.lastTransaction')}</TableHead>
+                    <TableHead className="w-16"><span className="sr-only">{t('classificationCommon.actions')}</span></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableSkeleton
+                  columns={[
+                    { skeletonClassName: 'w-40' },
+                    { skeletonClassName: 'w-56' },
+                  { skeletonClassName: 'w-24' },
+                    { cellClassName: 'text-right', skeletonClassName: 'ml-auto h-8 w-8 rounded-full' },
+                  ]}
+                />
+              </Table>
+            ) : !items || items.length === 0 ? (
+              <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('classificationCommon.add'), onClick: () => navigate(`${basePath}/new`) }} />
+            ) : (
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[32%]">{t('classificationCommon.name')}</TableHead>
+                    <TableHead>{t('classificationCommon.notes')}</TableHead>
+                    <TableHead className="w-40">{t('classificationDetail.lastTransaction')}</TableHead>
+                    <TableHead className="w-16"><span className="sr-only">{t('classificationCommon.actions')}</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`${basePath}/${item.id}`)}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {item.notes ?? <EmptyValue />}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                      {item.lastTransactionAt ? <DateWithTime date={item.lastTransactionAt} /> : <EmptyValue />}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>{actionsMenu(item)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+          {data && (
+            <Pagination
+              page={data.page}
+              pageSize={data.pageSize}
+              total={data.total}
+              onPageChange={setPage}
+            />
           )}
-        </CardContent>
-        {data && (
-          <Pagination
-            page={data.page}
-            pageSize={data.pageSize}
-            total={data.total}
-            onPageChange={setPage}
-          />
-        )}
-      </Card>
+        </Card>
+      )}
 
-      <Dialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('classificationCommon.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('classificationCommon.deleteConfirmDescription', { name: itemToDelete?.name })}
-            </DialogDescription>
-          </DialogHeader>
-          {deletionPreview && deletionPreview.transactions > 0 && (
-            <p className="text-sm">
-              {t(resource === 'categories' ? 'classificationCommon.deleteCategoryInUse' : 'classificationCommon.deleteTagInUse', {
-                count: deletionPreview.transactions,
-              })}
-            </p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setItemToDelete(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={deleteItem.isPending || isPreviewLoading}
-            >
-              {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => !open && setItemToDelete(null)}
+        title={t('classificationCommon.deleteConfirmTitle')}
+        description={t('classificationCommon.deleteConfirmDescription', { name: itemToDelete?.name })}
+        onConfirm={handleConfirmDelete}
+        pending={deleteItem.isPending || isPreviewLoading}
+      >
+        {deletionPreview && deletionPreview.transactions > 0 && (
+          <p className="text-sm">
+            {t(resource === 'categories' ? 'classificationCommon.deleteCategoryInUse' : 'classificationCommon.deleteTagInUse', {
+              count: deletionPreview.transactions,
+            })}
+          </p>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

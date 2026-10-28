@@ -6,10 +6,10 @@ interface PieChartSkeletonProps {
 
 export default function PieChartSkeleton({ legendCount = 4 }: PieChartSkeletonProps) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface p-4 sm:p-5">
       <Skeleton className="mb-3 h-4 w-32" />
       <div className="flex flex-row items-center gap-4 sm:items-start">
-        <Skeleton className="h-28 w-28 shrink-0 rounded-full sm:h-[200px] sm:w-[200px]" />
+        <Skeleton className="h-24 w-24 shrink-0 rounded-full sm:h-32 sm:w-32 2xl:h-44 2xl:w-44" />
         <ul className="min-w-0 flex-1 space-y-1.5">
           {Array.from({ length: legendCount }).map((_, i) => (
             <li key={i} className="flex items-center gap-2 px-1 py-0.5">

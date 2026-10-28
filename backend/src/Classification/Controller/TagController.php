@@ -12,6 +12,9 @@ use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\Tag;
 use App\Repository\TagRepository;
+use App\Repository\TransactionRepository;
+use App\Core\Period\UserDayRange;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,6 +29,7 @@ class TagController extends AbstractController
 
     public function __construct(
         private readonly TagRepository $tagRepository,
+        private readonly TransactionRepository $transactionRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClassificationDeletionService $deletionService,
     ) {
@@ -39,8 +43,9 @@ class TagController extends AbstractController
 
         [$tags, $total] = $this->tagRepository->findByUserPaginated($user, $params);
 
+        $lastDays = $this->transactionRepository->lastTransactionDays($user, $tags, tags: true);
         $items = array_map(
-            static fn ($tag) => NameNotesResponse::fromTag($tag),
+            static fn (Tag $tag) => NameNotesResponse::fromTag($tag, $lastDays[(string) $tag->getId()] ?? null),
             $tags
         );
 
@@ -51,6 +56,22 @@ class TagController extends AbstractController
     public function get(string $id): JsonResponse
     {
         return $this->json(NameNotesResponse::fromTag($this->findOwned($id)));
+    }
+
+    /**
+     * Month by month over `from`/`to`, what was spent and received with it
+     * (in the user's currency): the chart of its page.
+     */
+    #[Route('/{id}/months', name: 'api_tags_months', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function months(string $id, Request $request): JsonResponse
+    {
+        $user = $this->getCurrentUser();
+        [$from, $to] = UserDayRange::fromRequest($request, $user);
+        if ($from === null || $to === null) {
+            throw new BadRequestHttpException('Both from and to are required.');
+        }
+
+        return $this->json($this->transactionRepository->sumFlowsByMonthFor($user, $from, $to, $this->findOwned($id)));
     }
 
     #[Route('', name: 'api_tags_create', methods: ['POST'])]

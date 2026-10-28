@@ -37,9 +37,6 @@ final readonly class UpdatePreferencesRequest
         #[Assert\Length(exactly: 3)]
         public ?string $currency = null,
 
-        #[Assert\Choice(choices: User::COLOR_SCHEMES)]
-        public ?string $colorScheme = null,
-
         #[Assert\Choice(choices: User::DENSITIES)]
         public ?string $density = null,
 
@@ -66,6 +63,13 @@ final readonly class UpdatePreferencesRequest
 
         #[Assert\Choice(choices: User::DASHBOARD_INVESTMENT_UNITS)]
         public ?string $dashboardInvestmentUnit = null,
+
+        public ?bool $pushReminders = null,
+
+        public ?bool $pushSystem = null,
+
+        #[Assert\Regex('/^([01]\d|2[0-3]):[0-5]\d$/')]
+        public ?string $pushSummaryTime = null,
     ) {
     }
 }

@@ -55,7 +55,7 @@ export default function CategoryMobileList({ title, flow, table, periods, by, co
   return (
     <section className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-2 px-1">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <h3 className="group-label">{title}</h3>
         <span className="text-xs font-semibold tabular-nums">{formatMoney(table.total, currency)}</span>
       </div>
       {table.rows.length === 0 ? (
@@ -72,7 +72,7 @@ export default function CategoryMobileList({ title, flow, table, periods, by, co
               subtitle={t('reports.perMonth', { amount: formatMoney(row.average, currency) })}
               extra={
                 <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <span className="block h-full rounded-full" style={{ width: `${largest > 0 ? (Number(row.total) / largest) * 100 : 0}%`, backgroundColor: color }} />
+                  <span className="chart-grow-x block h-full rounded-full" style={{ width: `${largest > 0 ? (Number(row.total) / largest) * 100 : 0}%`, backgroundColor: color }} />
                 </span>
               }
               value={formatMoney(row.total, currency)}

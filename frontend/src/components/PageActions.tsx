@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreHorizontal, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { cn } from '@/lib/utils'
@@ -17,26 +24,50 @@ export interface PageAction {
 }
 
 /**
- * A detail page's actions (edit, clone, delete…), for PageHeader. Larger
- * screens: a row of buttons. Phones, as their apps do: the primary one as an
- * icon beside the title, the others behind "⋯" in a panel from the bottom,
- * destructive ones last.
+ * A detail page's actions (edit, clone, delete…), for PageHeader. The primary
+ * one is always in sight, the others behind "⋯", destructive ones last.
+ * Larger screens: a button and a menu. Phones, as their apps do: an icon
+ * beside the title, and the menu in a panel from the bottom.
  */
 export default function PageActions({ actions }: { actions: PageAction[] }) {
   const { t } = useTranslation()
   const isMobile = useIsMobile()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const primary = actions.filter((action) => action.primary)
+  const others = actions.filter((action) => !action.primary && !action.destructive)
+  const destructive = actions.filter((action) => !action.primary && action.destructive)
+  const menu = [...others, ...destructive]
+
   if (!isMobile) {
     return (
       <>
-        {actions.map((action) => (
-          <Button
-            key={action.label}
-            variant="outline"
-            className={cn(action.destructive && 'text-destructive hover:bg-destructive/10 hover:text-destructive')}
-            onClick={action.onClick}
-          >
+        {menu.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label={t('common.moreActions')} title={t('common.moreActions')}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {others.map((action) => (
+                <DropdownMenuItem key={action.label} onSelect={action.onClick}>
+                  <action.icon className="mr-2 h-4 w-4" />
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
+              {others.length > 0 && destructive.length > 0 && <DropdownMenuSeparator />}
+              {destructive.map((action) => (
+                <DropdownMenuItem key={action.label} onSelect={action.onClick} className="text-destructive focus:text-destructive">
+                  <action.icon className="mr-2 h-4 w-4" />
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {primary.map((action) => (
+          <Button key={action.label} onClick={action.onClick}>
             <action.icon className="mr-2 h-4 w-4" />
             {action.label}
           </Button>
@@ -44,12 +75,6 @@ export default function PageActions({ actions }: { actions: PageAction[] }) {
       </>
     )
   }
-
-  const primary = actions.filter((action) => action.primary)
-  const menu = [
-    ...actions.filter((action) => !action.primary && !action.destructive),
-    ...actions.filter((action) => !action.primary && action.destructive),
-  ]
 
   const run = (action: PageAction) => {
     setMenuOpen(false)
@@ -81,7 +106,7 @@ export default function PageActions({ actions }: { actions: PageAction[] }) {
                 <DrawerDescription>{t('common.moreActions')}</DrawerDescription>
               </DrawerHeader>
               <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
-                <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+                <div className="divide-y overflow-hidden surface">
                   {menu.map((action) => (
                     <button
                       key={action.label}

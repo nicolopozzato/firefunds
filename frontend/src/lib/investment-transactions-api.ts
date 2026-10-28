@@ -35,6 +35,12 @@ export const investmentTransactionsApi = {
     return response.data
   },
 
+  /** Past trades with this text in their description, the latest of each: the form copies one picked. */
+  async suggestions(q: string): Promise<InvestmentTransaction[]> {
+    const response = await api.get<InvestmentTransaction[]>('/api/investment-transactions/suggestions', { params: { q } })
+    return response.data
+  },
+
   async create(data: CreateInvestmentTransactionRequest): Promise<InvestmentTransaction> {
     const response = await api.post<InvestmentTransaction>('/api/investment-transactions', data)
     return response.data
@@ -47,6 +53,12 @@ export const investmentTransactionsApi = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/api/investment-transactions/${id}`)
+  },
+
+  /** Undo a delete made moments ago. */
+  async restore(id: string): Promise<InvestmentTransaction> {
+    const response = await api.post<InvestmentTransaction>(`/api/investment-transactions/${id}/restore`)
+    return response.data
   },
 
   async auditLog(id: string): Promise<AuditLogEntry[]> {

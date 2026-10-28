@@ -15,7 +15,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    public const array COLOR_SCHEMES = ['blue', 'violet', 'rose', 'orange', 'zinc'];
     public const array DENSITIES = ['compact', 'comfortable', 'spacious'];
     public const array START_PAGES = ['dashboard', 'transactions', 'investments', 'reports'];
     public const array START_PERIODS = ['last', 'currentMonth', 'last30Days', 'last60Days', 'currentYear'];
@@ -91,13 +90,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\Positive]
     private int $pageSize = 50;
 
-    /** The primary colour (frontend lib/theme.ts). */
-    #[ORM\Column(length: 10, options: ['default' => 'blue'])]
-    private string $colorScheme = 'blue';
-
     /** How much fits on screen on larger screens: compact, comfortable or spacious. */
     #[ORM\Column(length: 12, options: ['default' => 'comfortable'])]
     private string $density = 'comfortable';
+
+    /** Push: the daily summary of what to enter (reminders), at `pushSummaryTime` where the user is. */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $pushReminders = true;
+
+    /** Push: problems on the server, right away (administrators only). */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $pushSystem = true;
+
+    #[ORM\Column(length: 5, options: ['default' => '09:00'])]
+    private string $pushSummaryTime = '09:00';
+
+    /** The day (where the user is) the last summary was sent: one a day. */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $pushSummarySentOn = null;
 
     /** The page the app opens on (after login, or at "/"). */
     #[ORM\Column(length: 20, options: ['default' => 'dashboard'])]
@@ -259,6 +269,54 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // Clear any temporary sensitive data
     }
 
+    public function wantsPushReminders(): bool
+    {
+        return $this->pushReminders;
+    }
+
+    public function setPushReminders(bool $on): static
+    {
+        $this->pushReminders = $on;
+
+        return $this;
+    }
+
+    public function wantsPushSystem(): bool
+    {
+        return $this->pushSystem;
+    }
+
+    public function setPushSystem(bool $on): static
+    {
+        $this->pushSystem = $on;
+
+        return $this;
+    }
+
+    public function getPushSummaryTime(): string
+    {
+        return $this->pushSummaryTime;
+    }
+
+    public function setPushSummaryTime(string $time): static
+    {
+        $this->pushSummaryTime = $time;
+
+        return $this;
+    }
+
+    public function getPushSummarySentOn(): ?\DateTimeImmutable
+    {
+        return $this->pushSummarySentOn;
+    }
+
+    public function setPushSummarySentOn(\DateTimeImmutable $day): static
+    {
+        $this->pushSummarySentOn = $day;
+
+        return $this;
+    }
+
     public function getLocale(): string
     {
         return $this->locale;
@@ -334,17 +392,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPageSize(int $pageSize): static
     {
         $this->pageSize = $pageSize;
-        return $this;
-    }
-
-    public function getColorScheme(): string
-    {
-        return $this->colorScheme;
-    }
-
-    public function setColorScheme(string $colorScheme): static
-    {
-        $this->colorScheme = $colorScheme;
         return $this;
     }
 

@@ -50,6 +50,9 @@ final readonly class AccountResponse
          * @var AccountAdjustmentResponse[]
          */
         public array $adjustments = [],
+        /** The latest day the balance was checked against the bank's and matched (Y-m-d), and that balance. */
+        public ?string $reconciledOn = null,
+        public ?string $reconciledBalance = null,
     ) {
     }
 
@@ -96,6 +99,8 @@ final readonly class AccountResponse
             gainPercent: $gainPercent,
             estimatedTax: $estimatedTax,
             adjustments: array_map(AccountAdjustmentResponse::fromEntity(...), $adjustments),
+            reconciledOn: $account->getReconciledOn()?->format('Y-m-d'),
+            reconciledBalance: $account->getReconciledBalance(),
         );
     }
 }

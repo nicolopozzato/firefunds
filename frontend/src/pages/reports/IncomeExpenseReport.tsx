@@ -277,7 +277,7 @@ export default function IncomeExpenseReport() {
       />
       <ReportSectionTabs />
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 surface p-3">
         {span ? <ReportPeriodPicker span={span} onPreset={choosePreset} onRange={chooseRange} onShift={shift} /> : <Skeleton className="h-9 w-56" />}
         <PillGroup
           label={t('reports.columns')}

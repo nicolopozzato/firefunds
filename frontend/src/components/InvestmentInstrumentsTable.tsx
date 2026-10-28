@@ -32,6 +32,7 @@ import { InvestmentSectionTabs } from '@/components/layout/SectionTabs'
 import { MobileListCard, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
 
 const basePath = '/investments/instruments'
 
@@ -88,18 +89,18 @@ export default function InvestmentInstrumentsTable() {
           </MobileListCard>
         )
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             {isLoading ? (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('investmentInstruments.name')}</TableHead>
-                    <TableHead>{t('investmentInstruments.type')}</TableHead>
-                    <TableHead>{t('investmentInstruments.ticker')}</TableHead>
-                    <TableHead>{t('investmentInstruments.isin')}</TableHead>
-                    <TableHead className="text-right">{t('investmentInstruments.taxColumn')}</TableHead>
-                    <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                    <TableHead className="w-28">{t('investmentInstruments.type')}</TableHead>
+                    <TableHead className="w-28">{t('investmentInstruments.ticker')}</TableHead>
+                    <TableHead className="w-36">{t('investmentInstruments.isin')}</TableHead>
+                    <TableHead className="w-28 text-right">{t('investmentInstruments.taxColumn')}</TableHead>
+                    <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableSkeleton
@@ -114,29 +115,17 @@ export default function InvestmentInstrumentsTable() {
                 />
               </Table>
             ) : !instruments || instruments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{t('investmentInstruments.empty')}</h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                  {t('investmentInstruments.emptyDescription')}
-                </p>
-                <Button onClick={() => navigate(`${basePath}/new`)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('investmentInstruments.add')}
-                </Button>
-              </div>
+              <EmptyState title={t('investmentInstruments.empty')} description={t('investmentInstruments.emptyDescription')} action={{ label: t('investmentInstruments.add'), onClick: () => navigate(`${basePath}/new`) }} />
             ) : (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('investmentInstruments.name')}</TableHead>
-                    <TableHead>{t('investmentInstruments.type')}</TableHead>
-                    <TableHead>{t('investmentInstruments.ticker')}</TableHead>
-                    <TableHead>{t('investmentInstruments.isin')}</TableHead>
-                    <TableHead className="text-right">{t('investmentInstruments.taxColumn')}</TableHead>
-                    <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                    <TableHead className="w-28">{t('investmentInstruments.type')}</TableHead>
+                    <TableHead className="w-28">{t('investmentInstruments.ticker')}</TableHead>
+                    <TableHead className="w-36">{t('investmentInstruments.isin')}</TableHead>
+                    <TableHead className="w-28 text-right">{t('investmentInstruments.taxColumn')}</TableHead>
+                    <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -165,7 +154,7 @@ export default function InvestmentInstrumentsTable() {
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label={t('common.moreActions')}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

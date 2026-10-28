@@ -31,6 +31,7 @@ enum ErrorCode: string
     case TransactionNotFound = 'transaction_not_found';
     case InstrumentNotFound = 'instrument_not_found';
     case InvestmentTransactionNotFound = 'investment_transaction_not_found';
+    case RestoreUnavailable = 'restore_unavailable';
     case CurrencyNotFound = 'currency_not_found';
 
     // Accounts
@@ -39,12 +40,24 @@ enum ErrorCode: string
     case AccountMoveTypeMismatch = 'account_move_type_mismatch';
     case AccountCurrencyLocked = 'account_currency_locked';
     case CurrencyNotAvailable = 'currency_not_available';
+    case ReconcileAssetOnly = 'reconcile_asset_only';
+    case ReconciliationDifference = 'reconciliation_difference';
 
     // Transactions
     case AccountWithoutCurrency = 'account_without_currency';
     case AmountRequiredOtherCurrency = 'amount_required_other_currency';
     case AccountPairNotAllowed = 'account_pair_not_allowed';
     case DestinationAmountRequired = 'destination_amount_required';
+
+    // Recurring transactions
+    case RecurringNotFound = 'recurring_not_found';
+    case NothingToConfirm = 'nothing_to_confirm';
+    case TransactionNotLinkable = 'transaction_not_linkable';
+
+    // Notifications
+    case NotificationNotFound = 'notification_not_found';
+    case PushDeviceNotFound = 'push_device_not_found';
+    case PushFailed = 'push_failed';
 
     // Investments
     case InvestmentAccountRequired = 'investment_account_required';
@@ -96,12 +109,21 @@ enum ErrorCode: string
             self::TransactionNotFound => 'Transaction not found.',
             self::InstrumentNotFound => 'Investment instrument not found.',
             self::InvestmentTransactionNotFound => 'Investment transaction not found.',
+            self::RestoreUnavailable => 'This can no longer be restored.',
             self::CurrencyNotFound => 'Currency not found.',
             self::AccountInUse => 'This account has an opening balance, {transactions} transaction(s) or {investmentTransactions} investment transaction(s): move them to another account or delete them too.',
             self::TransferTargetInvalid => 'Transactions can only be moved to another account of the same type, kind and currency.',
             self::AccountMoveTypeMismatch => 'An account can only be moved next to another account of the same type.',
             self::AccountCurrencyLocked => 'The currency of an account with transactions cannot be changed.',
             self::CurrencyNotAvailable => 'Currency "{currency}" is not available.',
+            self::ReconcileAssetOnly => 'Only an asset account can be checked against a bank balance.',
+            self::ReconciliationDifference => 'The balance differs by {difference} from the one given: settle the difference first.',
+            self::RecurringNotFound => 'Recurring transaction not found.',
+            self::TransactionNotLinkable => 'This transaction is already part of a recurring transaction, or is not on its accounts.',
+            self::NotificationNotFound => 'Notification not found.',
+            self::PushDeviceNotFound => 'Device not found.',
+            self::PushFailed => 'The push service did not accept the notification for this device.',
+            self::NothingToConfirm => 'Nothing of this recurring transaction is waiting to be confirmed.',
             self::AccountWithoutCurrency => 'The asset account involved in this transaction has no currency set.',
             self::DestinationAmountRequired => 'A transfer from {source} to {destination} needs the amount that arrived.',
             self::AmountRequiredOtherCurrency => 'The instrument is quoted in {instrument} and the account is in {account}, with no rate for that day: enter the amount the broker charged.',

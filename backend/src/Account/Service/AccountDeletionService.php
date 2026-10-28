@@ -9,11 +9,14 @@ use App\Core\Exception\InUseException;
 use App\Entity\Account;
 use App\Entity\AccountAdjustment;
 use App\Entity\InvestmentTransaction;
+use App\Entity\RecurringTransaction;
 use App\Entity\Transaction;
 use App\Investment\Service\InvestmentTransactionAuditLogService;
 use App\Repository\AccountAdjustmentRepository;
 use App\Repository\AccountRepository;
 use App\Repository\InvestmentTransactionRepository;
+use App\Recurring\Service\RecurringAuditLogService;
+use App\Repository\RecurringTransactionRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\Service\TransactionAuditLogService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +41,8 @@ class AccountDeletionService
         private readonly TransactionAuditLogService $transactionAuditLog,
         private readonly InvestmentTransactionAuditLogService $investmentTransactionAuditLog,
         private readonly AccountAuditLogService $accountAuditLog,
+        private readonly RecurringTransactionRepository $recurringRepository,
+        private readonly RecurringAuditLogService $recurringAuditLog,
     ) {
     }
 
@@ -49,6 +54,7 @@ class AccountDeletionService
             adjustments: \count($this->accountAdjustmentRepository->findByAccount($account)),
             investmentTransactions: $this->investmentTransactionRepository->count(['account' => $account]),
             openPositions: \count($this->investmentTransactionRepository->getPositions($account)),
+            recurring: \count($this->recurringRepository->findByAccount($account)),
             transferTargets: array_map(
                 static fn (Account $target) => ['id' => $target->getId()->toRfc4122(), 'name' => $target->getName()],
                 $this->transferTargets($account)
@@ -65,7 +71,8 @@ class AccountDeletionService
         $transactions = $this->transactionRepository->findByAccount($account);
         $investmentTransactions = $this->investmentTransactionRepository->findBy(['account' => $account]);
         $adjustments = $this->accountAdjustmentRepository->findByAccount($account);
-        $inUse = $transactions !== [] || $investmentTransactions !== [] || $adjustments !== [] || $this->hasOpeningBalance($account);
+        $recurring = $this->recurringRepository->findByAccount($account);
+        $inUse = $transactions !== [] || $investmentTransactions !== [] || $adjustments !== [] || $recurring !== [] || $this->hasOpeningBalance($account);
 
         // Validated before any write, so a refused request changes nothing.
         $target = $inUse && $transferToId !== null ? $this->resolveTransferTarget($account, $transferToId) : null;
@@ -77,7 +84,7 @@ class AccountDeletionService
             ]);
         }
 
-        $this->entityManager->wrapInTransaction(function () use ($account, $target, $transactions, $investmentTransactions, $adjustments): void {
+        $this->entityManager->wrapInTransaction(function () use ($account, $target, $transactions, $investmentTransactions, $adjustments, $recurring): void {
             if ($target !== null) {
                 $targetAdjustments = $this->accountAdjustmentRepository->findByAccount($target);
                 $before = $this->accountAuditLog->snapshot($target, $targetAdjustments);
@@ -86,11 +93,16 @@ class AccountDeletionService
                 foreach ($adjustments as $adjustment) {
                     $adjustment->setAccount($target);
                 }
+                $this->moveRecurring($account, $target, $recurring);
                 $this->accountAuditLog->logUpdated($target, $target->getUser(), $before, [...$targetAdjustments, ...$adjustments, ...($carried !== null ? [$carried] : [])]);
             } else {
                 $this->deleteTransactions($transactions, $investmentTransactions);
                 foreach ($adjustments as $adjustment) {
                     $adjustment->markDeleted();
+                }
+                foreach ($recurring as $one) {
+                    $one->markDeleted();
+                    $this->recurringAuditLog->logDeleted($one, $one->getUser());
                 }
             }
 
@@ -215,6 +227,29 @@ class AccountDeletionService
         $created = $account->getCreatedAt()->setTimezone(new \DateTimeZone($account->getUser()->getTimezone()));
 
         return new \DateTimeImmutable($created->format('Y-m-d'));
+    }
+
+    /**
+     * The recurring transactions go with the transactions; one that would
+     * become a transfer from the target to itself ends instead.
+     *
+     * @param RecurringTransaction[] $recurring
+     */
+    private function moveRecurring(Account $from, Account $to, array $recurring): void
+    {
+        $swap = static fn (?Account $side) => $side !== null && $side->getId()->equals($from->getId()) ? $to : $side;
+        foreach ($recurring as $one) {
+            $source = $swap($one->getSourceAccount());
+            $destination = $swap($one->getDestinationAccount());
+            if ($source !== null && $destination !== null && $source->getId()->equals($destination->getId())) {
+                $one->markDeleted();
+                $this->recurringAuditLog->logDeleted($one, $one->getUser());
+                continue;
+            }
+            $before = $this->recurringAuditLog->snapshot($one);
+            $one->setAccounts($source, $destination);
+            $this->recurringAuditLog->logUpdated($one, $one->getUser(), $before);
+        }
     }
 
     /**

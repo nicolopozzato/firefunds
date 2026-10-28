@@ -69,7 +69,8 @@ final class TransactionKind
     public static function applyDql(QueryBuilder $qb, string $kind): void
     {
         match ($kind) {
-            'all' => null,
+            // 'cash': every money transaction, whatever its kind (the ORM list only has those).
+            'all', 'cash' => null,
             // An external destination is a withdrawal, an external source a deposit.
             self::WITHDRAWAL => $qb->andWhere('src.type = :kindSourceType')
                 ->andWhere('dst.type = :kindDestinationType OR t.destinationAccount IS NULL')

@@ -2,11 +2,10 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, Landmark, LineChart, PiggyBank, TrendingUp } from 'lucide-react'
+import { Landmark, LineChart, PiggyBank, TrendingUp } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
 import PillGroup from '@/components/ui/pill-group'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ReportSectionTabs } from '@/components/layout/SectionTabs'
 import GroupedBarChart, { BarLegend } from '@/components/reports/GroupedBarChart'
@@ -23,6 +22,7 @@ import { monthlyChanges, monthlyValues, withOpening } from '@/lib/net-worth'
 import { cn, formatMoney, formatPercent, moneyColorClass } from '@/lib/utils'
 import type { NetWorthReport as ReportData } from '@/types/report'
 import LoadFailed from '@/components/LoadFailed'
+import Stepper from '@/components/Stepper'
 
 const CURRENT_COLOR = 'hsl(var(--series-1))'
 const PREVIOUS_COLOR = OTHER_COLOR
@@ -236,30 +236,17 @@ export default function NetWorthReport() {
       <PageHeader title={t('reports.netWorthReport.title')} description={t('reports.netWorthReport.description')} />
       <ReportSectionTabs />
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card p-3">
-        <div className="flex items-center rounded-md border border-input bg-background">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-8 rounded-r-none text-muted-foreground hover:text-foreground"
-            aria-label={t('reports.netWorthReport.previousYear')}
-            disabled={year <= firstYear}
-            onClick={() => update({ year: year - 1 })}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="flex h-9 min-w-20 items-center justify-center border-x border-input px-3 text-sm font-medium tabular-nums">{year}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-8 rounded-l-none text-muted-foreground hover:text-foreground"
-            aria-label={t('reports.netWorthReport.nextYear')}
-            disabled={year >= lastYear}
-            onClick={() => update({ year: year + 1 })}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 surface p-3">
+        <Stepper
+          previousLabel={t('reports.netWorthReport.previousYear')}
+          nextLabel={t('reports.netWorthReport.nextYear')}
+          previousDisabled={year <= firstYear}
+          nextDisabled={year >= lastYear}
+          onPrevious={() => update({ year: year - 1 })}
+          onNext={() => update({ year: year + 1 })}
+        >
+          {year}
+        </Stepper>
         <PillGroup
           label={t('reports.netWorthReport.show')}
           value={view}
@@ -299,9 +286,9 @@ export default function NetWorthReport() {
           {isMobile ? (
             <NetWorthMonthList report={report} view={view} compare={compare} />
           ) : (
-            <section className="min-w-0 rounded-xl border bg-card pb-2">
+            <section className="min-w-0 surface pb-2">
               <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
-                <h3 className="text-sm font-semibold text-foreground">
+                <h3 className="section-title">
                   {view === 'values' ? t('reports.netWorthReport.tableValues') : t('reports.netWorthReport.tableChanges')}
                 </h3>
                 <span className="text-xs text-muted-foreground">{t('reports.netWorthReport.tableHint')}</span>

@@ -5,6 +5,8 @@ namespace App\Admin\Controller;
 use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\TaskTrigger;
+use App\Notification\Push\PushDelivery;
+use App\Notification\Service\SystemHealth;
 use App\Task\TaskRunner;
 use App\Task\TasksOverview;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +25,8 @@ class TasksController extends AbstractController
     public function __construct(
         private readonly TaskRunner $runner,
         private readonly TasksOverview $overview,
+        private readonly SystemHealth $health,
+        private readonly PushDelivery $push,
     ) {
     }
 
@@ -45,6 +49,8 @@ class TasksController extends AbstractController
     {
         set_time_limit(600);
         $this->runner->run($key, TaskTrigger::Manual);
+        $this->health->check();
+        $this->push->deliver();
 
         return $this->json($this->overview->build());
     }

@@ -12,6 +12,7 @@ use App\Investment\Position\AverageCostPosition;
 use App\Investment\Position\TradeCashEffect;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -133,6 +134,40 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
             ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * The latest trade for each description containing this text (any case,
+     * no accents), those starting with it first: what the trade form offers
+     * while a description is typed, like TransactionRepository's.
+     *
+     * @return list<InvestmentTransaction>
+     */
+    public function suggestionsByDescription(User $user, string $text, int $limit = 6): array
+    {
+        $escaped = addcslashes(mb_strtolower(trim($text)), '%_\\');
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            <<<SQL
+                SELECT id FROM (
+                    SELECT DISTINCT ON (lower(t.description)) t.id, t.occurred_at, unaccent(lower(t.description)) AS folded
+                    FROM investment_transaction t
+                    WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.description IS NOT NULL
+                        AND unaccent(lower(t.description)) LIKE '%' || unaccent(:text) || '%'
+                    ORDER BY lower(t.description), t.occurred_at DESC
+                ) latest
+                ORDER BY folded LIKE unaccent(:text) || '%' DESC, occurred_at DESC
+                LIMIT :limit
+                SQL,
+            ['user' => $user->getId()->toRfc4122(), 'text' => $escaped, 'limit' => $limit],
+            ['limit' => ParameterType::INTEGER],
+        )->fetchFirstColumn();
+
+        $byId = [];
+        foreach ($this->findWithRelationsByIds($ids) as $trade) {
+            $byId[$trade->getId()->toRfc4122()] = $trade;
+        }
+
+        return array_values(array_filter(array_map(static fn (string $id) => $byId[$id] ?? null, $ids)));
     }
 
     public function findOneByUserAndId(User $user, string $id): ?InvestmentTransaction

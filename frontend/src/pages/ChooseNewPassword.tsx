@@ -45,7 +45,7 @@ export default function ChooseNewPassword() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">{t('auth.newPasswordTitle')}</CardTitle>
+          <CardTitle className="page-title text-center">{t('auth.newPasswordTitle')}</CardTitle>
           <CardDescription className="text-center">{t('auth.newPasswordDescription')}</CardDescription>
         </CardHeader>
         <CardContent>

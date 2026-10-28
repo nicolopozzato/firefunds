@@ -44,6 +44,7 @@ export function TransactionSectionTabs() {
         { label: t('navigation.depositsShort'), href: '/transactions/deposit' },
         { label: t('navigation.transferTransactions'), href: '/transactions/transfers' },
         { label: t('navigation.investmentTransactions'), href: '/transactions/investments' },
+        { label: t('navigation.recurringTransactions'), href: '/transactions/recurring' },
       ]}
     />
   )

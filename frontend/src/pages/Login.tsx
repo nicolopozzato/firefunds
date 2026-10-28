@@ -61,7 +61,7 @@ export default function Login() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-foreground" />
           <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function Login() {
               F
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">{t('auth.loginTitle')}</CardTitle>
+          <CardTitle className="page-title text-center">{t('auth.loginTitle')}</CardTitle>
           <CardDescription className="text-center">
             {hasUsers ? t('auth.loginTitle') : t('auth.noUsersFound')}
           </CardDescription>

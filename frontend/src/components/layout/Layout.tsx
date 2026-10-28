@@ -1,5 +1,5 @@
-import { ReactNode, useLayoutEffect, useRef } from 'react'
-import { useLocation, useNavigationType } from 'react-router-dom'
+import { ReactNode, useEffect, useLayoutEffect, useRef } from 'react'
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import MobileTopBar from './MobileTopBar'
@@ -56,10 +56,25 @@ interface LayoutProps {
  * Larger screens: sidebar on the left, header on top. Phones (below `md`):
  * a compact top bar and a navigation bar at the bottom, app style.
  */
+/** A push notification tapped while the app is open (public/sw.js): its page, inside the app. */
+function useNotificationTaps() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'navigate' && typeof event.data.url === 'string') navigate(event.data.url)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [navigate])
+}
+
 export default function Layout({ children }: LayoutProps) {
   const mainRef = useRef<HTMLElement>(null)
   useScrollRestoration(mainRef)
+  useNotificationTaps()
   const isMobile = useIsMobile()
+  const location = useLocation()
   // The amounts are formatted while rendering: hiding or showing them draws the page again.
   const [amountsHidden] = useHideAmounts()
 
@@ -79,7 +94,10 @@ export default function Layout({ children }: LayoutProps) {
                 for the top bar, which lies over the page (3.5rem high, under the status bar). */}
             <div className="mx-auto flex min-h-full max-w-[1600px] flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+4.5rem)] md:p-6">
               <ExchangeRateWarning />
-              <div key={amountsHidden ? 'hidden' : 'shown'}>{children}</div>
+              {/* Keyed by the page too: each page that opens fades in (page-enter). */}
+              <div key={`${location.pathname}:${amountsHidden ? 'hidden' : 'shown'}`} className="page-enter">
+                {children}
+              </div>
               {/* Signature at the bottom of every page: also leaves some air under the last table. On phones it is on the "More" page. */}
               <footer className="mt-auto hidden pt-10 text-xs text-muted-foreground/60 md:block">
                 FireFunds <span className="text-[10px]">v{APP_VERSION}</span>

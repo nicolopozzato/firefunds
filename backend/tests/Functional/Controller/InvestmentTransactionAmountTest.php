@@ -105,6 +105,34 @@ class InvestmentTransactionAmountTest extends WebTestCaseBase
         $this->assertSame('158.2000', $response['amount']);
     }
 
+    public function testATradeDeletedMomentsAgoCanBeRestored(): void
+    {
+        $id = $this->post(['quantity' => '1', 'unitPrice' => '100'])['id'];
+
+        $this->client->request('DELETE', '/api/investment-transactions/'.$id);
+        $this->client->request('POST', '/api/investment-transactions/'.$id.'/restore');
+        $this->assertResponseIsSuccessful();
+
+        $this->client->request('GET', '/api/investment-transactions/'.$id);
+        $this->assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/investment-transactions/'.$id.'/restore');
+        $this->assertResponseStatusCodeSame(409, 'not deleted: nothing to restore');
+    }
+
+    public function testDescriptionSuggestionsOfferTheLatestTradeOfEachDescription(): void
+    {
+        $this->post(['quantity' => '1', 'unitPrice' => '100', 'description' => 'PAC mensile', 'fees' => '1.5', 'occurredAt' => '2026-01-01T09:00:00+00:00']);
+        $this->post(['quantity' => '2', 'unitPrice' => '90', 'description' => 'PAC mensile', 'fees' => '1.5', 'occurredAt' => '2026-02-01T09:00:00+00:00']);
+
+        $this->client->request('GET', '/api/investment-transactions/suggestions?q=pac');
+        $suggestions = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        $this->assertCount(1, $suggestions, 'one per description');
+        $this->assertStringStartsWith('2026-02-01', $suggestions[0]['occurredAt']);
+        $this->assertSame($this->instrumentId, $suggestions[0]['instrumentId']);
+    }
+
     private function dollarInstrument(): string
     {
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
@@ -117,7 +145,7 @@ class InvestmentTransactionAmountTest extends WebTestCaseBase
     }
 
     /**
-     * @param array<string, string> $fields
+     * @param array<string, string|int|float> $fields
      * @return array<string, mixed>
      */
     private function post(array $fields): array

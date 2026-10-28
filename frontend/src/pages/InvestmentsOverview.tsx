@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
@@ -10,6 +9,7 @@ import PieChart from '@/components/PieChart'
 import MonthlyFlowsChart from '@/components/MonthlyFlowsChart'
 import AfterTaxTooltip from '@/components/AfterTaxTooltip'
 import EmptyValue from '@/components/EmptyValue'
+import Stat from '@/components/Stat'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -20,15 +20,7 @@ import { cn, formatMoney, formatPercent, formatQuantity, moneyColorClass } from 
 import type { PortfolioPosition } from '@/types/investment'
 import type { DistributionEntry } from '@/types/transaction'
 import LoadFailed from '@/components/LoadFailed'
-
-function Figure({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
-  return (
-    <div>
-      <div className={cn('text-xl font-semibold tabular-nums text-foreground', className)}>{children}</div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-    </div>
-  )
-}
+import EmptyState from '@/components/EmptyState'
 
 function signed(amount: string, text: string): string {
   return `${Number(amount) >= 0 ? '+' : ''}${text}`
@@ -163,41 +155,53 @@ export default function InvestmentsOverview() {
       {header}
 
       <Card>
-        <CardContent className="flex flex-wrap items-end gap-x-8 gap-y-4 pt-6">
-          <div>
-            <div className="text-3xl font-semibold tabular-nums">
+        {/* The portfolio's value first, the figures it is made of in a row under it. */}
+        <CardContent className="space-y-5 pt-4 sm:pt-5">
+          <Stat
+            size="xl"
+            label={t('investmentsOverview.marketValue')}
+            value={
               <AfterTaxTooltip variant="value" amount={portfolio.marketValue} estimatedTax={portfolio.estimatedTax} currencySymbol={currency}>
                 {formatMoney(portfolio.marketValue, currency)}
               </AfterTaxTooltip>
-            </div>
-            <div className="text-sm text-muted-foreground">{t('investmentsOverview.marketValue')}</div>
+            }
+          />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t pt-4 lg:grid-cols-4">
+            <Stat label={t('investmentsOverview.costBasis')} value={formatMoney(portfolio.costBasis, currency)} />
+            <Stat
+              label={t('accountDetail.gain')}
+              valueClassName={moneyColorClass(portfolio.gainAmount)}
+              value={
+                <AfterTaxTooltip variant="gain" amount={portfolio.gainAmount} estimatedTax={portfolio.estimatedTax} currencySymbol={currency}>
+                  {signed(portfolio.gainAmount, formatMoney(portfolio.gainAmount, currency))}
+                </AfterTaxTooltip>
+              }
+              detail={signed(portfolio.gainPercent, formatPercent(portfolio.gainPercent))}
+            />
+            <Stat
+              label={t('investmentsOverview.cash')}
+              valueClassName={cn(Number(portfolio.cash) < 0 && 'text-negative')}
+              value={formatMoney(portfolio.cash, currency)}
+            />
+            <Stat
+              label={t('investmentsOverview.netWorthShare')}
+              value={portfolio.netWorthShare !== null ? formatPercent(portfolio.netWorthShare, 1) : <EmptyValue />}
+              detail={t('investmentsOverview.netWorthShareOf', { amount: formatMoney(portfolio.netWorth, currency) })}
+            />
           </div>
-          <Figure label={t('investmentsOverview.costBasis')}>{formatMoney(portfolio.costBasis, currency)}</Figure>
-          <Figure label={t('accountDetail.gain')} className={moneyColorClass(portfolio.gainAmount)}>
-            <AfterTaxTooltip variant="gain" amount={portfolio.gainAmount} estimatedTax={portfolio.estimatedTax} currencySymbol={currency}>
-              {signed(portfolio.gainAmount, formatMoney(portfolio.gainAmount, currency))}
-            </AfterTaxTooltip>
-            <span className="ml-1.5 text-xs">({signed(portfolio.gainPercent, formatPercent(portfolio.gainPercent))})</span>
-          </Figure>
-          <Figure label={t('investmentsOverview.cash')}>{formatMoney(portfolio.cash, currency)}</Figure>
-          <Figure label={t('investmentsOverview.netWorthShareOf', { amount: formatMoney(portfolio.netWorth, currency) })}>
-            {portfolio.netWorthShare !== null ? formatPercent(portfolio.netWorthShare, 1) : <EmptyValue />}
-          </Figure>
         </CardContent>
       </Card>
 
-      <div className="rounded-xl border bg-card p-4">
-        <h3 className="mb-1 text-sm font-semibold text-foreground">{t('investmentsOverview.valueTrend')}</h3>
+      <div className="surface p-4 sm:p-5">
+        <h3 className="mb-3 section-title">{t('investmentsOverview.valueTrend')}</h3>
         <PositionMiniChart history={portfolio.history} currency={currency} height={300} />
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">{t('investmentsOverview.positions')}</h2>
+        <h2 className="section-title">{t('investmentsOverview.positions')}</h2>
         {portfolio.positions.length === 0 ? (
           <Card>
-            <CardContent className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-              {t('investmentsOverview.noPositions')}
-            </CardContent>
+            <EmptyState title={t('investmentsOverview.noPositions')} />
           </Card>
         ) : (
           portfolio.positions.map((position) => (

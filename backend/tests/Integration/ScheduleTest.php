@@ -30,10 +30,16 @@ class ScheduleTest extends KernelTestCase
     /** The backup task is checked every hour; the administrator's settings decide whether a backup is due. */
     public function testBackupsAreCheckedHourly(): void
     {
-        $this->assertSame(['10:05', '11:05', '12:05'], $this->nextRuns(3, '2026-10-01 10:00:00', 3, 'H:i'));
+        $this->assertSame(['10:05', '11:05', '12:05'], $this->nextRuns(4, '2026-10-01 10:00:00', 3, 'H:i'));
     }
 
-    /** The retry, every 15 minutes, never at a minute a task runs (5, 10, 20, 30): it would race the run it repeats. */
+    /** Recurring transactions are looked at every quarter of an hour, so one is created at most 15 minutes after its time. */
+    public function testRecurringTransactionsAreCreatedEveryQuarterOfAnHour(): void
+    {
+        $this->assertSame(['10:15', '10:30', '10:45'], $this->nextRuns(3, '2026-10-01 10:00:00', 3, 'H:i'));
+    }
+
+    /** The retry, every 15 minutes, never at a minute a task runs (0, 5, 10, 15, 20, 30, 45): it would race the run it repeats. */
     public function testFailedRunsAreRetriedEveryQuarterOfAnHourBetweenTheTasks(): void
     {
         $this->assertSame(['10:07', '10:22', '10:37', '10:52'], $this->nextRuns(0, '2026-10-01 10:00:00', 4, 'H:i'));

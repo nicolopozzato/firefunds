@@ -16,6 +16,7 @@ import { adminApi } from '@/lib/admin-api'
 import { handleApiError } from '@/lib/error-handler'
 import { formatDateTime, formatTime24h } from '@/lib/utils'
 import type { BackupFile } from '@/types/admin'
+import { Skeleton } from '@/components/ui/skeleton'
 
 /** Hours between two backups: what the server accepts (BackupSettings::INTERVALS). */
 const INTERVALS = [6, 12, 24, 48, 168]
@@ -72,7 +73,7 @@ function BackupSettingsCard() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          <Skeleton className="h-24 w-full" />
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="divide-y">
@@ -177,8 +178,8 @@ export default function AdminBackups() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <AdminTabs />
       <PageHeader title={t('admin.backups.title')} description={t('admin.backups.description')} />
+      <AdminTabs />
 
       {overview && !overview.onVolume && (
         <div className="flex gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
@@ -201,7 +202,7 @@ export default function AdminBackups() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">{t('common.loading')}</div>
+            <Skeleton className="h-48 w-full rounded-xl" />
           ) : overview && overview.backups.length > 0 ? (
             <Table>
               <TableHeader>

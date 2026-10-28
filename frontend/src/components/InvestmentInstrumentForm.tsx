@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import PageHeader from '@/components/PageHeader'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import FormSection from '@/components/FormSection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -116,18 +116,14 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <PageHeader
         title={t(isEditing ? 'investmentInstruments.editTitle' : 'investmentInstruments.add')}
         description={t('investmentInstruments.description')}
       />
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t('investmentInstruments.sectionGeneral')}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+        <FormSection title={t('investmentInstruments.sectionGeneral')} contentClassName="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">{t('investmentInstruments.name')}</Label>
               <Input
@@ -157,7 +153,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               </Select>
             </div>
 
-            <div className="space-y-2 sm:col-span-3 sm:max-w-md">
+            <div className="space-y-2 sm:col-span-2">
               <Label>{t('investmentInstruments.currency')}</Label>
               <Combobox
                 options={currencyOptions}
@@ -168,19 +164,9 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               />
               <p className="text-xs text-muted-foreground">{t('investmentInstruments.currencyHint')}</p>
             </div>
-          </CardContent>
-        </Card>
+        </FormSection>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t('investmentInstruments.sectionCodes')}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                {t('investmentInstruments.sectionCodesOptional')}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+        <FormSection title={t('investmentInstruments.sectionCodes')} optional contentClassName="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="ticker">{t('investmentInstruments.ticker')}</Label>
               <Input
@@ -210,24 +196,15 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               />
               <p className="text-xs text-muted-foreground">{t('investmentInstruments.yahooTickerHint')}</p>
             </div>
-          </CardContent>
-        </Card>
+        </FormSection>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t('investmentInstruments.sectionTax')}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                {t('investmentInstruments.sectionTaxOptional')}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+        <FormSection title={t('investmentInstruments.sectionTax')} optional contentClassName="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="capitalGainsTaxRate">{t('investmentInstruments.capitalGainsTaxRate')}</Label>
               <Input
                 id="capitalGainsTaxRate"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 max="100"
@@ -246,6 +223,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               <Input
                 id="whiteListShare"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 min="0"
                 max="100"
@@ -256,8 +234,7 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               />
               <p className="text-xs text-muted-foreground">{t('investmentInstruments.whiteListShareHint')}</p>
             </div>
-          </CardContent>
-        </Card>
+        </FormSection>
 
         <FormActions>
           <Button type="button" variant="outline" onClick={() => navigate(basePath)}>

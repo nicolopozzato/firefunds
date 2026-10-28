@@ -44,10 +44,10 @@ describe('describeCron', () => {
     expect(describeCron('5 * * * *')).toEqual({ kind: 'hourly', minute: 5 })
     expect(describeCron('10 0,4,8,12 * * *')).toEqual({ kind: 'daily', times: ['00:10', '04:10', '08:10', '12:10'] })
     expect(describeCron('30 3 * * *')).toEqual({ kind: 'daily', times: ['03:30'] })
+    expect(describeCron('*/15 * * * *')).toEqual({ kind: 'every', minutes: 15 })
   })
 
   it('leaves anything else alone', () => {
-    expect(describeCron('*/15 * * * *')).toBeNull()
     expect(describeCron('0 9 * * 1')).toBeNull()
   })
 })

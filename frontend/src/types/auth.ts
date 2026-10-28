@@ -22,7 +22,6 @@ export interface User {
   /** An administrator set the password: a new one is asked for before anything else. */
   mustChangePassword: boolean;
   /** The primary colour (lib/theme.ts). */
-  colorScheme: string;
   density: string;
   startPage: StartPage;
   startPeriod: StartPeriod;
@@ -32,6 +31,10 @@ export interface User {
   dashboardSections: DashboardSection[];
   dashboardTrendView: 'accounts' | 'investments';
   dashboardInvestmentUnit: 'percent' | 'money';
+  /** Push: the daily summary of reminders at pushSummaryTime, and server problems (administrators). */
+  pushReminders: boolean;
+  pushSystem: boolean;
+  pushSummaryTime: string;
 }
 
 export type StartPage = 'dashboard' | 'transactions' | 'investments' | 'reports'
@@ -69,7 +72,6 @@ export interface UpdatePreferencesRequest {
   numberFormat?: NumberFormat
   capitalGainsTaxRate?: string
   currency?: string
-  colorScheme?: string
   density?: string
   startPage?: StartPage
   startPeriod?: StartPeriod
@@ -78,6 +80,9 @@ export interface UpdatePreferencesRequest {
   dashboardSections?: DashboardSection[]
   dashboardTrendView?: User['dashboardTrendView']
   dashboardInvestmentUnit?: User['dashboardInvestmentUnit']
+  pushReminders?: boolean
+  pushSystem?: boolean
+  pushSummaryTime?: string
 }
 
 export const getFullName = (user: User): string => {

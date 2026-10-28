@@ -20,6 +20,7 @@ const TAB_PAGES = new Set([
   '/transactions/deposit',
   '/transactions/transfers',
   '/transactions/investments',
+  '/transactions/recurring',
   '/investments/overview',
   '/investments/instruments',
   '/more',
@@ -47,6 +48,7 @@ const PERIOD_PAGES = [
   /^\/dashboard$/,
   /^\/transactions(\/(withdrawal|deposit|transfers|investments))?$/,
   /^\/accounts\/(asset|expense|revenue)\/[^/]+$/,
+  /^\/(categories|tags)\/[^/]+$/,
   /^\/investments\/overview$/,
   /^\/search$/,
 ]

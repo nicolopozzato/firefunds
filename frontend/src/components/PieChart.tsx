@@ -95,18 +95,18 @@ export default function PieChart({ title, entries, currency, emptyLabel, nullLab
   const center = size / 2
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+    <div className="surface p-4 sm:p-5">
+      <h3 className="mb-3 section-title">{title}</h3>
 
       {slices.length === 0 ? (
         <div className="flex h-24 items-center justify-center text-sm text-muted-foreground sm:h-48">{emptyLabel}</div>
       ) : (
         // Phones: a smaller pie next to its legend, so the card stays short.
-        <div className="flex flex-row items-center gap-4 sm:items-start">
+        <div className="flex flex-row items-center gap-3 sm:items-start sm:gap-4">
           <div className="relative shrink-0">
             <svg
               viewBox={`0 0 ${size} ${size}`}
-              className="h-28 w-28 sm:h-[200px] sm:w-[200px]"
+              className="chart-appear h-24 w-24 sm:h-32 sm:w-32 2xl:h-44 2xl:w-44"
               role="img"
               aria-label={title}
             >
@@ -133,7 +133,7 @@ export default function PieChart({ title, entries, currency, emptyLabel, nullLab
             </svg>
 
             {hovered && (
-              <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-md bg-background/95 px-2 py-1 text-center shadow-sm">
+              <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center chart-tooltip text-center">
                 <span className="max-w-[7rem] truncate text-xs text-muted-foreground">
                   {labelFor(hovered)}
                 </span>

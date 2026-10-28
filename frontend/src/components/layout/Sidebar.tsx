@@ -12,6 +12,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Repeat,
+  CalendarClock,
   ListOrdered,
   Tag,
   Tags,
@@ -157,6 +158,11 @@ export default function Sidebar() {
       icon: LineChart,
       matchExact: true,
     },
+    {
+      name: t('navigation.recurringTransactions'),
+      href: '/transactions/recurring',
+      icon: CalendarClock,
+    },
   ]
 
   const accountLinks = [
@@ -251,15 +257,10 @@ export default function Sidebar() {
       </Tooltip>
 
       <div className={cn('flex h-16 shrink-0 items-center gap-3 border-b', collapsed ? 'justify-center' : 'px-6')}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <DollarSign className="h-6 w-6" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <DollarSign className="h-5 w-5" />
         </div>
-        {!collapsed && (
-          <div className="flex flex-col whitespace-nowrap">
-            <span className="text-sm font-bold text-foreground">FireFunds</span>
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">Finance</span>
-          </div>
-        )}
+        {!collapsed && <span className="whitespace-nowrap text-base font-semibold tracking-tight text-foreground">FireFunds</span>}
       </div>
 
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">

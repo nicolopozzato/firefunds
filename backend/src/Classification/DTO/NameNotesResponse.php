@@ -13,10 +13,12 @@ final readonly class NameNotesResponse
         public ?string $notes,
         public string $createdAt,
         public string $updatedAt,
+        /** The day of the latest (non-deleted) transaction it is set on, in lists; null when none or not asked. */
+        public ?string $lastTransactionAt = null,
     ) {
     }
 
-    public static function fromCategory(Category $category): self
+    public static function fromCategory(Category $category, ?string $lastTransactionAt = null): self
     {
         return new self(
             id: (string) $category->getId(),
@@ -24,10 +26,11 @@ final readonly class NameNotesResponse
             notes: $category->getNotes(),
             createdAt: $category->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $category->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            lastTransactionAt: $lastTransactionAt,
         );
     }
 
-    public static function fromTag(Tag $tag): self
+    public static function fromTag(Tag $tag, ?string $lastTransactionAt = null): self
     {
         return new self(
             id: (string) $tag->getId(),
@@ -35,6 +38,7 @@ final readonly class NameNotesResponse
             notes: $tag->getNotes(),
             createdAt: $tag->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $tag->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            lastTransactionAt: $lastTransactionAt,
         );
     }
 }

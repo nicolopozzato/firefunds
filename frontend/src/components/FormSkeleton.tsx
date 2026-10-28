@@ -9,7 +9,7 @@ export default function FormSkeleton({ fieldCount = 4 }: FormSkeletonProps) {
   return (
     <>
       <Card>
-        <CardContent className="space-y-6 pt-6">
+        <CardContent className="space-y-6 pt-4 sm:pt-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Skeleton className="h-4 w-24" />

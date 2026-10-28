@@ -93,6 +93,24 @@ class InvestmentTransactionController extends AbstractController
         ));
     }
 
+    /**
+     * Past trades whose description contains the text, the latest of each: the
+     * trade form copies their account, instrument and costs from the one picked.
+     */
+    #[Route('/suggestions', name: 'api_investment_transactions_suggestions', methods: ['GET'])]
+    public function suggestions(Request $request): JsonResponse
+    {
+        $text = trim((string) $request->query->get('q', ''));
+        if (mb_strlen($text) < 2) {
+            return $this->json([]);
+        }
+
+        return $this->json(array_map(
+            static fn ($trade) => InvestmentTransactionResponse::fromEntity($trade),
+            $this->investmentTransactionRepository->suggestionsByDescription($this->getCurrentUser(), $text),
+        ));
+    }
+
     #[Route('/{id}', name: 'api_investment_transactions_get', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function get(string $id): JsonResponse
     {
@@ -136,6 +154,13 @@ class InvestmentTransactionController extends AbstractController
         $this->investmentTransactionService->delete($transaction);
 
         return $this->json(null, 204);
+    }
+
+    /** "Undo" right after a delete (RestoreWindow): the trade as it was. */
+    #[Route('/{id}/restore', name: 'api_investment_transactions_restore', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function restore(string $id): JsonResponse
+    {
+        return $this->json(InvestmentTransactionResponse::fromEntity($this->investmentTransactionService->restore($this->getCurrentUser(), $id)));
     }
 
     private function findOwned(string $id): InvestmentTransaction

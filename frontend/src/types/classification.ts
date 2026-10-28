@@ -4,6 +4,16 @@ export interface Classification {
   notes: string | null
   createdAt: string
   updatedAt: string
+  /** Day of the latest transaction it is set on (lists only); null when none. */
+  lastTransactionAt?: string | null
+}
+
+/** One month on a category's or a tag's page: what was spent and received with it. */
+export interface ClassificationMonth {
+  /** YYYY-MM */
+  month: string
+  expense: string
+  income: string
 }
 
 export interface ClassificationRequest {

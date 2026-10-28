@@ -16,7 +16,8 @@ interface PillGroupProps<T extends string> {
 }
 
 /**
- * A single choice among a few options, as a row of pills (e.g. a list filter).
+ * A single choice among a few options with a label before it (e.g. a list
+ * filter): the same segments as SegmentedControl.
  * When they don't fit (phones), the pills scroll sideways and the selected one
  * is kept in view.
  */
@@ -28,7 +29,7 @@ export default function PillGroup<T extends string>({ label, options, value, onC
     <div className="flex min-w-0 max-w-full items-center gap-2">
       <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
       <div ref={scrollerRef} className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div role="radiogroup" aria-label={label} className="inline-flex items-center gap-0.5 rounded-full border bg-muted/40 p-0.5">
+        <div role="radiogroup" aria-label={label} className="inline-flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
           {options.map((option) => {
             const isActive = option.value === value
             return (
@@ -39,7 +40,7 @@ export default function PillGroup<T extends string>({ label, options, value, onC
                 aria-checked={isActive}
                 onClick={() => onChange(option.value)}
                 className={cn(
-                  'whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'bg-background text-foreground shadow-sm dark:bg-accent'
                     : 'text-muted-foreground hover:text-foreground'

@@ -98,12 +98,12 @@ function RateForm({
   return (
     <form onSubmit={save} className="space-y-4">
       {isNew && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="rate-date">{t('exchangeRates.date')}</Label>
           <Input id="rate-date" type="date" required max={format(new Date(), 'yyyy-MM-dd')} value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       )}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="rate-value">
           {t('exchangeRates.rateLabel', { currency, own: ownCurrency, date: date ? formatDateTime(date) : '…' })}
         </Label>

@@ -30,10 +30,14 @@ const TransactionDetailPage = lazy(() => import('./pages/TransactionDetailPage')
 const InvestmentTransactions = lazy(() => import('./pages/InvestmentTransactions'))
 const InvestmentTransactionFormPage = lazy(() => import('./pages/InvestmentTransactionFormPage'))
 const InvestmentTransactionDetailPage = lazy(() => import('./pages/InvestmentTransactionDetailPage'))
+const RecurringTransactions = lazy(() => import('./pages/RecurringTransactions'))
+const RecurringTransactionFormPage = lazy(() => import('./pages/RecurringTransactionFormPage'))
+const RecurringTransactionDetailPage = lazy(() => import('./pages/RecurringTransactionDetailPage'))
 const AccountDetailPage = lazy(() => import('./pages/AccountDetailPage'))
 const Categories = lazy(() => import('./pages/Categories'))
 const Tags = lazy(() => import('./pages/Tags'))
 const ClassificationFormPage = lazy(() => import('./pages/ClassificationFormPage'))
+const ClassificationDetailPage = lazy(() => import('./pages/ClassificationDetailPage'))
 const InvestmentsOverview = lazy(() => import('./pages/InvestmentsOverview'))
 const IncomeExpenseReport = lazy(() => import('./pages/reports/IncomeExpenseReport'))
 const NetWorthReport = lazy(() => import('./pages/reports/NetWorthReport'))
@@ -144,12 +148,18 @@ function AppRoutes() {
                 <Route path="/transactions/investments/new" element={<InvestmentTransactionFormPage />} />
                 <Route path="/transactions/investments/:id/edit" element={<InvestmentTransactionFormPage />} />
                 <Route path="/transactions/investments/:id" element={<InvestmentTransactionDetailPage />} />
+                <Route path="/transactions/recurring" element={<RecurringTransactions />} />
+                <Route path="/transactions/recurring/new" element={<RecurringTransactionFormPage />} />
+                <Route path="/transactions/recurring/:id/edit" element={<RecurringTransactionFormPage />} />
+                <Route path="/transactions/recurring/:id" element={<RecurringTransactionDetailPage />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/categories/new" element={<ClassificationFormPage />} />
                 <Route path="/categories/:id/edit" element={<ClassificationFormPage />} />
+                <Route path="/categories/:id" element={<ClassificationDetailPage />} />
                 <Route path="/tags" element={<Tags />} />
                 <Route path="/tags/new" element={<ClassificationFormPage />} />
                 <Route path="/tags/:id/edit" element={<ClassificationFormPage />} />
+                <Route path="/tags/:id" element={<ClassificationDetailPage />} />
                 <Route path="/investments/overview" element={<InvestmentsOverview />} />
                 <Route path="/investments/instruments" element={<InvestmentInstruments />} />
                 <Route path="/investments/instruments/new" element={<InvestmentInstrumentFormPage />} />

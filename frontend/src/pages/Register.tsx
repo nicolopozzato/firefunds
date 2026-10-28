@@ -98,7 +98,7 @@ export default function Register() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-foreground" />
           <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function Register() {
         </div>
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">{t('auth.registrationDisabled')}</CardTitle>
+            <CardTitle className="page-title text-center">{t('auth.registrationDisabled')}</CardTitle>
             <CardDescription className="text-center">
               {t('auth.registrationNotAvailable')}
             </CardDescription>
@@ -143,7 +143,7 @@ export default function Register() {
               F
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">
+          <CardTitle className="page-title text-center">
             {hasUsers ? t('auth.createAccount') : t('auth.createAdminAccount')}
           </CardTitle>
           <CardDescription className="text-center">

@@ -48,6 +48,9 @@ export interface Transaction {
   /** A transfer between currencies: what arrived on the destination account, in its currency (`amount` left the source). */
   destinationAmount?: string | null
   destinationCurrency?: string | null
+  /** The recurring transaction it came from (money transactions only). */
+  recurringId?: string | null
+  recurringDescription?: string | null
   fees: string | null
   taxes: string | null
 }

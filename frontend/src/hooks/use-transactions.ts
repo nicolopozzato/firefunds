@@ -4,6 +4,7 @@ import { transactionsApi } from '@/lib/transactions-api'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import type { CreateTransactionRequest, TransactionKind, TransactionListKind } from '@/types/transaction'
 import { dataChanged } from '@/lib/data-changed'
+import { offerUndo } from '@/lib/undo-delete'
 
 export function useTransactions(kind: TransactionListKind, page = 1, showAll = false, accountId?: string) {
   const { timeframe } = useTimeframe()
@@ -86,13 +87,36 @@ export function useUpdateTransaction() {
   })
 }
 
+/** While typing a new transaction's description (at least two characters): past ones to copy from. */
+export function useDescriptionSuggestions(text: string) {
+  const q = text.trim()
+  return useQuery({
+    queryKey: ['transactions', 'suggestions', q],
+    queryFn: () => transactionsApi.suggestions(q),
+    enabled: q.length >= 2,
+    staleTime: 60_000,
+  })
+}
+
+export function useBulkTransactions() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: transactionsApi.bulk,
+    onSuccess: () => {
+      void dataChanged(queryClient)
+    },
+  })
+}
+
 export function useDeleteTransaction() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (id: string) => transactionsApi.remove(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       void dataChanged(queryClient)
+      offerUndo(queryClient, () => transactionsApi.restore(id))
     },
   })
 }

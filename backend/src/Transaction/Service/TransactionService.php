@@ -15,6 +15,9 @@ use App\Entity\User;
 use App\Repository\AccountRepository;
 use App\Repository\CategoryRepository;
 use App\Repository\TagRepository;
+use App\Repository\TransactionRepository;
+use App\Core\Doctrine\RestoreWindow;
+use App\Transaction\DTO\BulkTransactionRequest;
 use App\Transaction\DTO\CreateTransactionRequest;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -38,6 +41,8 @@ class TransactionService
         private readonly TagRepository $tagRepository,
         private readonly TransactionAuditLogService $auditLogService,
         private readonly AccountAuditLogService $accountAuditLog,
+        private readonly TransactionRepository $transactionRepository,
+        private readonly RestoreWindow $restoreWindow,
     ) {
     }
 
@@ -118,6 +123,84 @@ class TransactionService
         $this->entityManager->flush();
     }
 
+    /**
+     * One change to several of the user's money transactions (a list's
+     * selection), each recorded in its history like a single edit. All of
+     * them or none: an id that isn't theirs refuses the whole request.
+     *
+     * @return int how many were changed
+     */
+    public function bulk(User $user, BulkTransactionRequest $request): int
+    {
+        $transactions = $this->transactionRepository->findBy(['user' => $user, 'id' => array_values(array_unique($request->ids))]);
+        if (\count($transactions) !== \count(array_unique($request->ids))) {
+            throw ApiException::notFound(ErrorCode::TransactionNotFound);
+        }
+
+        $category = null;
+        if ($request->action === 'category' && $request->categoryId !== null) {
+            $category = $this->categoryRepository->findOneByUserAndId($user, $request->categoryId)
+                ?? throw ApiException::notFound(ErrorCode::CategoryNotFound);
+        }
+        $tag = null;
+        if ($request->action === 'tag') {
+            $tag = $this->tagRepository->findOneByUserAndId($user, (string) $request->tagId)
+                ?? throw ApiException::notFound(ErrorCode::TagNotFound);
+        }
+
+        foreach ($transactions as $transaction) {
+            if ($request->action === 'delete') {
+                $transaction->markDeleted();
+                $this->auditLogService->logDeleted($transaction, $user);
+                continue;
+            }
+            $before = $this->auditLogService->snapshot($transaction);
+            if ($tag !== null) {
+                if ($transaction->getTags()->contains($tag)) {
+                    continue;
+                }
+                $transaction->addTag($tag);
+            } else {
+                $transaction->setCategory($category);
+            }
+            $this->auditLogService->logUpdated($transaction, $user, $before);
+        }
+        $this->entityManager->flush();
+
+        return \count($transactions);
+    }
+
+    /**
+     * Brings back a transaction deleted moments ago ("Undo"), unless one of
+     * its accounts was deleted since. A category or tag deleted meanwhile is
+     * left off, as the delete took it off the transactions still there.
+     */
+    public function restore(User $user, string $id): Transaction
+    {
+        $transaction = $this->restoreWindow->withDeleted(function () use ($user, $id) {
+            $transaction = $this->transactionRepository->findOneByUserAndId($user, $id);
+            $this->restoreWindow->assertRestorable($transaction, [$transaction?->getSourceAccount(), $transaction?->getDestinationAccount()]);
+            \assert($transaction !== null);
+
+            if ($transaction->getCategory()?->getDeletedAt() !== null) {
+                $transaction->setCategory(null);
+            }
+            foreach ($transaction->getTags()->toArray() as $tag) {
+                if ($tag->getDeletedAt() !== null) {
+                    $transaction->removeTag($tag);
+                }
+            }
+
+            return $transaction;
+        });
+
+        $transaction->restore();
+        $this->auditLogService->logRestored($transaction, $user);
+        $this->entityManager->flush();
+
+        return $transaction;
+    }
+
     private function applyOptionalFields(Transaction $transaction, User $user, CreateTransactionRequest $request): void
     {
         $transaction->setDescription($request->description);
@@ -129,19 +212,35 @@ class TransactionService
         $transaction->setForeignCurrency($isTransfer || $request->foreignCurrency === null ? null : strtoupper($request->foreignCurrency));
         $transaction->setNotes($request->notes);
 
+        [$category, $tags] = $this->resolveClassification($user, $request);
+        $transaction->setCategory($category);
+        foreach ($tags as $tag) {
+            $transaction->addTag($tag);
+        }
+    }
+
+    /**
+     * The category and tags a request names, by id or by a new name (the
+     * user's with that name, or a new one): for a transaction, and for the
+     * template of a recurring one.
+     *
+     * @return array{0: ?Category, 1: list<Tag>}
+     */
+    public function resolveClassification(User $user, CreateTransactionRequest $request): array
+    {
+        $category = null;
         if ($request->hasName($request->newCategoryName)) {
             $name = trim($request->newCategoryName);
-            $transaction->setCategory($this->categoryRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Category($user, $name)));
+            $category = $this->categoryRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Category($user, $name));
         } elseif ($request->categoryId !== null) {
             $category = $this->categoryRepository->findOneByUserAndId($user, $request->categoryId);
 
             if ($category === null) {
                 throw new ApiException(ErrorCode::CategoryNotFound);
             }
-
-            $transaction->setCategory($category);
         }
 
+        $tags = [];
         foreach ($request->tagIds as $tagId) {
             $tag = $this->tagRepository->findOneByUserAndId($user, $tagId);
 
@@ -149,12 +248,35 @@ class TransactionService
                 throw new ApiException(ErrorCode::TagNotFound);
             }
 
-            $transaction->addTag($tag);
+            $tags[] = $tag;
         }
 
         foreach (array_unique(array_map('trim', $request->newTagNames)) as $name) {
-            $transaction->addTag($this->tagRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Tag($user, $name)));
+            $tags[] = $this->tagRepository->findOneByUserAndName($user, $name) ?? $this->persisted(new Tag($user, $name));
         }
+
+        return [$category, $tags];
+    }
+
+    /**
+     * The two sides a request names, checked as a transaction's are (a valid
+     * pair, an asset side with a currency): for the template of a recurring
+     * transaction, which must be one that can be created later.
+     *
+     * @return array{0: ?Account, 1: ?Account}
+     */
+    public function resolveSides(User $user, CreateTransactionRequest $request): array
+    {
+        $source = $this->resolveSide($user, $request->sourceAccountId, $request->newSourceAccountName, AccountType::Revenue);
+        $destination = $this->resolveSide($user, $request->destinationAccountId, $request->newDestinationAccountName, AccountType::Expense);
+
+        $this->assertValidAccountPair($source, $destination);
+
+        if ($this->assetSide($source, $destination)->getCurrency() === null) {
+            throw new ApiException(ErrorCode::AccountWithoutCurrency);
+        }
+
+        return [$source, $destination];
     }
 
     /**

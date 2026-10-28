@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Banknote, ShoppingCart, Wallet } from 'lucide-react'
+import AccountName from '@/components/AccountName'
 import { cn } from '@/lib/utils'
+import type { AccountRef } from '@/types/transaction'
 
 /*
  * The pieces of a transaction's or a trade's detail page, so the two read
@@ -87,5 +91,31 @@ export function DetailField({ label, wide, children }: { label: string; wide?: b
       <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
       <dd className={cn('min-w-0 text-sm', !wide && 'max-sm:text-right')}>{children}</dd>
     </div>
+  )
+}
+
+function AccountTypeIcon({ type }: { type: AccountRef['type'] }) {
+  if (type === 'expense') return <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  if (type === 'revenue') return <Banknote className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  return <Wallet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+}
+
+/** One side of the transaction: a link to the account, or "External" when there is none. */
+export function AccountSide({ account }: { account: AccountRef | null }) {
+  const navigate = useNavigate()
+
+  if (account === null) {
+    return <AccountName account={null} />
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/accounts/${account.type}/${account.id}`)}
+      className="flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+    >
+      <AccountTypeIcon type={account.type} />
+      {account.name}
+    </button>
   )
 }

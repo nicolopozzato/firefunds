@@ -48,7 +48,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
 
     return (
       <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+        <CardContent className="flex flex-col items-center gap-3 py-12 text-center sm:py-12">
           <AlertTriangle className="h-8 w-8 text-warning" aria-hidden />
           <p className="font-medium">{i18n.t('errors.pageCrashed')}</p>
           <Button onClick={() => window.location.reload()}>{i18n.t('common.reload')}</Button>

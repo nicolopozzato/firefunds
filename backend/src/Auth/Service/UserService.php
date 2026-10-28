@@ -214,9 +214,6 @@ class UserService
             }
             $user->setCurrency($found->getCode());
         }
-        if ($request->colorScheme !== null) {
-            $user->setColorScheme($request->colorScheme);
-        }
         if ($request->density !== null) {
             $user->setDensity($request->density);
         }
@@ -240,6 +237,15 @@ class UserService
         }
         if ($request->dashboardInvestmentUnit !== null) {
             $user->setDashboardInvestmentUnit($request->dashboardInvestmentUnit);
+        }
+        if ($request->pushReminders !== null) {
+            $user->setPushReminders($request->pushReminders);
+        }
+        if ($request->pushSystem !== null) {
+            $user->setPushSystem($request->pushSystem);
+        }
+        if ($request->pushSummaryTime !== null) {
+            $user->setPushSummaryTime($request->pushSummaryTime);
         }
 
         $this->entityManager->flush();

@@ -68,8 +68,8 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
 
   if (!chart) {
     return (
-      <div className="rounded-xl border bg-card p-4">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+      <div className="surface p-4 sm:p-5">
+        <h3 className="mb-3 section-title">{title}</h3>
         <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">{emptyLabel}</div>
       </div>
     )
@@ -79,8 +79,8 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
   const labelEvery = Math.max(1, Math.ceil(points.length / 6))
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+    <div className="surface p-4 sm:p-5">
+      <h3 className="mb-3 section-title">{title}</h3>
       <div ref={containerRef} className="relative">
         <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" {...chartTouch} aria-label={title}>
           {chart.ticks.map((tick, tickIndex) => (
@@ -100,8 +100,8 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
             </g>
           ))}
 
-          <path d={chart.areaPath} fill={FILL_COLOR} stroke="none" />
-          <path d={chart.linePath} fill="none" stroke={LINE_COLOR} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          <path d={chart.areaPath} fill={FILL_COLOR} stroke="none" className="chart-appear" />
+          <path pathLength={1} className="chart-line" d={chart.linePath} fill="none" stroke={LINE_COLOR} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
           {chart.todayX !== null && (
             <g>
@@ -134,15 +134,10 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
               {hoveredIndex === index && (
                 <line x1={c.x} y1={PADDING.top} x2={c.x} y2={PADDING.top + chart.innerHeight} stroke="hsl(var(--border))" strokeWidth={1} />
               )}
-              <circle
-                cx={c.x}
-                cy={c.y}
-                r={hoveredIndex === index ? 4 : 2.5}
-                fill={LINE_COLOR}
-                stroke="hsl(var(--card))"
-                strokeWidth={1.5}
-                className="pointer-events-none transition-[r] duration-100"
-              />
+              {/* A point only where the pointer is: one on every day crowds the line. */}
+              {hoveredIndex === index && (
+                <circle cx={c.x} cy={c.y} r={4} fill={LINE_COLOR} stroke="hsl(var(--card))" strokeWidth={2} className="pointer-events-none" />
+              )}
             </g>
           ))}
 
@@ -157,7 +152,7 @@ export default function BalanceLineChart({ title, points, currency, emptyLabel }
 
         {hovered && (
           <div
-            className="pointer-events-none absolute flex flex-col items-center rounded-md bg-background/95 px-2 py-1 text-center shadow-sm"
+            className="pointer-events-none absolute flex flex-col items-center chart-tooltip text-center"
             style={{ left: hovered.x, top: hovered.y, transform: tooltipTransform(hovered.x, width, hovered.y) }}
           >
             <span className="whitespace-nowrap text-xs text-muted-foreground">

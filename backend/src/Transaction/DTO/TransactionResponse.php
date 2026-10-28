@@ -46,6 +46,9 @@ final readonly class TransactionResponse
         /** A transfer between currencies: what arrived on the destination account, in its currency (`amount` left the source). */
         public ?string $destinationAmount = null,
         public ?string $destinationCurrency = null,
+        /** The recurring transaction it came from. */
+        public ?string $recurringId = null,
+        public ?string $recurringDescription = null,
     ) {
     }
 
@@ -75,6 +78,8 @@ final readonly class TransactionResponse
             updatedAt: $transaction->getUpdatedAt()->format(\DateTimeInterface::ATOM),
             destinationAmount: $transaction->getDestinationAmount(),
             destinationCurrency: $transaction->getDestinationAmount() !== null ? $transaction->getDestinationAccount()?->getCurrency()?->getCode() : null,
+            recurringId: $transaction->getRecurring()?->getId()->toRfc4122(),
+            recurringDescription: $transaction->getRecurring()?->getDescription(),
         );
     }
 

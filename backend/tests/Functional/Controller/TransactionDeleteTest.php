@@ -53,6 +53,61 @@ class TransactionDeleteTest extends WebTestCaseBase
         $this->assertNull($deletedAt);
     }
 
+    public function testUndoRightAfterDeleteBringsItBackWithItsHistory(): void
+    {
+        $client = static::createClient();
+        $owner = static::createUser();
+        $id = $this->createTransaction($owner);
+        static::authenticate($client, $owner);
+
+        $client->request('DELETE', '/api/transactions/'.$id);
+        $client->request('POST', '/api/transactions/'.$id.'/restore');
+        $this->assertResponseIsSuccessful();
+        $this->assertSame('Spesa', json_decode($client->getResponse()->getContent(), true)['description']);
+
+        $client->request('GET', '/api/transactions/'.$id);
+        $this->assertResponseIsSuccessful();
+
+        $client->request('GET', '/api/transactions/'.$id.'/audit-log');
+        $this->assertContains('restored', array_column(json_decode($client->getResponse()->getContent(), true), 'action'));
+    }
+
+    public function testUndoIsRefusedOnceTheMomentHasPassedOrWhenNotDeleted(): void
+    {
+        $client = static::createClient();
+        $owner = static::createUser();
+        $id = $this->createTransaction($owner);
+        static::authenticate($client, $owner);
+
+        $client->request('POST', '/api/transactions/'.$id.'/restore');
+        $this->assertResponseStatusCodeSame(409);
+        $this->assertSame('restore_unavailable', json_decode($client->getResponse()->getContent(), true)['code']);
+
+        $client->request('DELETE', '/api/transactions/'.$id);
+        static::getContainer()->get(EntityManagerInterface::class)->getConnection()
+            ->executeStatement("UPDATE transaction SET deleted_at = NOW() - INTERVAL '1 hour' WHERE id = ?", [$id]);
+
+        $client->request('POST', '/api/transactions/'.$id.'/restore');
+        $this->assertResponseStatusCodeSame(409);
+    }
+
+    public function testAnotherUserCannotRestoreIt(): void
+    {
+        $client = static::createClient();
+        $owner = static::createUser();
+        $id = $this->createTransaction($owner);
+        static::authenticate($client, $owner);
+        $client->request('DELETE', '/api/transactions/'.$id);
+
+        static::authenticate($client, static::createUser());
+        $client->request('POST', '/api/transactions/'.$id.'/restore');
+        $this->assertResponseStatusCodeSame(409);
+
+        $deletedAt = static::getContainer()->get(EntityManagerInterface::class)->getConnection()
+            ->fetchOne('SELECT deleted_at FROM transaction WHERE id = ?', [$id]);
+        $this->assertNotNull($deletedAt);
+    }
+
     public function testDeleteRequiresAuthentication(): void
     {
         $client = static::createClient();

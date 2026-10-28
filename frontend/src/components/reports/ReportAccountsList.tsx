@@ -23,7 +23,7 @@ export default function ReportAccountsList({ accounts, summary, currency }: Repo
 
   return (
     <section className="space-y-1.5">
-      <h3 className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('reports.accounts')}</h3>
+      <h3 className="group-label px-1">{t('reports.accounts')}</h3>
       <MobileListCard>
         {accounts.map((account) => (
           <MobileListRow

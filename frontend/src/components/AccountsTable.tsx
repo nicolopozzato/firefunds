@@ -50,6 +50,7 @@ import { MobileListCard, MobileListIcon, MobileListRow, MobileListSkeleton } fro
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
 
 type KindFilter = AssetAccountKind | 'all'
 
@@ -119,7 +120,7 @@ function AccountCells({ account, isAsset, onEdit, onDelete }: AccountCellsProps)
           {formatMoney(totalAccountValue(account), account.currencySymbol)}
         </AfterTaxTooltip>
       </TableCell>
-      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+      <TableCell className="hidden tabular-nums text-muted-foreground xl:table-cell">
         {account.iban ? formatIban(account.iban) : <EmptyValue />}
       </TableCell>
       {isAsset && (
@@ -138,7 +139,7 @@ function AccountCells({ account, isAsset, onEdit, onDelete }: AccountCellsProps)
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label={t('common.moreActions')}>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -334,28 +335,28 @@ export default function AccountsTable({
           </MobileListCard>
         )
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             {isLoading || (isEmpty && isFiltered && isCheckingAny) ? (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    {isAsset && <TableHead className="w-0 pl-2 pr-0" />}
+                    {isAsset && <TableHead className="w-8 pl-2 pr-0" />}
                     <TableHead className={cn(isAsset && 'pl-1')}>{t('accountsCommon.name')}</TableHead>
-                    <TableHead className="text-right">{balanceHeading}</TableHead>
-                    <TableHead>{t('accountsCommon.iban')}</TableHead>
-                    {isAsset && <TableHead>{t('accountsCommon.assetKind')}</TableHead>}
-                    <TableHead>{t('accountsCommon.active')}</TableHead>
-                    <TableHead>{t('accountsCommon.lastActivity')}</TableHead>
-                    <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                    <TableHead className="w-40 text-right">{balanceHeading}</TableHead>
+                    <TableHead className="hidden w-[17rem] xl:table-cell">{t('accountsCommon.iban')}</TableHead>
+                    {isAsset && <TableHead className="w-32">{t('accountsCommon.assetKind')}</TableHead>}
+                    <TableHead className="w-20">{t('accountsCommon.active')}</TableHead>
+                    <TableHead className="w-32">{t('accountsCommon.lastActivity')}</TableHead>
+                    <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableSkeleton
                   columns={[
-                    ...(isAsset ? [{ cellClassName: 'w-0 pl-2 pr-0', skeletonClassName: 'h-4 w-5' }] : []),
+                    ...(isAsset ? [{ cellClassName: 'pl-2 pr-0', skeletonClassName: 'h-4 w-5' }] : []),
                     { cellClassName: cn(isAsset && 'pl-1'), skeletonClassName: 'w-40' },
                     { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-20' },
-                    { skeletonClassName: 'w-28' },
+                    { cellClassName: 'hidden xl:table-cell', skeletonClassName: 'w-28' },
                     ...(isAsset ? [{ skeletonClassName: 'w-24' }] : []),
                     { skeletonClassName: 'h-5 w-14 rounded-full' },
                     { skeletonClassName: 'w-28' },
@@ -364,24 +365,9 @@ export default function AccountsTable({
                 />
               </Table>
             ) : showFilteredEmpty ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">{t('accountsCommon.noFilteredTitle')}</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">{t('accountsCommon.noFilteredDescription')}</p>
-              </div>
+              <EmptyState title={t('accountsCommon.noFilteredTitle')} description={t('accountsCommon.noFilteredDescription')} />
             ) : !accounts || accounts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{emptyTitle}</h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                  {emptyDescription}
-                </p>
-                <Button onClick={() => navigate(`${basePath}/new`)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('accountsCommon.add')}
-                </Button>
-              </div>
+              <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('accountsCommon.add'), onClick: () => navigate(`${basePath}/new`) }} />
             ) : (
               <DndContext
                 sensors={sensors}
@@ -389,17 +375,17 @@ export default function AccountsTable({
                 modifiers={[restrictToVerticalAxis]}
                 onDragEnd={handleDragEnd}
               >
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
-                      {isAsset && <TableHead className="w-0 pl-2 pr-0" />}
+                      {isAsset && <TableHead className="w-8 pl-2 pr-0" />}
                       <TableHead className={cn(isAsset && 'pl-1')}>{t('accountsCommon.name')}</TableHead>
-                      <TableHead className="text-right">{balanceHeading}</TableHead>
-                      <TableHead>{t('accountsCommon.iban')}</TableHead>
-                      {isAsset && <TableHead>{t('accountsCommon.assetKind')}</TableHead>}
-                      <TableHead>{t('accountsCommon.active')}</TableHead>
-                      <TableHead>{t('accountsCommon.lastActivity')}</TableHead>
-                      <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                      <TableHead className="w-40 text-right">{balanceHeading}</TableHead>
+                      <TableHead className="hidden w-[17rem] xl:table-cell">{t('accountsCommon.iban')}</TableHead>
+                      {isAsset && <TableHead className="w-32">{t('accountsCommon.assetKind')}</TableHead>}
+                      <TableHead className="w-20">{t('accountsCommon.active')}</TableHead>
+                      <TableHead className="w-32">{t('accountsCommon.lastActivity')}</TableHead>
+                      <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

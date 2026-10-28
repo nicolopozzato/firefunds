@@ -154,7 +154,7 @@ export default function GroupedBarChart({ labels, series, currency, emptyLabel, 
                     d={bar.path}
                     fill={bar.color}
                     opacity={hoveredIndex === null || hoveredIndex === index ? 1 : 0.55}
-                    className="pointer-events-none transition-opacity duration-100"
+                    className="chart-appear pointer-events-none transition-opacity duration-100"
                   />
                 ) : null
               )
@@ -184,7 +184,7 @@ export default function GroupedBarChart({ labels, series, currency, emptyLabel, 
 
           {hovered && hoveredIndex !== null && (
             <div
-              className="pointer-events-none absolute z-10 flex flex-col gap-0.5 rounded-md border bg-background/95 px-2.5 py-1.5 shadow-sm"
+              className="pointer-events-none absolute z-10 flex flex-col gap-0.5 chart-tooltip"
               style={{ left: hovered.centerX, top: PADDING.top, transform: tooltipTransform(hovered.centerX, width) }}
             >
               {tooltip(hoveredIndex)}

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -9,8 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import Field from '@/components/Field'
+import ChoiceCards, { type ChoiceCardOption } from '@/components/ChoiceCards'
 import FormSkeleton from '@/components/FormSkeleton'
 import Combobox from '@/components/Combobox'
+import DescriptionField from '@/components/DescriptionField'
+import QuickDates from '@/components/QuickDates'
 import TagsInput from '@/components/TagsInput'
 import { useAllAccounts } from '@/hooks/use-accounts'
 import { useCreateTransaction, useTransaction, useUpdateTransaction } from '@/hooks/use-transactions'
@@ -19,7 +25,7 @@ import { useCurrencies, useCurrencyOptions } from '@/hooks/use-currencies'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { useAuth } from '@/contexts/AuthContext'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, currencySymbolFor, deviceTimezone, formatAccountBalance, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
+import { currencySymbolFor, deviceTimezone, formatAccountBalance, fromDatetimeLocal, nowAsDatetimeLocal, numberFormatter, toDatetimeLocal } from '@/lib/utils'
 import type { AccountType } from '@/types/account'
 import type { Transaction } from '@/types/transaction'
 import FormActions from '@/components/FormActions'
@@ -30,18 +36,6 @@ const TYPE_CONFIG: Record<TransactionType, { sourceType: AccountType; destinatio
   withdrawal: { sourceType: 'asset', destinationType: 'expense' },
   deposit: { sourceType: 'revenue', destinationType: 'asset' },
   transfer: { sourceType: 'asset', destinationType: 'asset' },
-}
-
-const TYPE_ICONS: Record<TransactionType, typeof ArrowUpCircle> = {
-  withdrawal: ArrowUpCircle,
-  deposit: ArrowDownCircle,
-  transfer: Repeat,
-}
-
-const TYPE_STYLES: Record<TransactionType, { active: string; icon: string }> = {
-  withdrawal: { active: 'border-negative bg-negative/10', icon: 'text-negative' },
-  deposit: { active: 'border-positive bg-positive/10', icon: 'text-positive' },
-  transfer: { active: 'border-info bg-info/10', icon: 'text-info' },
 }
 
 /** Where the default account goes: what pays a withdrawal or a transfer, what receives a deposit. */
@@ -144,6 +138,9 @@ export default function TransactionFormPage() {
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFormPopulated, setIsFormPopulated] = useState(false)
+  /** Set by "Save and add another": after saving, the form starts again instead of leaving. */
+  const addAnotherRef = useRef(false)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   // Once per transaction (and once more when the currencies arrive, to trim the
   // amounts to their decimals), not on every refetch: see useFormFill.
@@ -175,24 +172,11 @@ export default function TransactionFormPage() {
 
   const isSaving = createTransaction.isPending || updateTransaction.isPending || isSubmitting
 
-  const typeLabels: Record<TransactionType, string> = {
-    withdrawal: t('navigation.withdrawalTransactions'),
-    deposit: t('navigation.depositTransactions'),
-    transfer: t('navigation.transferTransactions'),
-  }
-
-  /** Phones: the type buttons are a third of the screen wide. */
-  const typeShortLabels: Record<TransactionType, string> = {
-    withdrawal: t('quickAdd.withdrawal'),
-    deposit: t('quickAdd.deposit'),
-    transfer: t('quickAdd.transfer'),
-  }
-
-  const typeDescriptions: Record<TransactionType, string> = {
-    withdrawal: t('transactionForm.typeWithdrawalDescription'),
-    deposit: t('transactionForm.typeDepositDescription'),
-    transfer: t('transactionForm.typeTransferDescription'),
-  }
+  const typeOptions: ChoiceCardOption<TransactionType>[] = [
+    { value: 'withdrawal', label: t('quickAdd.withdrawal'), icon: ArrowUpCircle, tone: 'negative' },
+    { value: 'deposit', label: t('quickAdd.deposit'), icon: ArrowDownCircle, tone: 'positive' },
+    { value: 'transfer', label: t('quickAdd.transfer'), icon: Repeat, tone: 'info' },
+  ]
 
   const handleCancel = () => {
     if (isEditing) {
@@ -322,7 +306,11 @@ export default function TransactionFormPage() {
         navigate(-1)
       } else {
         await createTransaction.mutateAsync(payload)
-        navigate('/transactions')
+        if (addAnotherRef.current) {
+          startAnother()
+        } else {
+          navigate('/transactions')
+        }
       }
     } catch (error) {
       toast.error(handleApiError(error))
@@ -331,155 +319,182 @@ export default function TransactionFormPage() {
     }
   }
 
+  /**
+   * A past transaction picked under the description: its kind, accounts,
+   * category and tags; the amount and the day stay the ones being entered.
+   */
+  const copyFrom = (past: Transaction) => {
+    const source = past.sourceAccount
+    const destination = past.destinationAccount
+    const kind: TransactionType =
+      source?.type === 'asset' && destination?.type === 'asset' ? 'transfer' : source?.type === 'asset' ? 'withdrawal' : 'deposit'
+    setTransactionType(kind)
+    setSourceAccountId(source?.id ?? '')
+    setDestinationAccountId(destination?.id ?? '')
+    setCategoryId(past.categoryId ?? '')
+    setSelectedTagIds(past.tags.map((tag) => tag.id))
+    amountRef.current?.focus()
+  }
+
+  /**
+   * After "Save and add another": an empty form for the next one, keeping
+   * what a run of entries shares (the kind, the day, the user's own account),
+   * the cursor back on the amount.
+   */
+  const startAnother = () => {
+    toast.success(t('transactionForm.savedAddAnother'))
+    setAmount('')
+    setDestinationAmount('')
+    setDescription('')
+    setNotes('')
+    setCategoryId('')
+    setSelectedTagIds([])
+    resetForeignAmount(false)
+    if (config.sourceType !== 'asset') setSourceAccountId('')
+    if (config.destinationType !== 'asset' || transactionType === 'transfer') setDestinationAccountId('')
+    amountRef.current?.focus()
+  }
+
   const isReferenceDataLoading =
     isLoadingSourceAccounts || isLoadingDestinationAccounts || isLoadingCategories || isLoadingTags
 
+  const isSaveDisabled =
+    isSaving ||
+    !description.trim() ||
+    (!sourceAccountId && OPTIONAL_SIDE[transactionType] !== 'source') ||
+    (!destinationAccountId && OPTIONAL_SIDE[transactionType] !== 'destination')
+
+  const amountSymbol = currencySymbolFor(accountCurrency ?? user?.currency ?? '')
+
   if ((isEditing || isCloning) && (!isFormPopulated || isReferenceDataLoading)) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-5xl space-y-6">
         <PageHeader
           title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')}
           description={t('transactionForm.description')}
         />
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[76px] rounded-xl" />
-          ))}
+        <div className="space-y-6 lg:w-2/3 lg:pr-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-[62px] rounded-xl" />
+            ))}
+          </div>
+          <FormSkeleton fieldCount={4} />
         </div>
-        <FormSkeleton fieldCount={4} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader
         title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')}
         description={t('transactionForm.description')}
       />
 
-      {/* Phones: three compact buttons in a row, short labels, no explanation. */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
-        {(Object.keys(TYPE_CONFIG) as TransactionType[]).map((type) => {
-          const Icon = TYPE_ICONS[type]
-          const isActive = transactionType === type
-          return (
-            <button
-              key={type}
-              type="button"
-              onClick={() => handleTypeChange(type)}
-              className={cn(
-                'flex flex-col items-center gap-1 rounded-xl border-2 bg-card p-2 text-center transition-colors hover:bg-accent/50 md:flex-row md:gap-3 md:p-4 md:text-left',
-                isActive ? TYPE_STYLES[type].active : 'border-border'
-              )}
-            >
-              <Icon className={cn('h-6 w-6 shrink-0 md:h-8 md:w-8', TYPE_STYLES[type].icon)} />
-              <div>
-                <div className="text-sm font-semibold md:text-base">
-                  <span className="md:hidden">{typeShortLabels[type]}</span>
-                  <span className="hidden md:inline">{typeLabels[type]}</span>
-                </div>
-                <div className="hidden text-xs text-muted-foreground md:block">{typeDescriptions[type]}</div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Desktop: what, when, how much and its categories on the left, the optional extras on the right.
-          Below that, one column in that order. */}
+      {/* Desktop: the kind, what, how much, between which accounts and its categories on the left, the
+          optional extras on the right, every field on the same two-column grid. Below that, one column. */}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
           <div className="space-y-6">
-            <FormSection title={t('transactionForm.sectionTransaction')} contentClassName="grid gap-4 sm:grid-cols-2">
-              {/* Phones: the amount comes first, large. */}
-              <div className="space-y-2">
-                <Label htmlFor="amount">{t('transactionForm.amount')}</Label>
-                <Input
-                  data-large
-                  className="max-md:h-14 max-md:text-2xl max-md:font-semibold max-md:tabular-nums"
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
+            <ChoiceCards label={t('transactionForm.type')} options={typeOptions} value={transactionType} onChange={handleTypeChange} />
 
-              {isCurrencyTransfer && (
-                <div className="space-y-2">
-                  <Label htmlFor="destinationAmount">
-                    {t('transactionForm.destinationAmount')}
-                    <span className="ml-1 font-normal text-muted-foreground">({currencySymbolFor(destinationCurrency ?? '')})</span>
-                  </Label>
+            <FormSection title={t('transactionForm.sectionTransaction')} contentClassName="grid gap-4 sm:grid-cols-2">
+              {/* The amount first, large, in the account's currency. */}
+              <Field label={t('transactionForm.amount')} htmlFor="amount">
+                <div className="relative">
                   <Input
-                    id="destinationAmount"
+                    ref={amountRef}
+                    data-large
+                    className="h-12 pr-10 text-2xl font-semibold tabular-nums"
+                    id="amount"
                     type="number"
+                    inputMode="decimal"
                     step="0.01"
                     min="0.01"
                     required
-                    value={destinationAmount}
-                    onChange={(e) => setDestinationAmount(e.target.value)}
+                    placeholder="0,00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {transferRate !== null
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-base text-muted-foreground">
+                    {amountSymbol}
+                  </span>
+                </div>
+              </Field>
+
+              <Field
+                label={t('transactionForm.occurredAt')}
+                htmlFor="occurredAt"
+                labelAside={<QuickDates value={occurredAt} onChange={setOccurredAt} />}
+              >
+                <Input id="occurredAt" type="datetime-local" className="sm:h-12" required value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
+              </Field>
+
+              {isCurrencyTransfer && (
+                <Field
+                  label={
+                    <>
+                      {t('transactionForm.destinationAmount')}
+                      <span className="ml-1 font-normal text-muted-foreground">({currencySymbolFor(destinationCurrency ?? '')})</span>
+                    </>
+                  }
+                  htmlFor="destinationAmount"
+                  hint={
+                    transferRate !== null
                       ? t('transactionForm.transferRate', {
                           from: sourceCurrency,
                           rate: numberFormatter({ maximumFractionDigits: 6 }).format(transferRate),
                           to: destinationCurrency,
                         })
-                      : t('transactionForm.destinationAmountHint', { from: sourceCurrency, to: destinationCurrency })}
-                  </p>
-                </div>
+                      : t('transactionForm.destinationAmountHint', { from: sourceCurrency, to: destinationCurrency })
+                  }
+                >
+                  <Input
+                    id="destinationAmount"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="tabular-nums"
+                    value={destinationAmount}
+                    onChange={(e) => setDestinationAmount(e.target.value)}
+                  />
+                </Field>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="occurredAt">{t('transactionForm.occurredAt')}</Label>
-                <Input
-                  id="occurredAt"
-                  type="datetime-local"
-                  required
-                  value={occurredAt}
-                  onChange={(e) => setOccurredAt(e.target.value)}
-                />
-              </div>
+              <Field label={t('transactionForm.descriptionField')} htmlFor="description" className="sm:col-span-2">
+                <DescriptionField id="description" required value={description} onChange={setDescription} onPick={isEditing ? undefined : copyFrom} />
+              </Field>
 
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="description">{t('transactionForm.descriptionField')}</Label>
-                <Input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{sourceLabel}</Label>
+              <Field label={sourceLabel}>
                 <Combobox
                   options={sourceOptions}
                   value={sourceAccountId}
                   onChange={setSourceAccountId}
                   // An asset account needs a kind, a currency and an opening balance: made on the Accounts page.
                   onCreate={config.sourceType === 'asset' ? undefined : (name) => setSourceAccountId(toPendingId(name))}
-                  placeholder={t('transactionForm.selectAccount')}
+                  placeholder={t(config.sourceType === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
                   clearable={OPTIONAL_SIDE[transactionType] === 'source'}
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-2">
-                <Label>{destinationLabel}</Label>
+              <Field label={destinationLabel}>
                 <Combobox
                   options={destinationOptions}
                   value={destinationAccountId}
                   onChange={setDestinationAccountId}
                   onCreate={config.destinationType === 'asset' ? undefined : (name) => setDestinationAccountId(toPendingId(name))}
-                  placeholder={t('transactionForm.selectAccount')}
+                  placeholder={t(config.destinationType === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
                   clearable={OPTIONAL_SIDE[transactionType] === 'destination'}
                 />
-              </div>
+              </Field>
+
             </FormSection>
 
             <FormSection title={t('transactionForm.sectionClassification')} optional contentClassName="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t('transactionForm.category')}</Label>
+              <Field label={t('transactionForm.category')}>
                 <Combobox
                   options={categoryOptions}
                   value={categoryId}
@@ -487,10 +502,9 @@ export default function TransactionFormPage() {
                   onCreate={(name) => setCategoryId(toPendingId(name))}
                   placeholder={t('transactionForm.selectCategory')}
                 />
-              </div>
+              </Field>
 
-              <div className="space-y-2">
-                <Label>{t('transactionForm.tags')}</Label>
+              <Field label={t('transactionForm.tags')}>
                 <TagsInput
                   options={tagOptions}
                   value={selectedTagIds}
@@ -498,51 +512,50 @@ export default function TransactionFormPage() {
                   onCreate={(name) => setSelectedTagIds((current) => [...current, toPendingId(name)])}
                   placeholder={t('tagsInput.add')}
                 />
-              </div>
+              </Field>
             </FormSection>
           </div>
 
           <div className="space-y-6">
             {transactionType !== 'transfer' && (
               <FormSection title={t('transactionForm.foreignCurrency')} optional contentClassName="space-y-4">
-                <div className="flex items-start gap-2">
-                  <input
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
                     id="hasForeignAmount"
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-input"
+                    className="mt-0.5"
                     checked={hasForeignAmount}
                     onChange={(e) => resetForeignAmount(e.target.checked)}
                   />
-                  <Label htmlFor="hasForeignAmount" className="font-normal">
+                  <Label htmlFor="hasForeignAmount" className="font-normal leading-snug">
                     {t(transactionType === 'deposit' ? 'transactionForm.hasForeignAmountDeposit' : 'transactionForm.hasForeignAmount')}
                   </Label>
                 </div>
-  
+
                 {hasForeignAmount && (
                   <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                    <div className="min-w-0 space-y-2">
-                      <Label htmlFor="foreignCurrency">{t('transactionForm.foreignCurrency')}</Label>
+                    <Field label={t('transactionForm.foreignCurrency')} htmlFor="foreignCurrency">
                       <Combobox
                         options={currencyOptions}
                         value={foreignCurrency}
                         onChange={setForeignCurrency}
                         placeholder={t('accountsCommon.selectCurrency')}
                       />
-                    </div>
-  
-                    <div className="min-w-0 space-y-2">
-                      <Label htmlFor="foreignAmount">{t('transactionForm.foreignAmount')}</Label>
+                    </Field>
+
+                    <Field label={t('transactionForm.foreignAmount')} htmlFor="foreignAmount">
                       <Input
                         id="foreignAmount"
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
+                        className="tabular-nums"
                         value={foreignAmount}
                         onChange={(e) => setForeignAmount(e.target.value)}
                       />
-                    </div>
+                    </Field>
                   </div>
                 )}
-  
+
                 {hasForeignAmount && (
                   <p className="text-xs text-muted-foreground">
                     {appliedRate !== null
@@ -558,13 +571,7 @@ export default function TransactionFormPage() {
             )}
 
             <FormSection title={<label htmlFor="notes">{t('classificationCommon.notes')}</label>} optional>
-              <textarea
-                id="notes"
-                rows={3}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </FormSection>
           </div>
         </div>
@@ -573,15 +580,12 @@ export default function TransactionFormPage() {
           <Button type="button" variant="outline" onClick={handleCancel}>
             {t('common.cancel')}
           </Button>
-          <Button
-            type="submit"
-            disabled={
-              isSaving ||
-              !description.trim() ||
-              (!sourceAccountId && OPTIONAL_SIDE[transactionType] !== 'source') ||
-              (!destinationAccountId && OPTIONAL_SIDE[transactionType] !== 'destination')
-            }
-          >
+          {!isEditing && (
+            <Button type="submit" variant="outline" disabled={isSaveDisabled} onClick={() => (addAnotherRef.current = true)}>
+              {t('transactionForm.saveAndAddAnother')}
+            </Button>
+          )}
+          <Button type="submit" disabled={isSaveDisabled} onClick={() => (addAnotherRef.current = false)}>
             {t('common.save')}
           </Button>
         </FormActions>

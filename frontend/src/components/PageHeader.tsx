@@ -21,7 +21,7 @@ export default function PageHeader({ title, description, actions, compactActions
       )}
     >
       <div className={cn('min-w-0 space-y-1', compactActions && 'max-md:flex-1')}>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="page-title">{title}</h1>
         {description && (
           // Phones: the title is enough, the description would push the content down.
           <p className="hidden text-sm text-muted-foreground md:block">{description}</p>

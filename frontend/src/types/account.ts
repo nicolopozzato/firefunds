@@ -68,6 +68,9 @@ export interface Account {
   gainPercent: string | null
   /** Asset accounts: the other changes to the balance, oldest first. */
   adjustments: AccountAdjustment[]
+  /** The latest day the balance was checked against the bank's and matched (YYYY-MM-DD), and that balance. */
+  reconciledOn: string | null
+  reconciledBalance: string | null
 }
 
 export interface CreateAccountRequest {
@@ -124,6 +127,8 @@ export interface AccountDeletionPreview {
   adjustments: number
   investmentTransactions: number
   openPositions: number
+  /** Recurring transactions using it: moved or deleted with the transactions. */
+  recurring: number
   /** Accounts of the same type, kind and currency that can take over its transactions. */
   transferTargets: { id: string; name: string }[]
 }
@@ -133,3 +138,18 @@ export type MoveAccountTarget = { afterId: string } | { beforeId: string }
 
 /** What to do with an account's transactions when deleting it. */
 export type DeleteAccountOptions = { transferTo: string } | { deleteTransactions: true } | Record<string, never>
+
+export interface ReconcileAccountRequest {
+  day: string
+  balance: string
+  /** Record a difference as an expense (less in the bank) or an income (more) of that day. */
+  settle?: boolean
+  description?: string | null
+  categoryId?: string | null
+}
+
+export interface ReconcileAccountResponse {
+  difference: string
+  transactionId: string | null
+  account: Account
+}

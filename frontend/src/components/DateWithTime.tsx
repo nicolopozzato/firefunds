@@ -1,13 +1,16 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatDateTime, formatTime24h } from '@/lib/utils'
+import { formatDateTime, formatShortDate, formatTime24h } from '@/lib/utils'
 
+/** A day in a table: short, on one line; the whole date and the time on hover. */
 export default function DateWithTime({ date }: { date: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span>{formatDateTime(date)}</span>
+        <span className="whitespace-nowrap">{formatShortDate(date)}</span>
       </TooltipTrigger>
-      <TooltipContent>{formatTime24h(date)}</TooltipContent>
+      <TooltipContent>
+        {formatDateTime(date)} · {formatTime24h(date)}
+      </TooltipContent>
     </Tooltip>
   )
 }

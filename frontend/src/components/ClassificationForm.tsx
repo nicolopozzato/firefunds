@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreateClassification, useUpdateClassification } from '@/hooks/use-classification'
 import { useFormFill } from '@/hooks/use-form-fill'
@@ -65,11 +66,11 @@ export default function ClassificationForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <PageHeader title={title} description={description} />
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-5">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name">{t('classificationCommon.name')}</Label>
@@ -83,10 +84,8 @@ export default function ClassificationForm({
 
             <div className="space-y-2">
               <Label htmlFor="notes">{t('classificationCommon.notes')}</Label>
-              <textarea
+              <Textarea
                 id="notes"
-                rows={3}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

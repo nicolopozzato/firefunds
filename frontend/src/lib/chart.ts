@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { formatMoney, formatWholeMoney } from './utils'
 
 /**
@@ -102,14 +102,18 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
  * Tracks the rendered width of a container element via ResizeObserver.
  * Returns a callback ref (not a ref object) so the observer follows the
  * element even when it mounts later or is replaced, e.g. a chart switching
- * from its "no data" placeholder back to the plot.
+ * from its "no data" placeholder back to the plot. Measured before the first
+ * paint, so a chart is never drawn at the fallback width (wider than a phone)
+ * for a moment.
  */
 export function useContainerWidth<T extends HTMLElement>(fallback: number) {
   const [element, setElement] = useState<T | null>(null)
   const [width, setWidth] = useState(fallback)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!element) return
+    const measured = element.getBoundingClientRect().width
+    if (measured > 0) setWidth(measured)
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]

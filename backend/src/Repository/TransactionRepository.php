@@ -8,6 +8,7 @@ use App\Core\Search\SearchQuery;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\Category;
+use App\Entity\RecurringTransaction;
 use App\Entity\Tag;
 use App\Entity\Transaction;
 use App\Entity\User;
@@ -42,8 +43,12 @@ class TransactionRepository extends ServiceEntityRepository
         PaginationParams $params,
         ?Account $account = null,
         Category|string|null $category = null,
+        ?Tag $tag = null,
+        ?RecurringTransaction $recurring = null,
     ): array {
-        $qb = $this->createBaseQuery($user, $from, $to);
+        $qb = $this->createBaseQuery($user, $from, $to)
+            ->leftJoin('t.recurring', 'rec')
+            ->addSelect('rec');
         TransactionKind::applyDql($qb, $kind);
 
         if ($account !== null) {
@@ -55,6 +60,14 @@ class TransactionRepository extends ServiceEntityRepository
             $qb->andWhere('t.category = :category')->setParameter('category', $category);
         } elseif ($category === 'none') {
             $qb->andWhere('t.category IS NULL');
+        }
+
+        if ($tag !== null) {
+            $qb->andWhere(':tag MEMBER OF t.tags')->setParameter('tag', $tag);
+        }
+
+        if ($recurring !== null) {
+            $qb->andWhere('t.recurring = :recurring')->setParameter('recurring', $recurring);
         }
 
         return Paginator::paginate($qb, $params);
@@ -307,6 +320,56 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Transactions that could be an occurrence of a recurring one: between
+     * the same two sides (none for none), from `from` through `to`, not part
+     * of a recurrence yet. Any amount: a bill changes month by month.
+     *
+     * @return list<Transaction>
+     */
+    public function findRecurringCandidates(User $user, ?Account $source, ?Account $destination, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.recurring IS NULL')
+            ->andWhere('t.occurredAt >= :from AND t.occurredAt < :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', new \DateTimeImmutable($from->format('Y-m-d')))
+            ->setParameter('to', new \DateTimeImmutable($to->modify('+1 day')->format('Y-m-d')))
+            ->orderBy('t.occurredAt', 'ASC');
+        foreach (['sourceAccount' => $source, 'destinationAccount' => $destination] as $side => $account) {
+            if ($account === null) {
+                $qb->andWhere("t.{$side} IS NULL");
+            } else {
+                $qb->andWhere("t.{$side} = :{$side}")->setParameter($side, $account);
+            }
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Transactions on this account, not part of a recurrence, from `from`
+     * through `to`: what the user may link to a recurring one by hand.
+     *
+     * @return list<Transaction>
+     */
+    public function findLinkable(User $user, Account $account, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.recurring IS NULL')
+            ->andWhere('t.sourceAccount = :account OR t.destinationAccount = :account')
+            ->andWhere('t.occurredAt >= :from AND t.occurredAt < :to')
+            ->setParameter('user', $user)
+            ->setParameter('account', $account)
+            ->setParameter('from', new \DateTimeImmutable($from->format('Y-m-d')))
+            ->setParameter('to', new \DateTimeImmutable($to->modify('+1 day')->format('Y-m-d')))
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * These transactions with everything their response shows (accounts,
      * category, tags) loaded in the same query.
      *
@@ -320,7 +383,8 @@ class TransactionRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('t')
-            ->addSelect('src', 'dst', 'c', 'tag')
+            ->addSelect('src', 'dst', 'c', 'tag', 'rec')
+            ->leftJoin('t.recurring', 'rec')
             ->leftJoin('t.sourceAccount', 'src')
             ->leftJoin('t.destinationAccount', 'dst')
             ->leftJoin('t.category', 'c')
@@ -479,6 +543,117 @@ class TransactionRepository extends ServiceEntityRepository
             'from' => $from->format('Y-m-d H:i:s.u'),
             'to' => $to->format('Y-m-d H:i:s.u'),
         ])->fetchAllAssociative();
+    }
+
+    /**
+     * Month by month, what was spent and received with one category or one
+     * tag over a range, in the user's currency (each amount at its day's
+     * rate): the chart of a category's or a tag's page. Transfers are neither.
+     *
+     * @return list<array{month: string, expense: string, income: string}>
+     */
+    public function sumFlowsByMonthFor(User $user, \DateTimeInterface $from, \DateTimeInterface $to, Category|Tag $of): array
+    {
+        $flow = TransactionKind::sqlFlowCase();
+        $which = $of instanceof Category
+            ? 't.category_id = :of'
+            : 'EXISTS (SELECT 1 FROM transaction_tag tt WHERE tt.transaction_id = t.id AND tt.tag_id = :of)';
+        $sql = <<<SQL
+            SELECT month,
+                CAST(COALESCE(SUM(amount) FILTER (WHERE flow = 'expense'), 0) AS numeric(19,4)) AS expense,
+                CAST(COALESCE(SUM(amount) FILTER (WHERE flow = 'income'), 0) AS numeric(19,4)) AS income
+            FROM (
+                SELECT
+                    {$flow} AS flow,
+                    to_char(t.occurred_at, 'YYYY-MM') AS month,
+                    app_convert(t.amount, t.currency, :currency, CAST(t.occurred_at AS date), :user) AS amount
+                FROM transaction t
+                LEFT JOIN account src ON src.id = t.source_account_id
+                LEFT JOIN account dst ON dst.id = t.destination_account_id
+                WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.occurred_at BETWEEN :from AND :to AND {$which}
+            ) flows
+            WHERE flow IN ('expense', 'income')
+            GROUP BY month
+            ORDER BY month
+            SQL;
+
+        return $this->getEntityManager()->getConnection()->executeQuery($sql, [
+            'user' => $user->getId()->toRfc4122(),
+            'currency' => $user->getCurrency(),
+            'from' => $from->format('Y-m-d H:i:s.u'),
+            'to' => $to->format('Y-m-d H:i:s.u'),
+            'of' => $of->getId()->toRfc4122(),
+        ])->fetchAllAssociative();
+    }
+
+    /**
+     * What to offer while a new transaction's description is typed: the
+     * latest transaction of each description containing the text (ignoring
+     * case and accents), those starting with it first, the most recent next.
+     *
+     * @return list<Transaction>
+     */
+    public function suggestionsByDescription(User $user, string $text, int $limit = 6): array
+    {
+        $escaped = addcslashes(mb_strtolower(trim($text)), '%_\\');
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            <<<SQL
+                SELECT id FROM (
+                    SELECT DISTINCT ON (lower(t.description)) t.id, t.occurred_at, unaccent(lower(t.description)) AS folded
+                    FROM transaction t
+                    WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.description IS NOT NULL
+                        AND unaccent(lower(t.description)) LIKE '%' || unaccent(:text) || '%'
+                    ORDER BY lower(t.description), t.occurred_at DESC
+                ) latest
+                ORDER BY folded LIKE unaccent(:text) || '%' DESC, occurred_at DESC
+                LIMIT :limit
+                SQL,
+            ['user' => $user->getId()->toRfc4122(), 'text' => $escaped, 'limit' => $limit],
+            ['limit' => ParameterType::INTEGER],
+        )->fetchFirstColumn();
+
+        if ($ids === []) {
+            return [];
+        }
+        $byId = [];
+        foreach ($this->findBy(['id' => $ids]) as $transaction) {
+            $byId[$transaction->getId()->toRfc4122()] = $transaction;
+        }
+
+        return array_values(array_filter(array_map(static fn (string $id) => $byId[$id] ?? null, $ids)));
+    }
+
+    /**
+     * The day of the latest transaction each of these categories or tags is
+     * set on, in one query for a whole list page.
+     *
+     * @param list<Category>|list<Tag> $items
+     *
+     * @return array<string, string> id => YYYY-MM-DD
+     */
+    public function lastTransactionDays(User $user, array $items, bool $tags = false): array
+    {
+        if ($items === []) {
+            return [];
+        }
+        $sql = $tags
+            ? 'SELECT tt.tag_id AS id, MAX(t.occurred_at) AS last FROM transaction t JOIN transaction_tag tt ON tt.transaction_id = t.id
+               WHERE t.user_id = :user AND t.deleted_at IS NULL AND tt.tag_id IN (:ids) GROUP BY tt.tag_id'
+            : 'SELECT t.category_id AS id, MAX(t.occurred_at) AS last FROM transaction t
+               WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.category_id IN (:ids) GROUP BY t.category_id';
+
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            $sql,
+            ['user' => $user->getId()->toRfc4122(), 'ids' => array_map(static fn ($item) => $item->getId()->toRfc4122(), $items)],
+            ['ids' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        $days = [];
+        foreach ($rows as $row) {
+            $days[$row['id']] = substr((string) $row['last'], 0, 10);
+        }
+
+        return $days;
     }
 
     /**

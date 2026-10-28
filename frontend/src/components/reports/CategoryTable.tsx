@@ -93,17 +93,17 @@ export default function CategoryTable({ title, flow, table, periods, by, compari
 
   if (table.rows.length === 0) {
     return (
-      <section className="rounded-xl border bg-card p-4">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+      <section className="surface p-4 sm:p-5">
+        <h3 className="mb-3 section-title">{title}</h3>
         <p className="py-8 text-center text-sm text-muted-foreground">{t(flow === 'expense' ? 'reports.noExpenses' : 'reports.noIncome')}</p>
       </section>
     )
   }
 
   return (
-    <section className="min-w-0 rounded-xl border bg-card">
+    <section className="min-w-0 surface">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="section-title">{title}</h3>
         <span className="text-xs text-muted-foreground">
           {t('reports.amountsIn', { currency: currency ?? '' })} · {t('reports.cellHint')}
         </span>

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, ArrowUpCircle, ArrowDownCircle, Repeat, Landmark, ShoppingCart, Banknote, Tag } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -10,57 +10,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useQuickAddActions } from '@/components/layout/quick-add'
+import { cn } from '@/lib/utils'
 
+/** The header's "+": the same things to add as the phone's panel (QuickAddDrawer). */
 export default function QuickAddButton() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { transactions, others } = useQuickAddActions()
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" className="rounded-full">
+        <Button size="icon" className="rounded-full" aria-label={t('quickAdd.title')} title={t('quickAdd.title')}>
           <Plus className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {t('quickAdd.transaction')}
-        </DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigate('/transactions/new?type=withdrawal')}>
-          <ArrowUpCircle className="mr-2 h-4 w-4 text-negative" />
-          {t('navigation.withdrawalTransactions')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/transactions/new?type=deposit')}>
-          <ArrowDownCircle className="mr-2 h-4 w-4 text-positive" />
-          {t('navigation.depositTransactions')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/transactions/new?type=transfer')}>
-          <Repeat className="mr-2 h-4 w-4 text-info" />
-          {t('navigation.transferTransactions')}
-        </DropdownMenuItem>
-
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t('quickAdd.transaction')}</DropdownMenuLabel>
+        {transactions.map((action) => (
+          <DropdownMenuItem key={action.href} onClick={() => navigate(action.href)}>
+            <action.icon className={cn('mr-2 h-4 w-4', action.tone)} />
+            {action.label}
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {t('quickAdd.account')}
-        </DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigate('/accounts/asset/new')}>
-          <Landmark className="mr-2 h-4 w-4" />
-          {t('navigation.assetAccounts')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/accounts/expense/new')}>
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          {t('navigation.expenseAccounts')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/accounts/revenue/new')}>
-          <Banknote className="mr-2 h-4 w-4" />
-          {t('navigation.revenueAccounts')}
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/categories/new')}>
-          <Tag className="mr-2 h-4 w-4" />
-          {t('quickAdd.category')}
-        </DropdownMenuItem>
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t('quickAdd.other')}</DropdownMenuLabel>
+        {others.map((action) => (
+          <DropdownMenuItem key={action.href} onClick={() => navigate(action.href)}>
+            <action.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+            {action.label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )

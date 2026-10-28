@@ -82,6 +82,11 @@ class Transaction implements SoftDeletable
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    /** The recurring transaction that created it (or that it was made recurring from). */
+    #[ORM\ManyToOne(targetEntity: RecurringTransaction::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?RecurringTransaction $recurring = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -278,6 +283,24 @@ class Transaction implements SoftDeletable
     public function markDeleted(): void
     {
         $this->deletedAt = new \DateTimeImmutable();
+    }
+
+    /** Undoes markDeleted(): only right after a delete (see RestoreWindow). */
+    public function restore(): void
+    {
+        $this->deletedAt = null;
+    }
+
+    public function getRecurring(): ?RecurringTransaction
+    {
+        return $this->recurring;
+    }
+
+    public function setRecurring(?RecurringTransaction $recurring): static
+    {
+        $this->recurring = $recurring;
+
+        return $this;
     }
 
     #[ORM\PreUpdate]

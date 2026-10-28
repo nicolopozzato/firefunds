@@ -22,35 +22,39 @@
 
 @layer base {
   :root {
-    /* Light mode */
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    /* Light mode: src/lib/theme.ts (SURFACES) sets the same values, and the
+       dark ones, once it runs. */
+    --background: 240 7% 97%;
+    --foreground: 240 10% 9%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 6% 95%;
+    --muted-foreground: 240 4% 43%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 240 10% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 240 10% 9%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 240 6% 90%;
+    --input: 240 6% 86%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 6% 94%;
+    --secondary-foreground: 240 10% 9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 240 6% 94%;
+    --accent-foreground: 240 10% 9%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 221 83% 53%;
+
+    /* Cards: a hairline shadow in light mode, none in dark (the border is enough). */
+    --shadow-card: 0 1px 2px 0 hsl(240 10% 10% / 0.04), 0 1px 3px 0 hsl(240 10% 10% / 0.03);
 
     /* 0.75rem (12px) instead of the usual 0.5rem (8px) */
     --radius: 0.75rem;
@@ -87,6 +91,9 @@
 }
 
 @layer base {
+  .dark {
+    --shadow-card: none;
+  }
   * {
     @apply border-border;
   }
@@ -109,6 +116,52 @@
     textarea {
       font-size: 16px !important;
     }
+  }
+}
+
+/* The type scale and surfaces every page uses, so the same thing always looks
+   the same: page title, section title, small grouped-list headings, the label
+   over a figure, and figures (amounts, percentages) in four sizes. */
+@layer components {
+  .surface {
+    @apply rounded-xl border bg-card text-card-foreground;
+    box-shadow: var(--shadow-card);
+  }
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  .section-title {
+    @apply text-base font-semibold leading-tight tracking-tight;
+  }
+  .group-label {
+    @apply text-xs font-medium uppercase tracking-wide text-muted-foreground;
+  }
+  .stat-label {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+  .figure-xl {
+    @apply text-3xl font-semibold tracking-tight tabular-nums;
+  }
+  .figure-lg {
+    @apply text-2xl font-semibold tracking-tight tabular-nums;
+  }
+  .figure-md {
+    @apply text-lg font-semibold tabular-nums;
+  }
+  .figure-sm {
+    @apply text-base font-semibold tabular-nums;
+  }
+  /* Text in a table cell: one line, cut with "…" when long, so every row has the same height. */
+  .cell-text {
+    @apply block max-w-[9rem] truncate lg:max-w-[11rem] xl:max-w-[14rem] 2xl:max-w-[20rem];
+  }
+  /* In a table with fixed columns the column sets the width: the text just fills it. */
+  .table-fixed .cell-text {
+    @apply max-w-full;
+  }
+  /* The box a chart shows over the point under the pointer. */
+  .chart-tooltip {
+    @apply rounded-md border bg-popover/95 px-2.5 py-1.5 text-xs tabular-nums text-popover-foreground shadow-md;
   }
 }
 
@@ -167,3 +220,84 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+/* Motion: short, eased, never in the way, and none at all for whoever asked their system for less. */
+/* Opacity only: a transform would make the page the frame of anything fixed in it (the phone's Save bar). */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes chart-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes chart-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@layer utilities {
+  /* A page's content as it opens. */
+  .page-enter {
+    animation: page-enter 220ms ease-out backwards;
+  }
+  /* A chart's line drawing itself from the left (the path needs pathLength="1"). */
+  .chart-line {
+    stroke-dasharray: 1;
+    animation: chart-draw 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* A pie, an area: fading in. */
+  .chart-appear {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: chart-appear 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* A ranking's bars growing from the left. */
+  .chart-grow-x {
+    transform-origin: left;
+    animation: chart-grow-x 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* A card that reacts to the pointer: a 1px lift, a soft shadow, a firmer edge. Mouse only. */
+  @media (hover: hover) and (pointer: fine) {
+    .surface-interactive {
+      transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, background-color 150ms ease;
+    }
+    .surface-interactive:hover {
+      transform: translateY(-1px);
+      border-color: hsl(var(--foreground) / 0.12);
+      box-shadow: 0 6px 16px -4px hsl(240 10% 10% / 0.08), 0 2px 4px -2px hsl(240 10% 10% / 0.05);
+    }
+    .dark .surface-interactive:hover {
+      box-shadow: 0 6px 16px -4px hsl(0 0% 0% / 0.5);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page-enter,
+    .chart-line,
+    .chart-appear,
+    .chart-grow-x {
+      animation: none;
+    }
+    .chart-line {
+      stroke-dasharray: none;
+    }
+    .surface-interactive,
+    .surface-interactive:hover {
+      transform: none;
+      transition: none;
+    }
+  }
+}
+

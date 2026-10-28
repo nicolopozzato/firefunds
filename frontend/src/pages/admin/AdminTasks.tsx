@@ -13,6 +13,7 @@ import { handleApiError } from '@/lib/error-handler'
 import { describeCron, runSummary } from '@/lib/task-runs'
 import { cn, formatDateTime, formatTime24h } from '@/lib/utils'
 import type { DataStatus, ScheduledTask, TaskRun, TaskRunStatus } from '@/types/admin'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const RUN_TONES: Record<TaskRunStatus, string> = {
   running: 'bg-info/10 text-info',
@@ -31,7 +32,7 @@ const RUNS_PER_PAGE = 10
 const DATA_ORDER: Record<DataStatus, number> = { missing: 0, stale: 1, ok: 2 }
 
 function Pill({ tone, children }: { tone: string; children: ReactNode }) {
-  return <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium', tone)}>{children}</span>
+  return <span className={cn('inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium', tone)}>{children}</span>
 }
 
 function instant(value: string): string {
@@ -75,7 +76,7 @@ function RunLog({ task }: { task: ScheduledTask }) {
       <div className="border-t">
         <div className="px-3 py-3">
           {isLoading || !data ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            <Skeleton className="h-24 w-full" />
           ) : data.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('admin.tasks.noRuns')}</p>
           ) : (
@@ -132,7 +133,9 @@ function TaskCard({ task, timezone }: { task: ScheduledTask; timezone: string })
             <dd className="text-right">
               {schedule === null
                 ? task.cron
-                : schedule.kind === 'hourly'
+                : schedule.kind === 'every'
+                  ? t('admin.tasks.scheduleEvery', { count: schedule.minutes })
+                  : schedule.kind === 'hourly'
                   ? t('admin.tasks.scheduleHourly', { minute: String(schedule.minute).padStart(2, '0') })
                   : t('admin.tasks.scheduleDaily', { times: schedule.times.join(', '), timezone })}
             </dd>
@@ -162,11 +165,11 @@ export default function AdminTasks() {
 
   return (
     <div className="space-y-6">
-      <AdminTabs />
       <PageHeader title={t('admin.tasks.title')} description={t('admin.tasks.description')} />
+      <AdminTabs />
 
       {isLoading || !overview ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">{t('common.loading')}</div>
+        <Skeleton className="h-48 w-full rounded-xl" />
       ) : (
         <>
           <div className="grid items-start gap-6 lg:grid-cols-2">

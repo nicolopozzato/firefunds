@@ -8,16 +8,7 @@ import PageActions from '@/components/PageActions'
 import TransactionAmount from '@/components/TransactionAmount'
 import { DetailField, DetailFields, DetailFlow, DetailHeadline, DetailLayout } from '@/components/TransactionDetail'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   useDeleteInvestmentTransaction,
   useInvestmentTransaction,
@@ -30,6 +21,7 @@ import type { InvestmentTransaction } from '@/types/investment'
 import LoadFailed from '@/components/LoadFailed'
 import HistoryCard from '@/components/HistoryCard'
 import { isEmptyValue } from '@/lib/audit-log'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 const basePath = '/transactions/investments'
 
@@ -112,7 +104,7 @@ export default function InvestmentTransactionDetailPage() {
       <div className="space-y-6">
         <PageHeader title={t('investmentTransactionDetail.title')} />
         <Card>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4 pt-4 sm:pt-5">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="h-6 w-1/3" />
             <Skeleton className="h-6 w-1/2" />
@@ -154,7 +146,6 @@ export default function InvestmentTransactionDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={transaction.description ?? transaction.instrumentName}
-        description={t('investmentTransactionDetail.title')}
         compactActions
         actions={
           <PageActions
@@ -177,7 +168,7 @@ export default function InvestmentTransactionDetailPage() {
       />
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-5">
           <DetailLayout
             summary={
               <>
@@ -236,22 +227,14 @@ export default function InvestmentTransactionDetailPage() {
 
       <InvestmentTransactionHistoryCard transactionId={transaction.id} />
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('investmentTransactions.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('investmentTransactions.deleteConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteTransaction.isPending}>
-              {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t('investmentTransactions.deleteConfirmTitle')}
+        description={t('investmentTransactions.deleteConfirmDescription')}
+        onConfirm={handleConfirmDelete}
+        pending={deleteTransaction.isPending}
+      />
     </div>
   )
 }

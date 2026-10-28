@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import SegmentedControl from '@/components/ui/segmented-control'
@@ -58,8 +59,8 @@ function SectionsCard() {
 
   return (
     <Card>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base">{t('preferences.dashboardSections')}</CardTitle>
+      <CardHeader className="pb-2 sm:pb-2">
+        <CardTitle>{t('preferences.dashboardSections')}</CardTitle>
         <CardDescription>{t('preferences.dashboardSectionsDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,7 +70,7 @@ function SectionsCard() {
             return (
               <li key={section.key} className="flex items-center gap-3 px-3 py-1.5">
                 <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-1">
-                  <input type="checkbox" className="h-4 w-4 accent-primary" checked={section.visible} onChange={() => toggle(index)} />
+                  <Checkbox checked={section.visible} onChange={() => toggle(index)} />
                   <span className="truncate text-sm font-medium">{t(`preferences.sections.${section.key}`)}</span>
                 </label>
                 {position >= 0 && (
@@ -116,8 +117,8 @@ function ChartCard({ user }: { user: User }) {
 
   return (
     <Card>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base">{t('preferences.dashboardChart')}</CardTitle>
+      <CardHeader className="pb-2 sm:pb-2">
+        <CardTitle>{t('preferences.dashboardChart')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="divide-y">
@@ -192,8 +193,8 @@ function AccountsCard() {
 
   return (
     <Card>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base">{t('preferences.dashboardAccounts')}</CardTitle>
+      <CardHeader className="pb-2 sm:pb-2">
+        <CardTitle>{t('preferences.dashboardAccounts')}</CardTitle>
         <CardDescription>{t('preferences.dashboardAccountsDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -209,9 +210,7 @@ function AccountsCard() {
             {activeAccounts.map((account) => (
               <li key={account.id}>
                 <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-accent/50">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-primary"
+                  <Checkbox
                     checked={visibleIds.has(account.id)}
                     onChange={() => toggle(account.id)}
                   />

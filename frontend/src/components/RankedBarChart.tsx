@@ -63,8 +63,8 @@ function RankedBarList({ title, bars, total, color, currency, emptyLabel }: {
   const shown = expanded ? bars : bars.slice(0, MOBILE_ROWS)
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+    <div className="surface p-4 sm:p-5">
+      <h3 className="mb-3 section-title">{title}</h3>
       {bars.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
@@ -79,7 +79,7 @@ function RankedBarList({ title, bars, total, color, currency, emptyLabel }: {
                 </span>
               </div>
               <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full" style={{ width: `${(bar.value / max) * 100}%`, backgroundColor: color }} />
+                <div className="chart-grow-x h-full rounded-full" style={{ width: `${(bar.value / max) * 100}%`, backgroundColor: color }} />
               </div>
             </li>
           ))}
@@ -164,8 +164,8 @@ export default function RankedBarChart({ title, entries, color, currency, emptyL
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+    <div className="surface p-4 sm:p-5">
+      <h3 className="mb-3 section-title">{title}</h3>
       <div ref={containerRef} className="relative">
         {!chart ? (
           <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height: PADDING.top + PLOT_HEIGHT + 36 }}>
@@ -227,7 +227,7 @@ export default function RankedBarChart({ title, entries, color, currency, emptyL
 
             {hovered && (
               <div
-                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 rounded-md bg-background/95 px-2 py-1 shadow-sm"
+                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 chart-tooltip"
                 style={{
                   left: hovered.centerX,
                   top: hovered.y,

@@ -1,37 +1,19 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Banknote,
-  ChevronRight,
-  Landmark,
-  Layers,
-  LineChart,
-  Repeat,
-  ShoppingCart,
-  Tag,
-  type LucideIcon,
-} from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { useQuickAddActions } from '@/components/layout/quick-add'
 
 interface QuickAddDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-interface Action {
-  label: string
-  href: string
-  icon: LucideIcon
-  /** Icon colours of a big tile. */
-  tone?: string
-}
-
 /**
- * Phone version of the header's "+" menu, opened from the bottom bar: the
- * four kinds of transaction as big tiles, then the less frequent things to add.
+ * Phone version of the header's "+" menu (the same list, quick-add.ts),
+ * opened from the bottom bar: the four kinds of transaction as big tiles,
+ * then the less frequent things to add.
  */
 export default function QuickAddDrawer({ open, onOpenChange }: QuickAddDrawerProps) {
   const { t } = useTranslation()
@@ -42,20 +24,7 @@ export default function QuickAddDrawer({ open, onOpenChange }: QuickAddDrawerPro
     navigate(href)
   }
 
-  const transactions: Action[] = [
-    { label: t('quickAdd.withdrawal'), href: '/transactions/new?type=withdrawal', icon: ArrowUpCircle, tone: 'bg-negative/10 text-negative' },
-    { label: t('quickAdd.deposit'), href: '/transactions/new?type=deposit', icon: ArrowDownCircle, tone: 'bg-positive/10 text-positive' },
-    { label: t('quickAdd.transfer'), href: '/transactions/new?type=transfer', icon: Repeat, tone: 'bg-info/10 text-info' },
-    { label: t('quickAdd.trade'), href: '/transactions/investments/new', icon: LineChart, tone: 'bg-invest/10 text-invest' },
-  ]
-
-  const others: Action[] = [
-    { label: t('navigation.assetAccounts'), href: '/accounts/asset/new', icon: Landmark },
-    { label: t('navigation.expenseAccounts'), href: '/accounts/expense/new', icon: ShoppingCart },
-    { label: t('navigation.revenueAccounts'), href: '/accounts/revenue/new', icon: Banknote },
-    { label: t('quickAdd.category'), href: '/categories/new', icon: Tag },
-    { label: t('quickAdd.instrument'), href: '/investments/instruments/new', icon: Layers },
-  ]
+  const { transactions, others } = useQuickAddActions()
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -72,9 +41,9 @@ export default function QuickAddDrawer({ open, onOpenChange }: QuickAddDrawerPro
                 key={action.href}
                 type="button"
                 onClick={() => go(action.href)}
-                className="flex flex-col items-start gap-3 rounded-2xl border bg-card p-4 text-left text-sm font-medium transition-colors active:bg-accent"
+                className="flex flex-col items-start gap-3 surface p-4 text-left text-sm font-medium transition-colors active:bg-accent"
               >
-                <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl', action.tone)}>
+                <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl', action.tile, action.tone)}>
                   <action.icon className="h-5 w-5" />
                 </span>
                 {action.label}
@@ -82,10 +51,10 @@ export default function QuickAddDrawer({ open, onOpenChange }: QuickAddDrawerPro
             ))}
           </div>
 
-          <p className="mb-2 mt-5 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="group-label mb-1.5 mt-5 px-1">
             {t('quickAdd.other')}
           </p>
-          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <div className="divide-y overflow-hidden surface">
             {others.map((action) => (
               <button
                 key={action.href}

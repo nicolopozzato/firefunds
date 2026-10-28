@@ -12,6 +12,9 @@ use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Entity\Category;
 use App\Repository\CategoryRepository;
+use App\Repository\TransactionRepository;
+use App\Core\Period\UserDayRange;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,6 +29,7 @@ class CategoryController extends AbstractController
 
     public function __construct(
         private readonly CategoryRepository $categoryRepository,
+        private readonly TransactionRepository $transactionRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClassificationDeletionService $deletionService,
     ) {
@@ -39,8 +43,9 @@ class CategoryController extends AbstractController
 
         [$categories, $total] = $this->categoryRepository->findByUserPaginated($user, $params);
 
+        $lastDays = $this->transactionRepository->lastTransactionDays($user, $categories);
         $items = array_map(
-            static fn ($category) => NameNotesResponse::fromCategory($category),
+            static fn (Category $category) => NameNotesResponse::fromCategory($category, $lastDays[(string) $category->getId()] ?? null),
             $categories
         );
 
@@ -51,6 +56,22 @@ class CategoryController extends AbstractController
     public function get(string $id): JsonResponse
     {
         return $this->json(NameNotesResponse::fromCategory($this->findOwned($id)));
+    }
+
+    /**
+     * Month by month over `from`/`to`, what was spent and received with it
+     * (in the user's currency): the chart of its page.
+     */
+    #[Route('/{id}/months', name: 'api_categories_months', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function months(string $id, Request $request): JsonResponse
+    {
+        $user = $this->getCurrentUser();
+        [$from, $to] = UserDayRange::fromRequest($request, $user);
+        if ($from === null || $to === null) {
+            throw new BadRequestHttpException('Both from and to are required.');
+        }
+
+        return $this->json($this->transactionRepository->sumFlowsByMonthFor($user, $from, $to, $this->findOwned($id)));
     }
 
     #[Route('', name: 'api_categories_create', methods: ['POST'])]

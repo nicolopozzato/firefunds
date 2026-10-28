@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useLongPress } from '@/hooks/use-long-press'
 import { cn } from '@/lib/utils'
 
 /**
@@ -10,13 +11,13 @@ import { cn } from '@/lib/utils'
  */
 
 export function MobileListCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('divide-y overflow-hidden rounded-2xl border bg-card', className)}>{children}</div>
+  return <div className={cn('divide-y overflow-hidden surface', className)}>{children}</div>
 }
 
 export function MobileListSection({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
     <section>
-      <h3 className="px-1 pb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="group-label px-1 pb-1.5">{title}</h3>
       <MobileListCard>{children}</MobileListCard>
     </section>
   )
@@ -37,16 +38,39 @@ interface MobileListRowProps {
   onClick?: () => void
   /** A chevron on the right, for rows without a value. */
   chevron?: boolean
+  /** Holding the row down: e.g. starts selecting rows. */
+  onLongPress?: () => void
+  /** While rows are being selected: whether this one is (a round check takes the leading's place). */
+  selected?: boolean
 }
 
-export function MobileListRow({ leading, title, subtitle, extra, value, valueClassName, valueDetail, onClick, chevron }: MobileListRowProps) {
+export function MobileListRow({ leading, title, subtitle, extra, value, valueClassName, valueDetail, onClick, chevron, onLongPress, selected }: MobileListRowProps) {
+  const longPress = useLongPress(onLongPress)
+  const selecting = selected !== undefined
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-accent"
+      aria-pressed={selecting ? selected : undefined}
+      {...longPress}
+      className={cn(
+        'flex w-full select-none items-center gap-3 px-4 py-3 text-left transition-colors [-webkit-touch-callout:none] active:bg-accent',
+        selected && 'bg-primary/5'
+      )}
     >
-      {leading}
+      {selecting ? (
+        <span
+          className={cn(
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'
+          )}
+        >
+          {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+        </span>
+      ) : (
+        leading
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{title}</span>
         {subtitle && <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>}

@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { accountsApi } from '@/lib/accounts-api'
-import type { AccountListFilters, AccountType, CreateAccountRequest, DeleteAccountOptions, MoveAccountTarget, UpdateAccountRequest } from '@/types/account'
+import type { AccountListFilters, AccountType, CreateAccountRequest, DeleteAccountOptions, MoveAccountTarget, ReconcileAccountRequest, UpdateAccountRequest } from '@/types/account'
 import { dataChanged } from '@/lib/data-changed'
 
 /**
@@ -100,6 +100,17 @@ export function useCreateAccount(type: AccountType) {
 
   return useMutation({
     mutationFn: (data: CreateAccountRequest) => accountsApi.create(type, data),
+    onSuccess: () => {
+      void dataChanged(queryClient)
+    },
+  })
+}
+
+export function useReconcileAccount() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ReconcileAccountRequest }) => accountsApi.reconcile(id, data),
     onSuccess: () => {
       void dataChanged(queryClient)
     },

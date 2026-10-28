@@ -24,14 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import DateWithTime from '@/components/DateWithTime'
 import PieChart from '@/components/PieChart'
 import PieChartSkeleton from '@/components/PieChartSkeleton'
@@ -49,6 +41,8 @@ import { MobileListCard, MobileListIcon, MobileListRow, MobileListSection, Mobil
 import { useIsMobile } from '@/hooks/use-media-query'
 import { groupByDay, useDayLabel } from '@/hooks/use-day-groups'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 const basePath = '/transactions/investments'
 
@@ -204,22 +198,22 @@ export default function InvestmentTransactionsTable() {
       {!isMobile && charts}
 
       {isMobile ? mobileList : (
-      <Card>
-        <CardContent className="p-0">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 sm:p-0">
           {isLoading ? (
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[34px] pl-4 pr-0.5" />
-                  <TableHead>{t('investmentTransactions.instrument')}</TableHead>
-                  <TableHead className="text-right">{t('transactionsCommon.amount')}</TableHead>
-                  <TableHead>{t('investmentTransactions.date')}</TableHead>
+                  <TableHead className="w-[26%]">{t('investmentTransactions.instrument')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('transactionsCommon.amount')}</TableHead>
+                  <TableHead className="w-[6.75rem]">{t('investmentTransactions.date')}</TableHead>
                   <TableHead>{t('investmentTransactions.account')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.quantity')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.unitPrice')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.fees')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.taxes')}</TableHead>
-                  <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('investmentTransactions.quantity')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('investmentTransactions.unitPrice')}</TableHead>
+                  <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.fees')}</TableHead>
+                  <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.taxes')}</TableHead>
+                  <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableSkeleton
@@ -231,40 +225,28 @@ export default function InvestmentTransactionsTable() {
                   { skeletonClassName: 'w-28' },
                   { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-16' },
                   { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-16' },
-                  { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-16' },
-                  { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-16' },
+                  { cellClassName: 'hidden xl:table-cell text-right', skeletonClassName: 'ml-auto w-16' },
+                  { cellClassName: 'hidden xl:table-cell text-right', skeletonClassName: 'ml-auto w-16' },
                   { cellClassName: 'text-right', skeletonClassName: 'ml-auto h-8 w-8 rounded-full' },
                 ]}
               />
             </Table>
           ) : !transactions || transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Plus className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{t('investmentTransactions.empty')}</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                {t('investmentTransactions.emptyDescription')}
-              </p>
-              <Button onClick={() => navigate(`${basePath}/new`)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t('investmentTransactions.add')}
-              </Button>
-            </div>
+            <EmptyState title={t('investmentTransactions.empty')} description={t('investmentTransactions.emptyDescription')} action={{ label: t('investmentTransactions.add'), onClick: () => navigate(`${basePath}/new`) }} />
           ) : (
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[34px] pl-4 pr-0.5" />
-                  <TableHead>{t('investmentTransactions.instrument')}</TableHead>
-                  <TableHead className="text-right">{t('transactionsCommon.amount')}</TableHead>
-                  <TableHead>{t('investmentTransactions.date')}</TableHead>
+                  <TableHead className="w-[26%]">{t('investmentTransactions.instrument')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('transactionsCommon.amount')}</TableHead>
+                  <TableHead className="w-[6.75rem]">{t('investmentTransactions.date')}</TableHead>
                   <TableHead>{t('investmentTransactions.account')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.quantity')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.unitPrice')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.fees')}</TableHead>
-                  <TableHead className="text-right">{t('investmentTransactions.taxes')}</TableHead>
-                  <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('investmentTransactions.quantity')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('investmentTransactions.unitPrice')}</TableHead>
+                  <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.fees')}</TableHead>
+                  <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.taxes')}</TableHead>
+                  <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -278,10 +260,10 @@ export default function InvestmentTransactionsTable() {
                       <TransactionIcon transaction={transaction} />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {transaction.instrumentName}
-                      {transaction.instrumentTicker && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">{transaction.instrumentTicker}</span>
-                      )}
+                      <span className="cell-text" title={transaction.instrumentName}>
+                        {transaction.instrumentName}
+                        {transaction.instrumentTicker && <span className="ml-1.5 text-xs text-muted-foreground">{transaction.instrumentTicker}</span>}
+                      </span>
                     </TableCell>
                     <TableCell
                       className={cn(
@@ -294,15 +276,15 @@ export default function InvestmentTransactionsTable() {
                     <TableCell className="text-muted-foreground">
                       <DateWithTime date={transaction.occurredAt} />
                     </TableCell>
-                    <TableCell>{transaction.account.name}</TableCell>
+                    <TableCell><span className="cell-text">{transaction.account.name}</span></TableCell>
                     <TableCell className="text-right tabular-nums">{transaction.quantity}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(transaction.fees)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(transaction.taxes)}</TableCell>
+                    <TableCell className="hidden xl:table-cell text-right tabular-nums">{formatMoney(transaction.fees)}</TableCell>
+                    <TableCell className="hidden xl:table-cell text-right tabular-nums">{formatMoney(transaction.taxes)}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" aria-label={t('common.moreActions')}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -357,26 +339,14 @@ export default function InvestmentTransactionsTable() {
         </div>
       )}
 
-      <Dialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('investmentTransactions.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('investmentTransactions.deleteConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTransactionToDelete(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={deleteTransaction.isPending}
-            >
-              {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!transactionToDelete}
+        onOpenChange={(open) => !open && setTransactionToDelete(null)}
+        title={t('investmentTransactions.deleteConfirmTitle')}
+        description={t('investmentTransactions.deleteConfirmDescription')}
+        onConfirm={handleConfirmDelete}
+        pending={deleteTransaction.isPending}
+      />
     </div>
   )
 }

@@ -68,7 +68,7 @@ export default function NetWorthMonthList({ report, view, compare }: NetWorthMon
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-2xl border bg-card p-1.5">
+      <div className="flex items-center justify-between surface p-1.5">
         <Button variant="ghost" size="icon" aria-label={t('timeframe.previousPeriod')} disabled={index <= 0} onClick={() => move(-1)}>
           <ChevronLeft className="h-5 w-5" />
         </Button>

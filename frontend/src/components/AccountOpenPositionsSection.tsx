@@ -17,7 +17,7 @@ export default function AccountOpenPositionsSection({ accountId, from, to, curre
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">{t('accountDetail.openPositions')}</h2>
+        <h2 className="section-title">{t('accountDetail.openPositions')}</h2>
         <div className="space-y-3">
           <Skeleton className="h-56 w-full rounded-xl" />
           <Skeleton className="h-56 w-full rounded-xl" />
@@ -35,7 +35,7 @@ export default function AccountOpenPositionsSection({ accountId, from, to, curre
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold">{t('accountDetail.openPositions')}</h2>
+      <h2 className="section-title">{t('accountDetail.openPositions')}</h2>
       <div className="space-y-3">
         {positions.map((position) => (
           <OpenPositionCard

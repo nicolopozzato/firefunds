@@ -32,9 +32,9 @@ describe('number format', () => {
   afterEach(() => setNumberFormat('it-IT'))
 
   it('follows the preference', () => {
-    expect(formatMoney('1234.5')).toBe('1.234,50 €')
+    expect(formatMoney('1234.5')).toBe('1.234,50\u00a0€')
     setNumberFormat('en-US')
-    expect(formatMoney('1234.5')).toBe('1,234.50 €')
+    expect(formatMoney('1234.5')).toBe('1,234.50\u00a0€')
   })
 
   it('puts the sign before the amount', () => {
@@ -52,9 +52,9 @@ describe('hidden amounts', () => {
 
   it('shows dots instead of every amount, keeping the currency', () => {
     setAmountsHidden(true)
-    expect(formatMoney(-1234.56, '€')).toBe('••••• €')
+    expect(formatMoney(-1234.56, '€')).toBe('•••••\u00a0€')
     expect(formatMoney(10, null)).toBe('•••••')
-    expect(formatWholeMoney(7550, '$')).toBe('••••• $')
+    expect(formatWholeMoney(7550, '$')).toBe('•••••\u00a0$')
   })
 
   it('shows them again when turned off', () => {

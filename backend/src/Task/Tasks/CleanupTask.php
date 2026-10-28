@@ -2,6 +2,7 @@
 
 namespace App\Task\Tasks;
 
+use App\Notification\Service\NotificationCenter;
 use App\Task\ScheduledTaskInterface;
 use App\Task\TaskResult;
 use App\Task\TaskRunLog;
@@ -9,7 +10,7 @@ use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
 
-/** Once a day: the expired refresh tokens (sessions unused for 30 days) and the old runs of the tasks' log. */
+/** Once a day: the expired refresh tokens (sessions unused for 30 days), the old runs of the tasks' log and the old resolved notifications. */
 #[AsTaggedItem(priority: 10)]
 final class CleanupTask implements ScheduledTaskInterface
 {
@@ -19,6 +20,7 @@ final class CleanupTask implements ScheduledTaskInterface
         private readonly RefreshTokenManagerInterface $refreshTokens,
         private readonly TaskRunLog $log,
         private readonly ClockInterface $clock,
+        private readonly NotificationCenter $notifications,
     ) {
     }
 
@@ -36,8 +38,9 @@ final class CleanupTask implements ScheduledTaskInterface
     {
         $revoked = \count($this->refreshTokens->revokeAllInvalidBatch(new \DateTime(), self::BATCH_SIZE));
         $runs = $this->log->prune($this->clock->now());
-        $details = ['revoked' => $revoked, 'runs' => $runs];
+        $notifications = $this->notifications->prune();
+        $details = ['revoked' => $revoked, 'runs' => $runs, 'notifications' => $notifications];
 
-        return $revoked === 0 && $runs === 0 ? TaskResult::idle($details) : TaskResult::success($details);
+        return $revoked === 0 && $runs === 0 && $notifications === 0 ? TaskResult::idle($details) : TaskResult::success($details);
     }
 }

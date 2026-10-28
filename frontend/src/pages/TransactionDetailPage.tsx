@@ -1,25 +1,15 @@
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowUpRight, ArrowDownLeft, Repeat, Pencil, Trash2, Wallet, ShoppingCart, Banknote, Copy } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, CalendarClock, Repeat, Pencil, Trash2, Copy } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import PageActions from '@/components/PageActions'
 import TransactionAmount from '@/components/TransactionAmount'
-import { DetailField, DetailFields, DetailFlow, DetailHeadline, DetailLayout } from '@/components/TransactionDetail'
+import { AccountSide, DetailField, DetailFields, DetailFlow, DetailHeadline, DetailLayout } from '@/components/TransactionDetail'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { useTransaction, useDeleteTransaction, useTransactionAuditLog } from '@/hooks/use-transactions'
-import AccountName from '@/components/AccountName'
 import { handleApiError } from '@/lib/error-handler'
 import { amountColorClass, signedAmount } from '@/lib/transaction-display'
 import { isDeposit, isWithdrawal } from '@/lib/transaction-sides'
@@ -31,32 +21,7 @@ import { isEmptyValue } from '@/lib/audit-log'
 import EmptyValue from '@/components/EmptyValue'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadFailed from '@/components/LoadFailed'
-
-function AccountTypeIcon({ type }: { type: NonNullable<Transaction['sourceAccount']>['type'] }) {
-  if (type === 'expense') return <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-  if (type === 'revenue') return <Banknote className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-  return <Wallet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-}
-
-/** One side of the transaction: a link to the account, or "External" when there is none. */
-function AccountSide({ account }: { account: Transaction['sourceAccount'] }) {
-  const navigate = useNavigate()
-
-  if (account === null) {
-    return <AccountName account={null} />
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => navigate(`/accounts/${account.type}/${account.id}`)}
-      className="flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
-    >
-      <AccountTypeIcon type={account.type} />
-      {account.name}
-    </button>
-  )
-}
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 /** Withdrawal, deposit or transfer, from its sides. */
 function kindOf(transaction: Transaction): 'withdrawal' | 'deposit' | 'transfer' {
@@ -147,7 +112,7 @@ export default function TransactionDetailPage() {
       <div className="space-y-6">
         <PageHeader title={t('transactionDetail.title')} />
         <Card>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4 pt-4 sm:pt-5">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="h-6 w-1/3" />
             <Skeleton className="h-6 w-1/2" />
@@ -161,7 +126,6 @@ export default function TransactionDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={transaction.description ?? t('transactionDetail.noDescription')}
-        description={t('transactionDetail.title')}
         compactActions
         actions={
           <PageActions
@@ -177,6 +141,9 @@ export default function TransactionDetailPage() {
                 icon: Copy,
                 onClick: () => navigate(`/transactions/new?cloneFrom=${transaction.id}`),
               },
+              ...(transaction.recurringId
+                ? []
+                : [{ label: t('recurring.makeRecurring'), icon: CalendarClock, onClick: () => navigate(`/transactions/recurring/new?fromTransaction=${transaction.id}`) }]),
               { label: t('common.delete'), icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true) },
             ]}
           />
@@ -184,7 +151,7 @@ export default function TransactionDetailPage() {
       />
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 sm:pt-5">
           <DetailLayout
             summary={
               <>
@@ -229,8 +196,10 @@ export default function TransactionDetailPage() {
             fields={
               <DetailFields>
                 <DetailField label={t('transactionsCommon.category')}>
-                  {transaction.categoryName ? (
-                    <Badge variant="outline">{transaction.categoryName}</Badge>
+                  {transaction.categoryName && transaction.categoryId ? (
+                    <Link to={`/categories/${transaction.categoryId}`}>
+                      <Badge variant="outline" className="hover:bg-accent">{transaction.categoryName}</Badge>
+                    </Link>
                   ) : (
                     <EmptyValue />
                   )}
@@ -239,15 +208,22 @@ export default function TransactionDetailPage() {
                   {transaction.tags.length > 0 ? (
                     <span className="inline-flex flex-wrap gap-1 max-sm:justify-end">
                       {transaction.tags.map((tag) => (
-                        <Badge key={tag.id} variant="secondary">
-                          {tag.name}
-                        </Badge>
+                        <Link key={tag.id} to={`/tags/${tag.id}`}>
+                          <Badge variant="secondary" className="hover:bg-accent">{tag.name}</Badge>
+                        </Link>
                       ))}
                     </span>
                   ) : (
                     <EmptyValue />
                   )}
                 </DetailField>
+                {transaction.recurringId && (
+                  <DetailField label={t('recurring.from')}>
+                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium underline-offset-4 hover:underline">
+                      {transaction.recurringDescription}
+                    </Link>
+                  </DetailField>
+                )}
                 {transaction.notes && (
                   <DetailField label={t('classificationCommon.notes')} wide>
                     <p className="whitespace-pre-wrap">{transaction.notes}</p>
@@ -261,22 +237,14 @@ export default function TransactionDetailPage() {
 
       <TransactionHistoryCard transactionId={transaction.id} />
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('transactionsCommon.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('transactionsCommon.deleteConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteTransaction.isPending}>
-              {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t('transactionsCommon.deleteConfirmTitle')}
+        description={t('transactionsCommon.deleteConfirmDescription')}
+        onConfirm={handleConfirmDelete}
+        pending={deleteTransaction.isPending}
+      />
     </div>
   )
 }

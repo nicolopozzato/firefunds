@@ -110,8 +110,8 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
 
   if (points.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-4">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+      <div className="surface p-4 sm:p-5">
+        <h3 className="mb-3 section-title">{title}</h3>
         <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">{emptyLabel}</div>
       </div>
     )
@@ -121,9 +121,9 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
   const labelEvery = Math.max(1, Math.ceil(points.length / 6))
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="section-title">{title}</h3>
         <div className="flex flex-wrap gap-3">
           {seriesConfigs.map((s) => {
             const isHidden = hiddenSeries.has(s.key)
@@ -173,7 +173,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
 
             {chart.series.map((s) => (
               <g key={s.key}>
-                <path d={s.solidPath} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                <path pathLength={1} className="chart-line" d={s.solidPath} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
                 {s.dashedPath && (
                   <path
                     d={s.dashedPath}
@@ -207,18 +207,21 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
             )}
 
             {chart.series.map((s) =>
-              s.coords.map((c, index) => (
-                <circle
-                  key={`${s.key}-${c.date}`}
-                  cx={c.x}
-                  cy={c.y}
-                  r={hoveredIndex === index ? 4 : 2.5}
-                  fill={s.color}
-                  stroke="hsl(var(--card))"
-                  strokeWidth={1.5}
-                  className="pointer-events-none transition-[r] duration-100"
-                />
-              ))
+              // A point only where the pointer is: one on every day crowds the line.
+              s.coords.map((c, index) =>
+                hoveredIndex === index ? (
+                  <circle
+                    key={`${s.key}-${c.date}`}
+                    cx={c.x}
+                    cy={c.y}
+                    r={4}
+                    fill={s.color}
+                    stroke="hsl(var(--card))"
+                    strokeWidth={2}
+                    className="pointer-events-none"
+                  />
+                ) : null
+              )
             )}
 
             {points.map((p, index) => (
@@ -263,7 +266,7 @@ export default function AccountValueHistoryChart({ title, points, currency, empt
 
           {hovered && chart && (
             <div
-              className="pointer-events-none absolute flex flex-col items-center gap-0.5 rounded-md bg-background/95 px-2 py-1 text-center shadow-sm"
+              className="pointer-events-none absolute flex flex-col items-center gap-0.5 chart-tooltip text-center"
               style={tooltipStyle(chart.left + (hoveredIndex ?? 0) * chart.stepX, Math.min(...chart.series.map((s) => s.coords[hoveredIndex ?? 0].y)), width)}
             >
               <span className="whitespace-nowrap text-xs text-muted-foreground">

@@ -32,8 +32,8 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
   const isInvestment = account.assetKind === 'investment'
 
   return (
-    <Card>
-      <CardHeader className="space-y-0 p-4 pb-3 sm:p-6 sm:pb-3">
+    <Card className="surface-interactive">
+      <CardHeader className="space-y-0 pb-3 sm:pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
@@ -42,7 +42,7 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
             </Link>
           </div>
           <div className="text-right">
-            <div className={cn('font-semibold tabular-nums', Number(account.balance) < 0 && 'text-negative')}>
+            <div className={cn('figure-sm whitespace-nowrap', Number(account.balance) < 0 && 'text-negative')}>
               {formatMoney(account.balance, account.currencySymbol)}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -51,7 +51,7 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 px-4 pb-4 sm:px-6 sm:pb-6">
+      <CardContent className="space-y-3">
         {account.transactions.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">{t('dashboard.noTransactionsInPeriod')}</p>
         ) : (
@@ -76,15 +76,14 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
           </ul>
         )}
 
-        <div className="flex items-center justify-between">
-          <Link to={`/accounts/asset/${account.id}`} className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+        <div className="-mb-1 flex items-center justify-between">
+          <Link to={`/accounts/asset/${account.id}`} className="text-xs font-medium text-muted-foreground hover:text-foreground">
             {t('dashboard.allTransactions')}
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                {t('dashboard.newTransaction')}
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={t('dashboard.newTransaction')} title={t('dashboard.newTransaction')}>
+                <Plus className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

@@ -14,8 +14,6 @@ const TODAY_COLOR = 'hsl(var(--series-8))'
 
 const DEFAULT_HEIGHT = 176
 const PADDING = { top: 16, right: 8, bottom: 22, left: 52 }
-/** Below this horizontal spacing the per-day dots would merge into a thick line, so only the hovered one is drawn. */
-const MIN_STEP_FOR_DOTS = 6
 
 interface PositionMiniChartProps {
   history: PositionHistoryPoint[]
@@ -84,7 +82,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
       }
     })
 
-    return { left, tickLabels, lines, ticks, yFor, stepX, innerHeight, todayX, showDots: stepX >= MIN_STEP_FOR_DOTS }
+    return { left, tickLabels, lines, ticks, yFor, stepX, innerHeight, todayX }
   }, [points, series, width, height, currency])
 
   const hovered = hoveredIndex !== null ? points[hoveredIndex] : null
@@ -129,7 +127,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
 
               {chart.lines.map((line) => (
                 <g key={line.key}>
-                  <path d={line.solidPath} fill="none" stroke={line.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                  <path pathLength={1} className="chart-line" d={line.solidPath} fill="none" stroke={line.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
                   {line.dashedPath && (
                     <path
                       d={line.dashedPath}
@@ -175,7 +173,8 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
 
               {chart.lines.map((line) =>
                 line.coords.map((c, index) =>
-                  chart.showDots || hoveredIndex === index ? (
+                  // A point only where the pointer is, as on the other line charts.
+                  hoveredIndex === index ? (
                     <circle
                       key={`${line.key}-${points[index].date}`}
                       cx={c.x}
@@ -221,7 +220,7 @@ export default function PositionMiniChart({ history, currency, height = DEFAULT_
 
             {hovered && hoveredIndex !== null && (
               <div
-                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 rounded-md bg-background/95 px-2 py-1 shadow-sm"
+                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 chart-tooltip"
                 style={{ left: hoveredX, top: hoveredY, transform: tooltipTransform(hoveredX, width, hoveredY) }}
               >
                 <span className="whitespace-nowrap text-xs text-muted-foreground">

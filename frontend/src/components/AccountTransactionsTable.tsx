@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { MoreHorizontal, Pencil, Trash2, Plus, CalendarRange, ListFilter, Copy } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, CalendarRange, ListFilter, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -21,14 +21,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { MobileListCard, MobileListIcon, MobileListRow, MobileListSection, MobileListSkeleton } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { groupByDay, useDayLabel } from '@/hooks/use-day-groups'
@@ -42,12 +34,15 @@ import { useTransactions, useDeleteTransaction } from '@/hooks/use-transactions'
 import { useDeleteInvestmentTransaction } from '@/hooks/use-investment-transactions'
 import { handleApiError } from '@/lib/error-handler'
 import AccountName from '@/components/AccountName'
+import ClassificationLink from '@/components/ClassificationLink'
 import { amountColorClass, amountCurrency, clonePath, detailPath, editPath, isInvestmentRow, signedAmount } from '@/lib/transaction-display'
 import TransactionKindIcon from '@/components/TransactionKindIcon'
 import { cn, currencySymbolFor, formatMoney, formatQuantity } from '@/lib/utils'
 import type { Transaction, TransactionListKind } from '@/types/transaction'
 import EmptyValue from '@/components/EmptyValue'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 /** Investment accounts: every transaction, only the trades, or only the money moving in and out. */
 type InvestmentListFilter = Extract<TransactionListKind, 'all' | 'trade' | 'cash'>
@@ -195,29 +190,29 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
           </div>
         )
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             {isLoading ? (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[34px] pl-4 pr-0.5" />
-                    <TableHead>{t('transactionsCommon.description')}</TableHead>
+                    <TableHead className="w-[26%]">{t('transactionsCommon.description')}</TableHead>
                     {isInvestmentAccount ? (
                       <>
-                        <TableHead className="text-right">{t('investmentTransactions.operation')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.fees')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.taxes')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.total')}</TableHead>
+                        <TableHead className="w-44 text-right">{t('investmentTransactions.operation')}</TableHead>
+                        <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.fees')}</TableHead>
+                        <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.taxes')}</TableHead>
+                        <TableHead className="w-28 text-right">{t('investmentTransactions.total')}</TableHead>
                       </>
                     ) : (
-                      <TableHead className="text-right">{t('transactionsCommon.amount')}</TableHead>
+                      <TableHead className="w-28 text-right">{t('transactionsCommon.amount')}</TableHead>
                     )}
-                    <TableHead>{t('transactionsCommon.date')}</TableHead>
+                    <TableHead className="w-[6.75rem]">{t('transactionsCommon.date')}</TableHead>
                     <TableHead>{t('transactionsCommon.source')}</TableHead>
                     <TableHead>{t('transactionsCommon.destination')}</TableHead>
-                    {!isInvestmentAccount && <TableHead>{t('transactionsCommon.category')}</TableHead>}
-                    <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                    {!isInvestmentAccount && <TableHead className="hidden xl:table-cell">{t('transactionsCommon.category')}</TableHead>}
+                    <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableSkeleton
@@ -227,50 +222,42 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                     ...(isInvestmentAccount
                       ? [
                           { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-24' },
-                          { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-12' },
-                          { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-12' },
+                          { cellClassName: 'hidden xl:table-cell text-right', skeletonClassName: 'ml-auto w-12' },
+                          { cellClassName: 'hidden xl:table-cell text-right', skeletonClassName: 'ml-auto w-12' },
                         ]
                       : []),
                     { cellClassName: 'text-right', skeletonClassName: 'ml-auto w-20' },
                     { skeletonClassName: 'w-24' },
                     { skeletonClassName: 'w-28' },
                     { skeletonClassName: 'w-28' },
-                    ...(isInvestmentAccount ? [] : [{ skeletonClassName: 'w-24' }]),
+                    ...(isInvestmentAccount ? [] : [{ cellClassName: 'hidden xl:table-cell', skeletonClassName: 'w-24' }]),
                     { cellClassName: 'text-right', skeletonClassName: 'ml-auto h-8 w-8 rounded-full' },
                   ]}
                 />
               </Table>
             ) : !transactions || transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{t('accountDetail.noTransactionsTitle')}</h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                  {t('accountDetail.noTransactionsDescription')}
-                </p>
-              </div>
+              <EmptyState title={t('accountDetail.noTransactionsTitle')} description={t('accountDetail.noTransactionsDescription')} />
             ) : (
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[34px] pl-4 pr-0.5" />
-                    <TableHead>{t('transactionsCommon.description')}</TableHead>
+                    <TableHead className="w-[26%]">{t('transactionsCommon.description')}</TableHead>
                     {isInvestmentAccount ? (
                       <>
-                        <TableHead className="text-right">{t('investmentTransactions.operation')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.fees')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.taxes')}</TableHead>
-                        <TableHead className="text-right">{t('investmentTransactions.total')}</TableHead>
+                        <TableHead className="w-44 text-right">{t('investmentTransactions.operation')}</TableHead>
+                        <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.fees')}</TableHead>
+                        <TableHead className="hidden xl:table-cell w-24 text-right">{t('investmentTransactions.taxes')}</TableHead>
+                        <TableHead className="w-28 text-right">{t('investmentTransactions.total')}</TableHead>
                       </>
                     ) : (
-                      <TableHead className="text-right">{t('transactionsCommon.amount')}</TableHead>
+                      <TableHead className="w-28 text-right">{t('transactionsCommon.amount')}</TableHead>
                     )}
-                    <TableHead>{t('transactionsCommon.date')}</TableHead>
+                    <TableHead className="w-[6.75rem]">{t('transactionsCommon.date')}</TableHead>
                     <TableHead>{t('transactionsCommon.source')}</TableHead>
                     <TableHead>{t('transactionsCommon.destination')}</TableHead>
-                    {!isInvestmentAccount && <TableHead>{t('transactionsCommon.category')}</TableHead>}
-                    <TableHead className="text-right">{t('accountsCommon.actions')}</TableHead>
+                    {!isInvestmentAccount && <TableHead className="hidden xl:table-cell">{t('transactionsCommon.category')}</TableHead>}
+                    <TableHead className="w-16"><span className="sr-only">{t('accountsCommon.actions')}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -284,19 +271,21 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                         <TransactionKindIcon transaction={transaction} />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {transaction.description ?? <EmptyValue />}
+                        <span className="cell-text" title={transaction.description ?? undefined}>{transaction.description ?? <EmptyValue />}</span>
                       </TableCell>
                       {isInvestmentAccount && (
                         <>
                           {/* Trade cells stay empty on money rows: nothing to show there. */}
-                          <TableCell className="whitespace-nowrap text-right tabular-nums">
-                            {transaction.quantity !== null && transaction.unitPrice !== null &&
-                              `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency ?? transaction.currency))}`}
+                          <TableCell className="text-right tabular-nums">
+                            <span className="cell-text">
+                              {transaction.quantity !== null && transaction.unitPrice !== null &&
+                                `${formatQuantity(transaction.quantity)} × ${formatMoney(transaction.unitPrice, currencySymbolFor(transaction.unitPriceCurrency ?? transaction.currency))}`}
+                            </span>
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="hidden xl:table-cell text-right tabular-nums text-muted-foreground">
                             {transaction.fees !== null && formatMoney(transaction.fees, currencySymbolFor(transaction.currency))}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="hidden xl:table-cell text-right tabular-nums text-muted-foreground">
                             {transaction.taxes !== null && formatMoney(transaction.taxes, currencySymbolFor(transaction.currency))}
                           </TableCell>
                         </>
@@ -307,15 +296,19 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
                       <TableCell className="text-muted-foreground">
                         <DateWithTime date={transaction.occurredAt} />
                       </TableCell>
-                      <TableCell><AccountName account={transaction.sourceAccount} /></TableCell>
-                      <TableCell><AccountName account={transaction.destinationAccount} /></TableCell>
+                      <TableCell><span className="cell-text"><AccountName account={transaction.sourceAccount} link /></span></TableCell>
+                      <TableCell><span className="cell-text"><AccountName account={transaction.destinationAccount} link /></span></TableCell>
                       {!isInvestmentAccount && (
-                        <TableCell className="text-muted-foreground">{transaction.categoryName}</TableCell>
+                        <TableCell className="hidden xl:table-cell text-muted-foreground"><span className="cell-text">
+                          {transaction.categoryName && transaction.categoryId && (
+                            <ClassificationLink to={`/categories/${transaction.categoryId}`}>{transaction.categoryName}</ClassificationLink>
+                          )}
+                        </span></TableCell>
                       )}
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label={t('common.moreActions')}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -355,28 +348,14 @@ export default function AccountTransactionsTable({ accountId, isInvestmentAccoun
         </Card>
       )}
 
-      <Dialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('transactionsCommon.deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('transactionsCommon.deleteConfirmDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTransactionToDelete(null)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={deleteTransaction.isPending || deleteInvestmentTransaction.isPending}
-            >
-              {t('common.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!transactionToDelete}
+        onOpenChange={(open) => !open && setTransactionToDelete(null)}
+        title={t('transactionsCommon.deleteConfirmTitle')}
+        description={t('transactionsCommon.deleteConfirmDescription')}
+        onConfirm={handleConfirmDelete}
+        pending={deleteTransaction.isPending || deleteInvestmentTransaction.isPending}
+      />
     </div>
   )
 }

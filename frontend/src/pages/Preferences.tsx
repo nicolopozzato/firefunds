@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Check } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import SettingRow from '@/components/SettingRow'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,16 +20,16 @@ import Combobox from '@/components/Combobox'
 import { useCurrencyOptions } from '@/hooks/use-currencies'
 import { useAllAccounts } from '@/hooks/use-accounts'
 import { useHideAmounts } from '@/hooks/use-hide-amounts'
-import { useThemeMode } from '@/hooks/use-theme'
 import { useSavePreferences } from '@/hooks/use-preferences'
 import DashboardPreferences from '@/components/DashboardPreferences'
+import NotificationPreferences from '@/components/NotificationPreferences'
 import ExchangeRatesPanel from '@/components/ExchangeRatesPanel'
 import { useExchangeRatesOverview } from '@/hooks/use-exchange-rates'
 import { useAuth } from '@/contexts/AuthContext'
 import { dataChanged } from '@/lib/data-changed'
 import { handleApiError } from '@/lib/error-handler'
-import { DENSITIES, PICKABLE_COLOR_SCHEMES, schemeSwatch, type Density } from '@/lib/theme'
-import { cn, numberFormatter } from '@/lib/utils'
+import { DENSITIES, type Density } from '@/lib/theme'
+import { numberFormatter } from '@/lib/utils'
 import type { NumberFormat, StartPage, StartPeriod, UpdatePreferencesRequest, User, UserTheme } from '@/types/auth'
 
 const LANGUAGES = [
@@ -67,8 +66,8 @@ function listTimezones(): string[] {
 function SettingsCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <Card>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="pb-2 sm:pb-2">
+        <CardTitle>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
@@ -89,7 +88,6 @@ function GeneralPreferences({ user }: { user: User }) {
   const currencyOptions = useCurrencyOptions()
   const { data: assetAccounts } = useAllAccounts('asset')
   const [hideAmounts, setHideAmounts] = useHideAmounts()
-  const mode = useThemeMode()
 
   // What is on screen: the user's preferences, plus the change being saved.
   const [pending, setPending] = useState<UpdatePreferencesRequest>({})
@@ -191,33 +189,6 @@ function GeneralPreferences({ user }: { user: User }) {
               { value: 'system', label: t('preferences.themeSystem') },
             ]}
           />
-        </SettingRow>
-
-        <SettingRow label={t('preferences.colorScheme')} wide>
-          <div role="radiogroup" aria-label={t('preferences.colorScheme')} className="flex gap-2">
-            {PICKABLE_COLOR_SCHEMES.map((scheme) => {
-              const selected = shown.colorScheme === scheme
-              return (
-                <button
-                  key={scheme}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={t(`preferences.colorSchemes.${scheme}`)}
-                  title={t(`preferences.colorSchemes.${scheme}`)}
-                  onClick={() => void save({ colorScheme: scheme })}
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full border border-foreground/15 ring-offset-2 ring-offset-background transition-shadow',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    selected && 'ring-2 ring-foreground/70'
-                  )}
-                  style={{ backgroundColor: schemeSwatch(scheme, mode).background, color: schemeSwatch(scheme, mode).foreground }}
-                >
-                  {selected && <Check className="h-4 w-4" />}
-                </button>
-              )
-            })}
-          </div>
         </SettingRow>
 
         <SettingRow label={t('preferences.density')} hint={t('preferences.densityHint')} wide>
@@ -323,7 +294,7 @@ function GeneralPreferences({ user }: { user: User }) {
   )
 }
 
-type PreferencesTab = 'general' | 'dashboard' | 'rates'
+type PreferencesTab = 'general' | 'dashboard' | 'notifications' | 'rates'
 
 export default function Preferences() {
   const { t } = useTranslation()
@@ -333,11 +304,13 @@ export default function Preferences() {
   const { data: rates } = useExchangeRatesOverview()
   const hasRates = !!rates && rates.currencies.length > 0
   const requested = searchParams.get('tab')
-  const tab: PreferencesTab = requested === 'dashboard' ? 'dashboard' : requested === 'rates' && hasRates ? 'rates' : 'general'
+  const tab: PreferencesTab =
+    requested === 'dashboard' || requested === 'notifications' ? requested : requested === 'rates' && hasRates ? 'rates' : 'general'
 
   const tabs: { value: PreferencesTab; label: string }[] = [
     { value: 'general', label: t('preferences.general') },
     { value: 'dashboard', label: t('preferences.dashboard') },
+    { value: 'notifications', label: t('preferences.notifications') },
     ...(hasRates ? [{ value: 'rates' as const, label: t('preferences.exchangeRates') }] : []),
   ]
 
@@ -345,32 +318,25 @@ export default function Preferences() {
     <div className="space-y-6">
       <PageHeader title={t('preferences.title')} />
 
-      <div role="tablist" className="flex gap-1 border-b">
-        {tabs.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={tab === option.value}
-            onClick={() => setSearchParams(option.value === 'general' ? {} : { tab: option.value }, { replace: true })}
-            className={cn(
-              '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-              tab === option.value
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        label={t('preferences.title')}
+        options={tabs}
+        value={tab}
+        onChange={(value) => setSearchParams(value === 'general' ? {} : { tab: value }, { replace: true })}
+      />
 
       {/* Settings read best in a column: not stretched across a wide screen. The rates have a table: full width. */}
       {tab === 'rates' ? (
         <ExchangeRatesPanel />
       ) : (
         <div className="max-w-3xl">
-          {tab === 'general' ? user && <GeneralPreferences user={user} /> : <DashboardPreferences />}
+          {tab === 'general' ? (
+            user && <GeneralPreferences user={user} />
+          ) : tab === 'notifications' ? (
+            user && <NotificationPreferences user={user} />
+          ) : (
+            <DashboardPreferences />
+          )}
         </div>
       )}
     </div>

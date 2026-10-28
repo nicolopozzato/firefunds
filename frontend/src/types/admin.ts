@@ -58,7 +58,7 @@ export interface BackupsOverview extends BackupSettings {
   backups: BackupFile[]
 }
 
-export type TaskKey = 'prices' | 'rates' | 'backup' | 'cleanup'
+export type TaskKey = 'prices' | 'rates' | 'backup' | 'cleanup' | 'recurring'
 export type TaskRunStatus = 'running' | 'success' | 'partial' | 'failed' | 'interrupted'
 
 export interface TaskRun {

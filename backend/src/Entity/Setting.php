@@ -16,6 +16,10 @@ class Setting
     public const KEY_BACKUP_ENABLED = 'backup_enabled';
     public const KEY_BACKUP_INTERVAL_HOURS = 'backup_interval_hours';
     public const KEY_BACKUP_RETENTION_DAYS = 'backup_retention_days';
+    /** Web Push: the server's own VAPID keys (made on first use) and the address it says it is. */
+    public const KEY_PUSH_PUBLIC_KEY = 'push_public_key';
+    public const KEY_PUSH_PRIVATE_KEY = 'push_private_key';
+    public const KEY_PUSH_SUBJECT = 'push_subject';
 
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]

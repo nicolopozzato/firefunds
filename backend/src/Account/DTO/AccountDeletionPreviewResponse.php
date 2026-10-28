@@ -21,6 +21,8 @@ final readonly class AccountDeletionPreviewResponse
         public int $investmentTransactions,
         public int $openPositions,
         public array $transferTargets,
+        /** Recurring transactions using it: moved or deleted with the transactions. */
+        public int $recurring = 0,
     ) {
     }
 }

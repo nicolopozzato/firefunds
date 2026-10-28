@@ -123,7 +123,7 @@ export default function MonthlyLineChart({ labels, series, currency, emptyLabel,
 
           {hoveredIndex !== null && (
             <div
-              className="pointer-events-none absolute z-10 flex flex-col gap-0.5 rounded-md border bg-background/95 px-2.5 py-1.5 shadow-sm"
+              className="pointer-events-none absolute z-10 flex flex-col gap-0.5 chart-tooltip"
               style={{ left: hoveredX, top: PADDING.top, transform: tooltipTransform(hoveredX, width) }}
             >
               {tooltip(hoveredIndex)}

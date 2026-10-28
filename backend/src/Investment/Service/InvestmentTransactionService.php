@@ -16,6 +16,8 @@ use App\Investment\DTO\CreateInvestmentTransactionRequest;
 use App\Investment\DTO\SavedInvestmentTransaction;
 use App\Repository\AccountRepository;
 use App\Repository\InvestmentInstrumentRepository;
+use App\Repository\InvestmentTransactionRepository;
+use App\Core\Doctrine\RestoreWindow;
 use Doctrine\ORM\EntityManagerInterface;
 
 class InvestmentTransactionService
@@ -27,6 +29,8 @@ class InvestmentTransactionService
         private readonly InvestmentTransactionAuditLogService $auditLogService,
         private readonly InvestmentPriceService $priceService,
         private readonly CurrencyConverter $converter,
+        private readonly InvestmentTransactionRepository $transactionRepository,
+        private readonly RestoreWindow $restoreWindow,
     ) {
     }
 
@@ -93,6 +97,24 @@ class InvestmentTransactionService
         $transaction->markDeleted();
         $this->auditLogService->logDeleted($transaction, $transaction->getUser());
         $this->entityManager->flush();
+    }
+
+    /** Brings back a trade deleted moments ago ("Undo"), unless its account or instrument was deleted since. */
+    public function restore(User $user, string $id): InvestmentTransaction
+    {
+        $transaction = $this->restoreWindow->withDeleted(function () use ($user, $id) {
+            $transaction = $this->transactionRepository->findOneByUserAndId($user, $id);
+            $this->restoreWindow->assertRestorable($transaction, [$transaction?->getAccount(), $transaction?->getInstrument()]);
+            \assert($transaction !== null);
+
+            return $transaction;
+        });
+
+        $transaction->restore();
+        $this->auditLogService->logRestored($transaction, $user);
+        $this->entityManager->flush();
+
+        return $transaction;
     }
 
     /**

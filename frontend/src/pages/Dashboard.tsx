@@ -22,6 +22,7 @@ import LoadFailed from '@/components/LoadFailed'
 import { useAuth } from '@/contexts/AuthContext'
 import { DEFAULT_DASHBOARD_SECTIONS, useSavePreferences } from '@/hooks/use-preferences'
 import type { DashboardSectionKey, User } from '@/types/auth'
+import GettingStarted from '@/components/GettingStarted'
 
 const EXPENSE_COLOR = 'hsl(var(--series-2))'
 const REVENUE_COLOR = 'hsl(var(--series-1))'
@@ -158,9 +159,9 @@ function TrendCard({ dashboard, days }: { dashboard: DashboardData; days: string
   const wholeMoney = (value: number) => formatWholeMoney(value, currency)
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h3 className="section-title">
           {shownView === 'accounts' ? t('dashboard.accountsTrend') : t('dashboard.investmentsTrend')}
         </h3>
         <div className="flex flex-wrap items-center gap-3">
@@ -294,6 +295,8 @@ export default function Dashboard() {
     <div className="space-y-4 md:space-y-6">
       {header}
 
+      <GettingStarted />
+
       {shown('summary') && <SummaryCards dashboard={dashboard} />}
 
       <div className={cn('grid gap-4', mainSections.length > 0 && showsAccounts && 'lg:grid-cols-3')}>
@@ -348,7 +351,7 @@ export default function Dashboard() {
           <div className={cn('min-w-0 max-md:order-first', mainSections.length > 0 ? 'space-y-4' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3')}>
             {dashboard.accounts.length === 0 ? (
               <Card>
-                <CardContent className="space-y-2 pt-6 text-sm text-muted-foreground">
+                <CardContent className="space-y-2 pt-4 sm:pt-5 text-sm text-muted-foreground">
                   <p>{t('dashboard.noAccountsShown')}</p>
                   <Link to="/preferences?tab=dashboard" className={cn('font-medium text-primary hover:underline')}>
                     {t('dashboard.chooseAccounts')}
@@ -365,7 +368,7 @@ export default function Dashboard() {
 
         {mainSections.length === 0 && !showsAccounts && !shown('summary') && (
           <Card>
-            <CardContent className="space-y-2 pt-6 text-sm text-muted-foreground">
+            <CardContent className="space-y-2 pt-4 sm:pt-5 text-sm text-muted-foreground">
               <p>{t('dashboard.nothingShown')}</p>
               <Link to="/preferences?tab=dashboard" className="font-medium text-primary hover:underline">
                 {t('dashboard.customize')}

@@ -24,7 +24,6 @@ final readonly class UserResponse
         public string $capitalGainsTaxRate,
         /** An administrator set the password: the app asks for a new one before anything else. */
         public bool $mustChangePassword,
-        public string $colorScheme,
         public string $density,
         public string $startPage,
         public string $startPeriod,
@@ -34,6 +33,10 @@ final readonly class UserResponse
         public array $dashboardSections,
         public string $dashboardTrendView,
         public string $dashboardInvestmentUnit,
+        /** Push: the daily summary of reminders, and server problems (administrators). */
+        public bool $pushReminders,
+        public bool $pushSystem,
+        public string $pushSummaryTime,
     ) {
     }
 
@@ -54,7 +57,6 @@ final readonly class UserResponse
             currency: $user->getCurrency(),
             capitalGainsTaxRate: $user->getCapitalGainsTaxRate(),
             mustChangePassword: $user->mustChangePassword(),
-            colorScheme: $user->getColorScheme(),
             density: $user->getDensity(),
             startPage: $user->getStartPage(),
             startPeriod: $user->getStartPeriod(),
@@ -62,6 +64,9 @@ final readonly class UserResponse
             dashboardSections: $user->getDashboardSections(),
             dashboardTrendView: $user->getDashboardTrendView(),
             dashboardInvestmentUnit: $user->getDashboardInvestmentUnit(),
+            pushReminders: $user->wantsPushReminders(),
+            pushSystem: $user->wantsPushSystem(),
+            pushSummaryTime: $user->getPushSummaryTime(),
         );
     }
 }

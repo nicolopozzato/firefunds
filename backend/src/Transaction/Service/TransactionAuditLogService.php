@@ -28,6 +28,11 @@ class TransactionAuditLogService
         $this->entityManager->persist(new TransactionAuditLog($transaction, $user, 'deleted'));
     }
 
+    public function logRestored(Transaction $transaction, User $user): void
+    {
+        $this->entityManager->persist(new TransactionAuditLog($transaction, $user, 'restored'));
+    }
+
     /**
      * Captures a snapshot of the fields that matter for audit purposes, to be compared
      * against the transaction's state after the update is applied.

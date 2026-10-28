@@ -9,9 +9,13 @@ import './i18n/config'
 import { applyTheme, getTheme } from './lib/theme'
 import { TooltipProvider } from './components/ui/tooltip'
 import { handleApiError } from './lib/error-handler'
+import { registerServiceWorker } from './lib/push'
 
 // Initialize theme system
 applyTheme(getTheme())
+
+// For push notifications only (public/sw.js): nothing is cached.
+registerServiceWorker()
 
 // No pinch zoom, as in a native app: Safari on iOS ignores user-scalable=no in
 // the viewport (index.html), but lets its own gesture event be cancelled.

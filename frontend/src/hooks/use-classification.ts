@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClassificationApi, type ClassificationResource } from '@/lib/classification-api'
 import type { ClassificationRequest } from '@/types/classification'
 import { dataChanged } from '@/lib/data-changed'
+import { transactionsApi } from '@/lib/transactions-api'
 
 export function useClassificationList(resource: ClassificationResource, page = 1) {
   const api = createClassificationApi(resource)
@@ -30,6 +31,26 @@ export function useClassificationItem(resource: ClassificationResource, id: stri
     queryKey: [resource, 'detail', id],
     queryFn: () => api.get(id),
     enabled: !!id,
+  })
+}
+
+/** A category's or a tag's page: its months and its transactions in the selected period. */
+export function useClassificationMonths(resource: ClassificationResource, id: string, from: string, to: string) {
+  const api = createClassificationApi(resource)
+
+  return useQuery({
+    queryKey: [resource, 'months', id, from, to],
+    queryFn: () => api.months(id, from, to),
+    enabled: !!id,
+  })
+}
+
+export function useClassificationTransactions(resource: ClassificationResource, id: string, from: string, to: string, page: number) {
+  return useQuery({
+    queryKey: ['transactions', resource, id, from, to, page],
+    queryFn: () => transactionsApi.listByClassification(resource === 'categories' ? { categoryId: id } : { tagId: id }, from, to, page),
+    enabled: !!id,
+    placeholderData: (previousData) => previousData,
   })
 }
 

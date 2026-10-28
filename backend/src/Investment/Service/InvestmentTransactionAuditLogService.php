@@ -26,6 +26,11 @@ class InvestmentTransactionAuditLogService
         $this->entityManager->persist(new InvestmentTransactionAuditLog($transaction, $user, 'deleted'));
     }
 
+    public function logRestored(InvestmentTransaction $transaction, User $user): void
+    {
+        $this->entityManager->persist(new InvestmentTransactionAuditLog($transaction, $user, 'restored'));
+    }
+
     /**
      * Captures a snapshot of the fields that matter for audit purposes, to be compared
      * against the investment transaction's state after the update is applied.

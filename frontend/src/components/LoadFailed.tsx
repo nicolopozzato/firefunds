@@ -25,7 +25,7 @@ export default function LoadFailed({
 
   return (
     <Card>
-      <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+      <CardContent className="flex flex-col items-center gap-3 py-12 text-center sm:py-12">
         <AlertCircle className="h-8 w-8 text-negative" aria-hidden />
         <p className="font-medium">{t('errors.loadFailed')}</p>
         <p className="text-sm text-muted-foreground">{handleApiError(error)}</p>

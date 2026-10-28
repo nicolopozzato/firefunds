@@ -4,6 +4,7 @@ import { investmentTransactionsApi } from '@/lib/investment-transactions-api'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import type { CreateInvestmentTransactionRequest } from '@/types/investment'
 import { dataChanged } from '@/lib/data-changed'
+import { offerUndo } from '@/lib/undo-delete'
 
 /** The trades in the selected timeframe, or all of them with `showAll`. */
 export function useInvestmentTransactions(page = 1, showAll = false, accountId?: string, instrumentId?: string) {
@@ -27,6 +28,17 @@ export function useInvestmentTransactionDistributions(enabled = true) {
     queryKey: ['investment-transactions', 'distributions', from, to],
     queryFn: () => investmentTransactionsApi.distributions(from, to),
     enabled,
+  })
+}
+
+/** What the trade form offers under the description while it is typed (2 characters at least). */
+export function useTradeDescriptionSuggestions(text: string) {
+  const q = text.trim()
+  return useQuery({
+    queryKey: ['investment-transactions', 'suggestions', q],
+    queryFn: () => investmentTransactionsApi.suggestions(q),
+    enabled: q.length >= 2,
+    staleTime: 60_000,
   })
 }
 
@@ -76,8 +88,9 @@ export function useDeleteInvestmentTransaction() {
 
   return useMutation({
     mutationFn: (id: string) => investmentTransactionsApi.remove(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       void dataChanged(queryClient)
+      offerUndo(queryClient, () => investmentTransactionsApi.restore(id))
     },
   })
 }

@@ -11,6 +11,8 @@ import type {
   CreateAccountRequest,
   DeleteAccountOptions,
   MoveAccountTarget,
+  ReconcileAccountRequest,
+  ReconcileAccountResponse,
   UpdateAccountRequest,
 } from '@/types/account'
 import type { OpenPosition } from '@/types/investment'
@@ -32,6 +34,12 @@ export const accountsApi = {
   },
 
   /** `on`: the day the balance is at (yyyy-MM-dd); today when left out. */
+  /** The bank's balance at the end of a day: marks the account as checked, settling a difference if asked. */
+  async reconcile(id: string, data: ReconcileAccountRequest): Promise<ReconcileAccountResponse> {
+    const response = await api.post<ReconcileAccountResponse>(`/api/accounts/${id}/reconcile`, data)
+    return response.data
+  },
+
   async get(id: string, on?: string): Promise<Account> {
     const response = await api.get<Account>(`/api/accounts/${id}`, { params: { on } })
     return response.data

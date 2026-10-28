@@ -7,6 +7,9 @@ import PageHeader from '@/components/PageHeader'
 import FormSection from '@/components/FormSection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import ChoiceCards from '@/components/ChoiceCards'
 import { Label } from '@/components/ui/label'
 import Combobox from '@/components/Combobox'
 import { useCreateAccount, useUpdateAccount } from '@/hooks/use-accounts'
@@ -155,30 +158,17 @@ export default function AccountForm({ type, title, description, account }: Accou
 
   const kindChooser = isAsset && !isEditing && (
     <div className="space-y-2">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {ASSET_KINDS.map((kind) => {
-          const Icon = ASSET_KIND_ICONS[kind]
-          const isSelected = form.assetKind === kind
-          return (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => setForm({ ...form, assetKind: kind })}
-              className={cn(
-                'flex items-center gap-3 rounded-xl border-2 bg-card p-4 text-left transition-colors hover:bg-accent/50',
-                isSelected ? 'border-primary bg-primary/5' : 'border-border'
-              )}
-            >
-              <Icon className={cn('h-8 w-8 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
-              <div>
-                <div className="font-semibold">{t(`accountsCommon.assetKind_${kind}`)}</div>
-                <div className="text-xs text-muted-foreground">{t(`accountsCommon.assetKindDescription_${kind}`)}</div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+      <ChoiceCards
+        label={t('accountsCommon.assetKind')}
+        value={form.assetKind || null}
+        onChange={(kind) => setForm({ ...form, assetKind: kind })}
+        options={ASSET_KINDS.map((kind) => ({
+          value: kind,
+          label: t(`accountsCommon.assetKind_${kind}`),
+          description: t(`accountsCommon.assetKindDescription_${kind}`),
+          icon: ASSET_KIND_ICONS[kind],
+        }))}
+      />
       {isSubmitted && isAssetKindMissing ? (
         <p className="text-xs text-destructive">{t('accountsCommon.assetKindRequired')}</p>
       ) : (
@@ -214,7 +204,7 @@ export default function AccountForm({ type, title, description, account }: Accou
   )
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader title={title} description={description} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -245,10 +235,9 @@ export default function AccountForm({ type, title, description, account }: Accou
 
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="notes">{t('accountsCommon.notes')}</Label>
-                  <textarea
+                  <Textarea
                     id="notes"
                     rows={2}
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
@@ -256,11 +245,9 @@ export default function AccountForm({ type, title, description, account }: Accou
 
                 {isEditing && (
                   <div className="space-y-1 sm:col-span-2">
-                    <div className="flex items-center gap-2">
-                      <input
+                    <div className="flex items-center gap-2.5">
+                      <Checkbox
                         id="isActive"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-input"
                         checked={form.isActive}
                         onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                       />
@@ -279,6 +266,8 @@ export default function AccountForm({ type, title, description, account }: Accou
                       <Input
                         id="openingBalance"
                         type="number"
+                        inputMode="decimal"
+                        className="tabular-nums sm:max-w-[15rem]"
                         step="0.01"
                         value={form.openingBalance}
                         onChange={(e) => setForm({ ...form, openingBalance: e.target.value })}
@@ -287,6 +276,7 @@ export default function AccountForm({ type, title, description, account }: Accou
                     <div className="space-y-2">
                       <Label htmlFor="openingBalanceDate">{t('accountsCommon.openingBalanceDate')}</Label>
                       <Input
+                        className="sm:max-w-[15rem]"
                         id="openingBalanceDate"
                         type="date"
                         value={form.openingBalanceDate}
@@ -324,7 +314,7 @@ export default function AccountForm({ type, title, description, account }: Accou
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bic">{t('accountsCommon.bic')}</Label>
-                  <Input id="bic" value={form.bic} onChange={(e) => setForm({ ...form, bic: e.target.value })} />
+                  <Input id="bic" className="sm:max-w-[12rem] lg:max-w-none" value={form.bic} onChange={(e) => setForm({ ...form, bic: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="accountNumber">{t('accountsCommon.accountNumber')}</Label>

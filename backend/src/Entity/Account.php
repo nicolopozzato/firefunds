@@ -76,6 +76,17 @@ class Account implements SoftDeletable
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $openingBalanceDate = null;
 
+    /**
+     * The latest day the user checked the balance against the bank's and it
+     * matched (after settling any difference), and that balance: see
+     * AccountReconciliation. Asset accounts only.
+     */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $reconciledOn = null;
+
+    #[ORM\Column(type: 'decimal', precision: 19, scale: 4, nullable: true)]
+    private ?string $reconciledBalance = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -228,6 +239,24 @@ class Account implements SoftDeletable
     public function setOpeningBalance(?string $openingBalance): static
     {
         $this->openingBalance = $openingBalance;
+        return $this;
+    }
+
+    public function getReconciledOn(): ?\DateTimeImmutable
+    {
+        return $this->reconciledOn;
+    }
+
+    public function getReconciledBalance(): ?string
+    {
+        return $this->reconciledBalance;
+    }
+
+    public function markReconciled(\DateTimeImmutable $day, string $balance): static
+    {
+        $this->reconciledOn = $day;
+        $this->reconciledBalance = $balance;
+
         return $this;
     }
 

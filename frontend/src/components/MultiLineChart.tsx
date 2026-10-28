@@ -187,7 +187,7 @@ export default function MultiLineChart({
               )}
 
               {chart.lines.map((line) => (
-                <path key={line.id} d={line.path} fill="none" stroke={line.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                <path pathLength={1} className="chart-line" key={line.id} d={line.path} fill="none" stroke={line.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
 
               {hoveredValues.map(({ line, value }) => (
@@ -225,7 +225,7 @@ export default function MultiLineChart({
 
             {hoveredIndex !== null && hoveredValues.length > 0 && (
               <div
-                className="pointer-events-none absolute top-2 z-10 flex flex-col gap-0.5 rounded-md bg-background/95 px-2 py-1 shadow-sm"
+                className="pointer-events-none absolute top-2 z-10 flex flex-col gap-0.5 chart-tooltip"
                 style={{ left: hoveredX, transform: hoveredX > width / 2 ? 'translateX(calc(-100% - 12px))' : 'translateX(12px)' }}
               >
                 <span className="whitespace-nowrap text-xs text-muted-foreground">

@@ -88,9 +88,9 @@ export default function MonthlyFlowsChart({ title, flows, currency, emptyLabel }
   const hovered = chart && hoveredIndex !== null ? chart.bars[hoveredIndex] : null
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="section-title">{title}</h3>
         {chart && (
           <div className="flex flex-wrap gap-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -135,7 +135,7 @@ export default function MonthlyFlowsChart({ title, flows, currency, emptyLabel }
                     d={bar.path}
                     fill={bar.color}
                     opacity={hoveredIndex === null || hoveredIndex === index ? 1 : 0.5}
-                    className="pointer-events-none transition-opacity duration-100"
+                    className="chart-appear pointer-events-none transition-opacity duration-100"
                   />
                 ) : null
               )}
@@ -171,7 +171,7 @@ export default function MonthlyFlowsChart({ title, flows, currency, emptyLabel }
 
             {hovered && (
               <div
-                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 rounded-md bg-background/95 px-2 py-1 shadow-sm"
+                className="pointer-events-none absolute z-10 flex flex-col gap-0.5 chart-tooltip"
                 style={{ left: hovered.centerX, top: PADDING.top, transform: tooltipTransform(hovered.centerX, width) }}
               >
                 <span className="whitespace-nowrap text-xs text-muted-foreground">{monthLabel(hovered.flow.month, 'MMMM yyyy')}</span>

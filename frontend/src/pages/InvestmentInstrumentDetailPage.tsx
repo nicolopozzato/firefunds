@@ -98,7 +98,7 @@ export default function InvestmentInstrumentDetailPage() {
       <div className="space-y-6">
         <PageHeader title={t('investmentInstrumentDetail.title')} />
         <Card>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4 pt-4 sm:pt-5">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="h-6 w-1/3" />
           </CardContent>
@@ -116,7 +116,6 @@ export default function InvestmentInstrumentDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={instrument.name}
-        description={t('investmentInstrumentDetail.title')}
         compactActions
         actions={
           <PageActions
@@ -135,14 +134,14 @@ export default function InvestmentInstrumentDetailPage() {
       />
 
       <Card>
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4 pt-4 sm:pt-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
               <div>
                 {displayPrice ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <div className="text-3xl font-semibold tabular-nums">{formatMoney(displayPrice, currencySymbol)}</div>
+                      <div className="figure-xl">{formatMoney(displayPrice, currencySymbol)}</div>
                       {showLivePoint && (
                         <Badge
                           variant="outline"

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { differenceInCalendarDays, format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { Card, CardContent } from '@/components/ui/card'
+import Stat from '@/components/Stat'
 import PositionMiniChart from '@/components/PositionMiniChart'
 import { cn, currencySymbolFor, formatMoney, formatPercent, formatQuantity, moneyColorClass, parseDate } from '@/lib/utils'
 import EmptyValue from '@/components/EmptyValue'
@@ -24,10 +25,7 @@ interface OpenPositionCardProps {
 /** A labelled figure of a position (also the per-account figures in the investments overview on phones). */
 export function PositionStat({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="truncate text-sm font-medium tabular-nums text-foreground">{children}</div>
-    </div>
+    <Stat size="sm" label={label} value={children} />
   )
 }
 
@@ -39,7 +37,7 @@ export default function OpenPositionCard({ position, currencySymbol, weight, wei
 
   return (
     <Card>
-      <CardContent className="space-y-4 p-4">
+      <CardContent className="space-y-4 pt-4 sm:pt-5">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
           {/* grid-cols-1: a column that can shrink, so a long instrument name is truncated instead of widening the page. */}
           <div className="grid flex-1 grid-cols-1 gap-6 sm:grid-cols-2 lg:min-w-0">
@@ -52,7 +50,7 @@ export default function OpenPositionCard({ position, currencySymbol, weight, wei
               </div>
 
               <div>
-                <div className="text-2xl font-semibold tabular-nums">
+                <div className="figure-lg">
                   {position.currentValue !== null ? formatMoney(position.currentValue, currencySymbol) : <EmptyValue />}
                 </div>
                 {position.gainAmount !== null && position.gainPercent !== null && (

@@ -8,7 +8,7 @@ export interface AuditLogChange {
 /** One entry of a record's history (a transaction, a trade, an account): newest first from the API. */
 export interface AuditLogEntry {
   id: string
-  action: 'created' | 'updated' | 'deleted'
+  action: 'created' | 'updated' | 'deleted' | 'restored'
   changes: AuditLogChange[] | null
   createdAt: string
 }

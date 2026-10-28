@@ -161,12 +161,12 @@ function UserForm({ user, lockAdmin = false, onDone }: { user?: AdminUser; lockA
           <Input id="user-last-name" required minLength={2} maxLength={100} autoComplete="off" value={lastName} onChange={(e) => setLastName(e.target.value)} />
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="user-email">{t('common.email')}</Label>
         <Input id="user-email" type="email" required autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
       {!user && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="user-password">{t('common.password')}</Label>
           <Input id="user-password" type="text" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
@@ -215,7 +215,7 @@ function PasswordForm({ user, onDone }: { user: AdminUser; onDone: () => void })
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="user-new-password">{t('profile.newPassword')}</Label>
         <Input id="user-new-password" type="text" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>

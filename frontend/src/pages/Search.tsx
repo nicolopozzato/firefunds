@@ -14,6 +14,7 @@ import { useSearchResults, useSearchTotals } from '@/hooks/use-search'
 import { searchTerms } from '@/lib/search'
 import { cn, formatMoney } from '@/lib/utils'
 import type { SearchKind, TransactionTotals } from '@/types/search'
+import EmptyState from '@/components/EmptyState'
 
 const KINDS: SearchKind[] = ['all', 'withdrawal', 'deposit', 'transfer', 'trade']
 
@@ -25,18 +26,6 @@ const TOTALS: { key: keyof TransactionTotals; sign: -1 | 0 | 1 }[] = [
   { key: 'investmentBuy', sign: -1 },
   { key: 'investmentSell', sign: 1 },
 ]
-
-function EmptyState({ icon: Icon, title, description }: { icon: typeof SearchX; title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 rounded-full bg-muted p-4">
-        <Icon className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="mb-2 text-lg font-semibold">{title}</h3>
-      <p className="max-w-md text-sm text-muted-foreground">{description}</p>
-    </div>
-  )
-}
 
 /**
  * The transactions found by the search box, over every date unless narrowed
@@ -77,8 +66,8 @@ export default function Search() {
     return (
       <div className="space-y-6">
         <PageHeader title={t('search.title')} />
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             <EmptyState icon={SearchIcon} title={t('search.noQuery')} description={t('search.noQueryDescription')} />
           </CardContent>
         </Card>

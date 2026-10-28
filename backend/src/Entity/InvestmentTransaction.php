@@ -261,6 +261,12 @@ class InvestmentTransaction implements SoftDeletable
         $this->deletedAt = new \DateTimeImmutable();
     }
 
+    /** Undoes markDeleted(): only right after a delete (see RestoreWindow). */
+    public function restore(): void
+    {
+        $this->deletedAt = null;
+    }
+
     #[ORM\PreUpdate]
     public function setUpdatedAtValue(): void
     {

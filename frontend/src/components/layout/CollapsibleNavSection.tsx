@@ -135,7 +135,7 @@ function FlyoutNavSection({ label, icon: SectionIcon, isActive, links }: Collaps
           if (anchorRef.current?.contains(event.target as Node)) event.preventDefault()
         }}
       >
-        <div className="px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="group-label px-3 pb-1.5 pt-1">
           {label}
         </div>
         <SubLinks links={links} onNavigate={close} />

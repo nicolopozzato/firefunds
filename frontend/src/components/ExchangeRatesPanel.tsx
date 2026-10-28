@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { addMonths, endOfMonth, format, isSameMonth, startOfMonth } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, TriangleAlert } from 'lucide-react'
+import { Plus, TriangleAlert } from 'lucide-react'
 import ExchangeRateEditDialog from '@/components/ExchangeRateEditDialog'
 import { MobileListCard, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +15,7 @@ import { useIsMobile } from '@/hooks/use-media-query'
 import { dateLocale, periodLabel } from '@/lib/report-format'
 import { cn, currencySymbolFor, formatDateTime, formatExchangeRate } from '@/lib/utils'
 import type { ExchangeRate, ExchangeRateCurrency } from '@/types/exchange-rate'
+import Stepper from '@/components/Stepper'
 
 /**
  * The exchange rates of the currencies the user holds or quotes in, in their
@@ -41,7 +42,7 @@ export default function ExchangeRatesPanel() {
   const isCurrentMonth = isSameMonth(month, new Date())
 
   const sourceBadge = (rate: ExchangeRate) => (
-    <Badge variant={rate.source === 'manual' ? 'secondary' : 'outline'} className="px-1.5 py-0 text-[11px] font-normal">
+    <Badge variant={rate.source === 'manual' ? 'secondary' : 'outline'} className="font-normal">
       {t(`exchangeRates.source_${rate.source}`)}
     </Badge>
   )
@@ -68,15 +69,15 @@ export default function ExchangeRatesPanel() {
 
   const monthNavigator = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('instrumentPrices.previousMonth')} onClick={() => setMonth((current) => addMonths(current, -1))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="min-w-32 text-center text-sm font-medium">{periodLabel(format(month, 'yyyy-MM'), 'month', dateLocale(i18n.language), true)}</span>
-        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('instrumentPrices.nextMonth')} disabled={isCurrentMonth} onClick={() => setMonth((current) => addMonths(current, 1))}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+      <Stepper
+        previousLabel={t('instrumentPrices.previousMonth')}
+        nextLabel={t('instrumentPrices.nextMonth')}
+        nextDisabled={isCurrentMonth}
+        onPrevious={() => setMonth((current) => addMonths(current, -1))}
+        onNext={() => setMonth((current) => addMonths(current, 1))}
+      >
+        {periodLabel(format(month, 'yyyy-MM'), 'month', dateLocale(i18n.language), true)}
+      </Stepper>
       <Button type="button" variant="outline" size="sm" onClick={() => setEditing('new')}>
         <Plus className="mr-2 h-4 w-4" />
         {t('exchangeRates.addShort')}
@@ -122,7 +123,7 @@ export default function ExchangeRatesPanel() {
             )
           ) : (
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 sm:pt-5">
                 {isLoading ? (
                   <div className="space-y-2">
                     {[0, 1, 2].map((i) => (

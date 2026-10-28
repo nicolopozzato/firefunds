@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addMonths, endOfMonth, format, isSameMonth, parseISO, startOfMonth, subDays } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { MobileListCard, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
@@ -15,6 +16,7 @@ import { dateLocale, periodLabel } from '@/lib/report-format'
 import { cn, currencySymbolFor, formatDateTime, formatMoney, formatPercent, moneyColorClass } from '@/lib/utils'
 import { changesFromPrevious } from '@/lib/instrument-prices'
 import type { InvestmentPrice } from '@/types/investment'
+import Stepper from '@/components/Stepper'
 
 /** Days fetched before the month, so its first day has a previous price to compare with (a long weekend, a holiday). */
 const LOOKBACK_DAYS = 10
@@ -75,7 +77,7 @@ export default function InstrumentPriceList({ instrumentId, currencyCode, initia
   }
 
   const sourceBadge = (price: InvestmentPrice) => (
-    <Badge variant={price.source === 'manual' ? 'secondary' : 'outline'} className="px-1.5 py-0 text-[11px] font-normal">
+    <Badge variant={price.source === 'manual' ? 'secondary' : 'outline'} className="font-normal">
       {t(`instrumentPrices.source_${price.source}`)}
     </Badge>
   )
@@ -85,32 +87,15 @@ export default function InstrumentPriceList({ instrumentId, currencyCode, initia
       : null
 
   const monthNavigator = (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        aria-label={t('instrumentPrices.previousMonth')}
-        title={t('instrumentPrices.previousMonth')}
-        onClick={() => setMonth((current) => addMonths(current, -1))}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="min-w-32 text-center text-sm font-medium">
-        {periodLabel(format(month, 'yyyy-MM'), 'month', dateLocale(i18n.language), true)}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        aria-label={t('instrumentPrices.nextMonth')}
-        title={t('instrumentPrices.nextMonth')}
-        disabled={isCurrentMonth}
-        onClick={() => setMonth((current) => addMonths(current, 1))}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
+    <Stepper
+      previousLabel={t('instrumentPrices.previousMonth')}
+      nextLabel={t('instrumentPrices.nextMonth')}
+      nextDisabled={isCurrentMonth}
+      onPrevious={() => setMonth((current) => addMonths(current, -1))}
+      onNext={() => setMonth((current) => addMonths(current, 1))}
+    >
+      {periodLabel(format(month, 'yyyy-MM'), 'month', dateLocale(i18n.language), true)}
+    </Stepper>
   )
 
   const toolbar = (
@@ -118,9 +103,7 @@ export default function InstrumentPriceList({ instrumentId, currencyCode, initia
       {monthNavigator}
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-input"
+          <Checkbox
             checked={showFilled}
             onChange={(e) => setShowFilled(e.target.checked)}
           />
@@ -166,8 +149,8 @@ export default function InstrumentPriceList({ instrumentId, currencyCode, initia
           </MobileListCard>
         )
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0 sm:p-0">
             {isLoading ? (
               <div className="space-y-2 p-4">
                 {[0, 1, 2].map((i) => (

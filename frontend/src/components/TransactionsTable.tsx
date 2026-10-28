@@ -15,6 +15,7 @@ import { useIsMobile } from '@/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 import type { TransactionKind } from '@/types/transaction'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
+import EmptyState from '@/components/EmptyState'
 
 interface TransactionsTableProps {
   kind: TransactionKind
@@ -126,19 +127,7 @@ export default function TransactionsTable({
         isLoading={isLoading}
         onPageChange={setPage}
         empty={
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4">
-              <Plus className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">{emptyTitle}</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-              {emptyDescription}
-            </p>
-            <Button onClick={() => navigate(newTransactionPath)}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('transactionsCommon.add')}
-            </Button>
-          </div>
+          <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('transactionsCommon.add'), onClick: () => navigate(newTransactionPath) }} />
         }
       />
 

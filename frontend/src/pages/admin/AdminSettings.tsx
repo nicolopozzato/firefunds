@@ -8,6 +8,7 @@ import SettingRow from '@/components/SettingRow'
 import { Switch } from '@/components/ui/switch'
 import { useServerSettings, useUpdateServerSettings } from '@/hooks/use-admin'
 import { handleApiError } from '@/lib/error-handler'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export default function AdminSettings() {
   const { t } = useTranslation()
@@ -35,8 +36,8 @@ export default function AdminSettings() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <AdminTabs />
       <PageHeader title={t('admin.settings.title')} description={t('admin.settings.description')} />
+      <AdminTabs />
 
       <Card>
         <CardHeader>
@@ -45,7 +46,7 @@ export default function AdminSettings() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            <Skeleton className="h-24 w-full" />
           ) : (
             <SettingRow label={t('admin.settings.registrationEnabled')} htmlFor="registrationEnabled">
               <Switch id="registrationEnabled" checked={registrationEnabled} disabled={updateSettings.isPending} onCheckedChange={handleToggle} />
