@@ -14,6 +14,8 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 class SystemHealthTest extends WebTestCaseBase
 {
     private KernelBrowser $client;
+    /** Runs one minute apart, in the order they are made: "the last 3" must mean these. */
+    private int $minutes = 0;
 
     protected function setUp(): void
     {
@@ -52,7 +54,7 @@ class SystemHealthTest extends WebTestCaseBase
     {
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         for ($i = 0; $i < $count; ++$i) {
-            $at = new \DateTimeImmutable(sprintf('+%d seconds', $i + random_int(1, 1000)));
+            $at = new \DateTimeImmutable(sprintf('+%d minutes', ++$this->minutes));
             $run = new ScheduledTaskRun($task, TaskTrigger::Schedule, $at);
             $run->finish($status, [], null, false, $at);
             $entityManager->persist($run);
