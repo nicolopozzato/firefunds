@@ -13,6 +13,8 @@ import {
   ArrowUpCircle,
   Repeat,
   CalendarClock,
+  Inbox,
+  FileUp,
   ListOrdered,
   Tag,
   Tags,
@@ -162,6 +164,16 @@ export default function Sidebar() {
       name: t('navigation.recurringTransactions'),
       href: '/transactions/recurring',
       icon: CalendarClock,
+    },
+    {
+      name: t('navigation.drafts'),
+      href: '/transactions/drafts',
+      icon: Inbox,
+    },
+    {
+      name: t('navigation.importCsv'),
+      href: '/transactions/import',
+      icon: FileUp,
     },
   ]
 

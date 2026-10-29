@@ -87,6 +87,16 @@ final readonly class CreateTransactionRequest
          */
         #[Assert\Timezone]
         public ?string $timezone = null,
+
+        /**
+         * For other programs (the API): when an identical transaction is
+         * there already (same account, same amount, within a day), make it
+         * anyway (`create`, as when left out), leave it (`skip`), add this
+         * one's text to its notes (`annotate`) or ask the user with a draft
+         * (`review`). See DraftService::incomingTransaction().
+         */
+        #[Assert\Choice(choices: ['create', 'skip', 'annotate', 'review'])]
+        public ?string $ifExists = null,
     ) {
     }
 

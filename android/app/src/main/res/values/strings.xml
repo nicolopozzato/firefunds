@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FireFunds</string>
+    <string name="intro">Sends your bank apps\' notifications to your FireFunds server, where they become transactions to review.</string>
+    <string name="server">Server</string>
+    <string name="server_url">Server address, e.g. https://firefunds.example.com</string>
+    <string name="token">API token (Preferences → API, \"Drafts only\")</string>
+    <string name="save">Save and check</string>
+    <string name="checking">Checking…</string>
+    <string name="connected">Connected as %1$s</string>
+    <string name="not_connected">Not connected: %1$s</string>
+    <string name="http_warning">The address is not HTTPS: use it only on your home network.</string>
+    <string name="access">Access to notifications</string>
+    <string name="access_on">On: notifications are read.</string>
+    <string name="access_off">Off: Android needs your permission to let the app read notifications.</string>
+    <string name="access_open">Open the setting</string>
+    <string name="apps">Apps to read</string>
+    <string name="apps_hint">An app shows up here after its first notification. Only the ones turned on are sent to the server, nothing of the others.</string>
+    <string name="apps_none">No app yet: wait for a notification from your bank\'s app.</string>
+    <string name="queue">Waiting to be sent: %1$d</string>
+    <string name="send_now">Send now</string>
+    <string name="sent">Sent</string>
+</resources>

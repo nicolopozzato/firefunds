@@ -34,6 +34,8 @@ export interface User {
   /** Push: the daily summary of reminders at pushSummaryTime, and server problems (administrators). */
   pushReminders: boolean;
   pushSystem: boolean;
+  /** Push: a new draft to review, right away. */
+  pushDrafts: boolean;
   pushSummaryTime: string;
 }
 
@@ -82,6 +84,7 @@ export interface UpdatePreferencesRequest {
   dashboardInvestmentUnit?: User['dashboardInvestmentUnit']
   pushReminders?: boolean
   pushSystem?: boolean
+  pushDrafts?: boolean
   pushSummaryTime?: string
 }
 

@@ -23,6 +23,7 @@ import { useHideAmounts } from '@/hooks/use-hide-amounts'
 import { useSavePreferences } from '@/hooks/use-preferences'
 import DashboardPreferences from '@/components/DashboardPreferences'
 import NotificationPreferences from '@/components/NotificationPreferences'
+import ApiTokensPreferences from '@/components/ApiTokensPreferences'
 import ExchangeRatesPanel from '@/components/ExchangeRatesPanel'
 import { useExchangeRatesOverview } from '@/hooks/use-exchange-rates'
 import { useAuth } from '@/contexts/AuthContext'
@@ -294,7 +295,7 @@ function GeneralPreferences({ user }: { user: User }) {
   )
 }
 
-type PreferencesTab = 'general' | 'dashboard' | 'notifications' | 'rates'
+type PreferencesTab = 'general' | 'dashboard' | 'notifications' | 'api' | 'rates'
 
 export default function Preferences() {
   const { t } = useTranslation()
@@ -305,12 +306,17 @@ export default function Preferences() {
   const hasRates = !!rates && rates.currencies.length > 0
   const requested = searchParams.get('tab')
   const tab: PreferencesTab =
-    requested === 'dashboard' || requested === 'notifications' ? requested : requested === 'rates' && hasRates ? 'rates' : 'general'
+    requested === 'dashboard' || requested === 'notifications' || requested === 'api'
+      ? requested
+      : requested === 'rates' && hasRates
+        ? 'rates'
+        : 'general'
 
   const tabs: { value: PreferencesTab; label: string }[] = [
     { value: 'general', label: t('preferences.general') },
     { value: 'dashboard', label: t('preferences.dashboard') },
     { value: 'notifications', label: t('preferences.notifications') },
+    { value: 'api', label: t('preferences.api') },
     ...(hasRates ? [{ value: 'rates' as const, label: t('preferences.exchangeRates') }] : []),
   ]
 
@@ -334,6 +340,8 @@ export default function Preferences() {
             user && <GeneralPreferences user={user} />
           ) : tab === 'notifications' ? (
             user && <NotificationPreferences user={user} />
+          ) : tab === 'api' ? (
+            <ApiTokensPreferences />
           ) : (
             <DashboardPreferences />
           )}

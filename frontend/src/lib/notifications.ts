@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import { formatShortDate } from '@/lib/utils'
+import { currencySymbolFor, formatMoney, formatShortDate } from '@/lib/utils'
 import type { AppNotification } from '@/types/notification'
 
 /** A notification in words, and the page that deals with it. */
@@ -11,6 +11,18 @@ export function describeNotification(notification: AppNotification, t: TFunction
         title: t('notifications.recurringMissing', { description: p.description }),
         body: t('notifications.recurringMissingBody', { day: formatShortDate(String(p.day)) }),
         link: `/transactions/recurring/${p.recurringId}`,
+      }
+    case 'draft_new':
+      return {
+        title: t('notifications.draftNew', { amount: formatMoney(String(p.amount), currencySymbolFor(String(p.currency ?? ''))), description: p.description ?? '' }),
+        body: t(p.duplicate ? 'notifications.draftNewDuplicate' : 'notifications.draftNewBody'),
+        link: `/transactions/drafts/${p.draftId}`,
+      }
+    case 'draft_recorded':
+      return {
+        title: t('notifications.draftRecorded', { description: p.description }),
+        body: t('notifications.draftRecordedBody', { amount: formatMoney(String(p.amount), currencySymbolFor(String(p.currency ?? ''))) }),
+        link: `/transactions/${p.transactionId}`,
       }
     case 'task_failing':
       return {

@@ -50,6 +50,9 @@ security:
             # A disabled user is refused by the JWT and refresh authenticators too.
             user_checker: App\Auth\Security\UserChecker
             jwt: ~
+            # Personal access tokens (Bearer ff_…) for other programs: App\Api\Security.
+            custom_authenticators:
+                - App\Api\Security\ApiTokenAuthenticator
             entry_point: jwt
             refresh_jwt:
                 check_path: api_auth_refresh

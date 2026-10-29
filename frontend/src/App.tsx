@@ -31,6 +31,11 @@ const InvestmentTransactions = lazy(() => import('./pages/InvestmentTransactions
 const InvestmentTransactionFormPage = lazy(() => import('./pages/InvestmentTransactionFormPage'))
 const InvestmentTransactionDetailPage = lazy(() => import('./pages/InvestmentTransactionDetailPage'))
 const RecurringTransactions = lazy(() => import('./pages/RecurringTransactions'))
+const Drafts = lazy(() => import('./pages/Drafts'))
+const ImportCsv = lazy(() => import('./pages/ImportCsv'))
+const Sources = lazy(() => import('./pages/Sources'))
+const SourcePage = lazy(() => import('./pages/SourcePage'))
+const DraftPage = lazy(() => import('./pages/DraftPage'))
 const RecurringTransactionFormPage = lazy(() => import('./pages/RecurringTransactionFormPage'))
 const RecurringTransactionDetailPage = lazy(() => import('./pages/RecurringTransactionDetailPage'))
 const AccountDetailPage = lazy(() => import('./pages/AccountDetailPage'))
@@ -149,6 +154,11 @@ function AppRoutes() {
                 <Route path="/transactions/investments/:id/edit" element={<InvestmentTransactionFormPage />} />
                 <Route path="/transactions/investments/:id" element={<InvestmentTransactionDetailPage />} />
                 <Route path="/transactions/recurring" element={<RecurringTransactions />} />
+                <Route path="/transactions/drafts" element={<Drafts />} />
+                <Route path="/transactions/import" element={<ImportCsv />} />
+                <Route path="/sources" element={<Sources />} />
+                <Route path="/sources/:id" element={<SourcePage />} />
+                <Route path="/transactions/drafts/:id" element={<DraftPage />} />
                 <Route path="/transactions/recurring/new" element={<RecurringTransactionFormPage />} />
                 <Route path="/transactions/recurring/:id/edit" element={<RecurringTransactionFormPage />} />
                 <Route path="/transactions/recurring/:id" element={<RecurringTransactionDetailPage />} />

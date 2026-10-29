@@ -10,13 +10,16 @@ use Symfony\Component\Clock\ClockInterface;
 
 /**
  * Which notifications go to the devices, and when: server problems right
- * away (administrators who want them); reminders once a day, together, from
+ * away (administrators who want them), drafts as they arrive; reminders once
+ * a day, together, from
  * the user's summary time where they are. Each notification is pushed at
  * most once; one the user doesn't want pushed is marked so too.
  */
 class PushDelivery
 {
     public const SYSTEM_TYPES = ['task_failing', 'backup_overdue', 'prices_stale', 'rates_stale'];
+    /** A draft is pushed the moment it arrives: that is when the user remembers what it was. */
+    public const DRAFT_TYPES = ['draft_new', 'draft_recorded'];
 
     public function __construct(
         private readonly NotificationRepository $notifications,
@@ -36,6 +39,12 @@ class PushDelivery
             $user = $notification->getUser();
             if (\in_array($notification->getType(), self::SYSTEM_TYPES, true)) {
                 if ($user->wantsPushSystem()) {
+                    $this->sender->send($user, $this->message($notification, $user));
+                    ++$sent;
+                }
+                $notification->markPushed($now);
+            } elseif (\in_array($notification->getType(), self::DRAFT_TYPES, true)) {
+                if ($user->wantsPushDrafts()) {
                     $this->sender->send($user, $this->message($notification, $user));
                     ++$sent;
                 }

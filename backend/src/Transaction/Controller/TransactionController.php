@@ -9,7 +9,10 @@ use App\Core\Pagination\PaginatedResponse;
 use App\Core\Pagination\PaginationParams;
 use App\Core\Period\UserDayRange;
 use App\Core\Search\SearchQuery;
+use App\Draft\DTO\DraftResponse;
+use App\Draft\Service\DraftService;
 use App\Entity\Account;
+use App\Entity\Draft;
 use App\Entity\Category;
 use App\Entity\RecurringTransaction;
 use App\Entity\Tag;
@@ -50,6 +53,7 @@ class TransactionController extends AbstractController
         private readonly CategoryRepository $categoryRepository,
         private readonly TagRepository $tagRepository,
         private readonly RecurringTransactionRepository $recurringRepository,
+        private readonly DraftService $draftService,
     ) {
     }
 
@@ -246,9 +250,24 @@ class TransactionController extends AbstractController
     }
 
     #[Route('', name: 'api_transactions_create', methods: ['POST'])]
+    /**
+     * 201 with the new transaction; with `ifExists` and an identical one
+     * there already, 200 with that one (`skip`, `annotate`) or 202 with a
+     * draft for the user to decide (`review`).
+     */
     public function create(#[MapRequestPayload] CreateTransactionRequest $request): JsonResponse
     {
-        $transaction = $this->transactionService->create($this->getCurrentUser(), $request);
+        $user = $this->getCurrentUser();
+        if ($request->ifExists !== null && $request->ifExists !== 'create') {
+            $outcome = $this->draftService->incomingTransaction($user, $request);
+            if ($outcome instanceof Draft) {
+                return $this->json(DraftResponse::fromEntity($outcome, $this->draftService->currency($outcome)), 202);
+            }
+            if ($outcome !== null) {
+                return $this->json(TransactionResponse::fromEntity($outcome), 200);
+            }
+        }
+        $transaction = $this->transactionService->create($user, $request);
 
         return $this->json(TransactionResponse::fromEntity($transaction), 201);
     }

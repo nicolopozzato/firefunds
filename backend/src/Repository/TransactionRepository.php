@@ -320,6 +320,53 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every transaction on this account (either side) from `from` through
+     * `to`: what a file's rows are checked against for duplicates.
+     *
+     * @return list<Transaction>
+     */
+    public function findOnAccountBetween(Account $account, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        return $this->createQueryBuilder('t')
+            ->addSelect('s', 'd')
+            ->leftJoin('t.sourceAccount', 's')
+            ->leftJoin('t.destinationAccount', 'd')
+            ->andWhere('t.sourceAccount = :account OR t.destinationAccount = :account')
+            ->andWhere('t.occurredAt >= :from AND t.occurredAt < :to')
+            ->setParameter('account', $account)
+            ->setParameter('from', new \DateTimeImmutable($from->format('Y-m-d')))
+            ->setParameter('to', new \DateTimeImmutable($to->modify('+1 day')->format('Y-m-d')))
+            ->orderBy('t.occurredAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * An identical transaction already recorded: the same amount to the
+     * cent, within a day of `day`, on `account` when known, the nearest
+     * first. What an incoming one (a draft, the API) is checked against.
+     */
+    public function findIdentical(User $user, ?Account $account, string $amount, \DateTimeImmutable $day): ?Transaction
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.amount = :amount')
+            ->andWhere('t.occurredAt >= :from AND t.occurredAt < :to')
+            ->setParameter('user', $user)
+            ->setParameter('amount', bcadd($amount, '0', 4))
+            ->setParameter('from', new \DateTimeImmutable($day->modify('-1 day')->format('Y-m-d')))
+            ->setParameter('to', new \DateTimeImmutable($day->modify('+2 days')->format('Y-m-d')));
+        if ($account !== null) {
+            $qb->andWhere('t.sourceAccount = :account OR t.destinationAccount = :account')->setParameter('account', $account);
+        }
+        $candidates = $qb->getQuery()->getResult();
+        $target = $day->format('Y-m-d');
+        usort($candidates, static fn (Transaction $a, Transaction $b) => abs(strtotime($a->getOccurredAt()->format('Y-m-d')) - strtotime($target)) <=> abs(strtotime($b->getOccurredAt()->format('Y-m-d')) - strtotime($target)));
+
+        return $candidates[0] ?? null;
+    }
+
+    /**
      * Transactions that could be an occurrence of a recurring one: between
      * the same two sides (none for none), from `from` through `to`, not part
      * of a recurrence yet. Any amount: a bill changes month by month.

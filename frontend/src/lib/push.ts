@@ -45,7 +45,7 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
 }
 
 /** Asks the permission (call it from a tap), subscribes this device and tells the server. */
-export async function enablePush(): Promise<void> {
+export async function enablePush(): Promise<PushDevice> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('permission')
   const { data } = await api.get<{ publicKey: string }>('/api/push/key')
@@ -54,7 +54,8 @@ export async function enablePush(): Promise<void> {
     (await registration.pushManager.getSubscription()) ??
     (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(data.publicKey) }))
   const json = subscription.toJSON()
-  await api.post('/api/push/subscriptions', { endpoint: json.endpoint, keys: json.keys, label: deviceLabel() })
+  const { data: device } = await api.post<PushDevice>('/api/push/subscriptions', { endpoint: json.endpoint, keys: json.keys, label: deviceLabel() })
+  return device
 }
 
 export async function disablePush(): Promise<void> {

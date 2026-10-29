@@ -6,6 +6,7 @@ import { Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAllAccounts } from '@/hooks/use-accounts'
+import { usePushHere } from '@/hooks/use-push-here'
 import { transactionsApi } from '@/lib/transactions-api'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +31,8 @@ function remember(key: string): void {
 
 /**
  * A new user's first steps, on top of the dashboard: one thing at a time
- * (an account, a transaction, the formats), each ticked off as it is done,
+ * (an account, a transaction, notifications on this device where it can have
+ * them, the formats), each ticked off as it is done,
  * only the next one with a button. Gone once the first two are done, or when
  * closed (this device).
  */
@@ -43,20 +45,23 @@ export default function GettingStarted() {
     queryKey: ['transactions', 'date-range'],
     queryFn: () => transactionsApi.dateRange(),
   })
+  const push = usePushHere()
 
-  if (dismissed || !accounts || !dateRange) return null
+  if (dismissed || !accounts || !dateRange || !push.known) return null
 
   const steps = [
     { key: 'account', done: accounts.items.length > 0, to: '/accounts/asset/new' },
     { key: 'transaction', done: dateRange.earliest !== null, to: '/transactions/new' },
+    ...(push.support === 'ok' ? [{ key: 'notifications', done: push.on, to: null }] : []),
     { key: 'preferences', done: remembered(PREFERENCES_KEY), to: '/preferences' },
   ]
   if (steps[0].done && steps[1].done) return null
   const next = steps.find((step) => !step.done)
 
   const go = (step: (typeof steps)[number]) => {
+    if (step.key === 'notifications') return void push.enable()
     if (step.key === 'preferences') remember(PREFERENCES_KEY)
-    navigate(step.to)
+    if (step.to) navigate(step.to)
   }
 
   return (
@@ -103,13 +108,13 @@ export default function GettingStarted() {
                   {isNext && <span className="block text-xs text-muted-foreground">{t(`gettingStarted.${step.key}Hint`)}</span>}
                   {/* Phones: the button under the text, so the text keeps the width. */}
                   {isNext && (
-                    <Button size="sm" className="mt-2 sm:hidden" onClick={() => go(step)}>
+                    <Button size="sm" className="mt-2 sm:hidden" disabled={push.busy} onClick={() => go(step)}>
                       {t(`gettingStarted.${step.key}Action`)}
                     </Button>
                   )}
                 </span>
                 {isNext && (
-                  <Button size="sm" className="hidden sm:inline-flex" onClick={() => go(step)}>
+                  <Button size="sm" className="hidden sm:inline-flex" disabled={push.busy} onClick={() => go(step)}>
                     {t(`gettingStarted.${step.key}Action`)}
                   </Button>
                 )}

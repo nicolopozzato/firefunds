@@ -98,6 +98,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => true])]
     private bool $pushReminders = true;
 
+    /** Push: a new draft to review, right away. */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $pushDrafts = true;
+
     /** Push: problems on the server, right away (administrators only). */
     #[ORM\Column(options: ['default' => true])]
     private bool $pushSystem = true;
@@ -277,6 +281,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPushReminders(bool $on): static
     {
         $this->pushReminders = $on;
+
+        return $this;
+    }
+
+    public function wantsPushDrafts(): bool
+    {
+        return $this->pushDrafts;
+    }
+
+    public function setPushDrafts(bool $on): static
+    {
+        $this->pushDrafts = $on;
 
         return $this;
     }

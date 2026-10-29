@@ -68,6 +68,8 @@ final readonly class UpdatePreferencesRequest
 
         public ?bool $pushSystem = null,
 
+        public ?bool $pushDrafts = null,
+
         #[Assert\Regex('/^([01]\d|2[0-3]):[0-5]\d$/')]
         public ?string $pushSummaryTime = null,
     ) {

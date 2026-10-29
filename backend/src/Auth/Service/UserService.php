@@ -241,6 +241,9 @@ class UserService
         if ($request->pushReminders !== null) {
             $user->setPushReminders($request->pushReminders);
         }
+        if ($request->pushDrafts !== null) {
+            $user->setPushDrafts($request->pushDrafts);
+        }
         if ($request->pushSystem !== null) {
             $user->setPushSystem($request->pushSystem);
         }

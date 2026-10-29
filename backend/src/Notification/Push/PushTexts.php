@@ -20,6 +20,8 @@ final class PushTexts
             'prices_stale' => ['Prezzi fermi', '%symbols%'],
             'rates_stale' => ['Cambi fermi', '%currencies%'],
             'test' => ['FireFunds', 'Le notifiche arrivano su questo dispositivo.'],
+            'draft_new' => ['%amount% · %description%', 'Tocca per registrarla.'],
+            'draft_recorded' => ['Registrata «%description%»', '%amount%, riconosciuta come ricorrente.'],
         ],
         'en' => [
             'recurring_missing' => ['Did you pay «%description%»?', 'It was due on %day% and I couldn\'t find it.'],
@@ -29,6 +31,8 @@ final class PushTexts
             'prices_stale' => ['Prices stuck', '%symbols%'],
             'rates_stale' => ['Rates stuck', '%currencies%'],
             'test' => ['FireFunds', 'Notifications reach this device.'],
+            'draft_new' => ['%amount% · %description%', 'Tap to record it.'],
+            'draft_recorded' => ['Recorded «%description%»', '%amount%, recognised as recurring.'],
         ],
     ];
 
@@ -42,7 +46,9 @@ final class PushTexts
         [$title, $body] = $texts[$type] ?? ['FireFunds', ''];
         $replace = [];
         foreach ($params as $name => $value) {
-            $replace['%'.$name.'%'] = self::value($name, $value, $locale);
+            $replace['%'.$name.'%'] = $name === 'amount'
+                ? self::money((string) $value, (string) ($params['currency'] ?? 'EUR'), $locale)
+                : self::value($name, $value, $locale);
         }
 
         return ['title' => strtr($title, $replace), 'body' => strtr($body, $replace)];
@@ -55,10 +61,19 @@ final class PushTexts
 
         return match ($notification->getType()) {
             'recurring_missing' => '/transactions/recurring/'.$params['recurringId'],
+            'draft_new' => '/transactions/drafts/'.$params['draftId'],
+            'draft_recorded' => '/transactions/'.$params['transactionId'],
             'backup_overdue' => '/admin/backups',
             'task_failing', 'prices_stale', 'rates_stale' => '/admin/tasks',
             default => '/',
         };
+    }
+
+    private static function money(string $amount, string $currency, string $locale): string
+    {
+        $formatted = (new \NumberFormatter(str_starts_with($locale, 'it') ? 'it_IT' : 'en_US', \NumberFormatter::CURRENCY))->formatCurrency((float) $amount, $currency);
+
+        return $formatted !== false ? $formatted : $amount.' '.$currency;
     }
 
     private static function value(string $name, string|int|float|null $value, string $locale): string

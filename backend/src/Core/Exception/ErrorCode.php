@@ -59,6 +59,13 @@ enum ErrorCode: string
     case PushDeviceNotFound = 'push_device_not_found';
     case PushFailed = 'push_failed';
 
+    // API tokens and drafts
+    case ApiTokenNotFound = 'api_token_not_found';
+    case DraftNotFound = 'draft_not_found';
+    case DraftClosed = 'draft_closed';
+    case ImportPresetNotFound = 'import_preset_not_found';
+    case SourceNotFound = 'source_not_found';
+
     // Investments
     case InvestmentAccountRequired = 'investment_account_required';
     case InstrumentInUse = 'instrument_in_use';
@@ -122,6 +129,11 @@ enum ErrorCode: string
             self::TransactionNotLinkable => 'This transaction is already part of a recurring transaction, or is not on its accounts.',
             self::NotificationNotFound => 'Notification not found.',
             self::PushDeviceNotFound => 'Device not found.',
+            self::ApiTokenNotFound => 'API token not found.',
+            self::DraftNotFound => 'Draft not found.',
+            self::ImportPresetNotFound => 'Import preset not found.',
+            self::SourceNotFound => 'Notification source not found.',
+            self::DraftClosed => 'This draft has been dealt with already.',
             self::PushFailed => 'The push service did not accept the notification for this device.',
             self::NothingToConfirm => 'Nothing of this recurring transaction is waiting to be confirmed.',
             self::AccountWithoutCurrency => 'The asset account involved in this transaction has no currency set.',

@@ -36,6 +36,7 @@ final readonly class UserResponse
         /** Push: the daily summary of reminders, and server problems (administrators). */
         public bool $pushReminders,
         public bool $pushSystem,
+        public bool $pushDrafts,
         public string $pushSummaryTime,
     ) {
     }
@@ -66,6 +67,7 @@ final readonly class UserResponse
             dashboardInvestmentUnit: $user->getDashboardInvestmentUnit(),
             pushReminders: $user->wantsPushReminders(),
             pushSystem: $user->wantsPushSystem(),
+            pushDrafts: $user->wantsPushDrafts(),
             pushSummaryTime: $user->getPushSummaryTime(),
         );
     }

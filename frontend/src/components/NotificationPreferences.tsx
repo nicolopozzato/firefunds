@@ -1,6 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BellRing, Send, Smartphone, Trash2 } from 'lucide-react'
 import SettingRow from '@/components/SettingRow'
@@ -11,8 +10,9 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { usePushDevices, useRemovePushDevice, useTestPushDevice } from '@/hooks/use-notifications'
 import { useSavePreferences } from '@/hooks/use-preferences'
+import { usePushHere } from '@/hooks/use-push-here'
 import { handleApiError } from '@/lib/error-handler'
-import { currentSubscription, disablePush, enablePush, pushSupport } from '@/lib/push'
+import { disablePush } from '@/lib/push'
 import { formatShortDate } from '@/lib/utils'
 import type { UpdatePreferencesRequest, User } from '@/types/auth'
 
@@ -34,41 +34,13 @@ function Section({ title, description, children }: { title: string; description?
  */
 export default function NotificationPreferences({ user }: { user: User }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const savePreferences = useSavePreferences()
   const { data: devices } = usePushDevices()
   const removeDevice = useRemovePushDevice()
   const testDevice = useTestPushDevice()
-  const [support, setSupport] = useState(pushSupport)
-  const [endpoint, setEndpoint] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const push = usePushHere()
+  const thisDevice = push.device
   const [summaryTime, setSummaryTime] = useState(user.pushSummaryTime)
-
-  useEffect(() => {
-    void currentSubscription().then((subscription) => setEndpoint(subscription?.endpoint ?? null))
-  }, [])
-  // On here only when the server knows this device too (it may have been removed from another one).
-  const thisDevice = devices?.find((device) => device.endpoint === endpoint) ?? null
-
-  const toggleHere = async () => {
-    setBusy(true)
-    try {
-      if (thisDevice) {
-        await disablePush()
-      } else {
-        await enablePush()
-        toast.success(t('pushPrefs.enabled'))
-      }
-      const subscription = await currentSubscription()
-      setEndpoint(subscription?.endpoint ?? null)
-      await queryClient.invalidateQueries({ queryKey: ['push-devices'] })
-    } catch (error) {
-      setSupport(pushSupport())
-      toast.error(error instanceof Error && error.message === 'permission' ? t('pushPrefs.permissionRefused') : handleApiError(error))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const save = async (changes: UpdatePreferencesRequest) => {
     try {
@@ -90,7 +62,7 @@ export default function NotificationPreferences({ user }: { user: User }) {
   return (
     <div className="space-y-4 md:space-y-6">
       <Section title={t('pushPrefs.thisDevice')} description={t('pushPrefs.thisDeviceDescription')}>
-        {support === 'ok' ? (
+        {push.support === 'ok' ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -98,12 +70,12 @@ export default function NotificationPreferences({ user }: { user: User }) {
               </span>
               <span className="text-sm">{t(thisDevice ? 'pushPrefs.onHere' : 'pushPrefs.offHere')}</span>
             </div>
-            <Button variant={thisDevice ? 'outline' : 'default'} disabled={busy} onClick={() => void toggleHere()}>
+            <Button variant={thisDevice ? 'outline' : 'default'} disabled={push.busy || !push.known} onClick={() => void (thisDevice ? push.disable() : push.enable())}>
               {t(thisDevice ? 'pushPrefs.turnOff' : 'pushPrefs.turnOn')}
             </Button>
           </div>
         ) : (
-          <p className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm">{t(`pushPrefs.support_${support}`)}</p>
+          <p className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm">{t(`pushPrefs.support_${push.support}`)}</p>
         )}
       </Section>
 
@@ -124,6 +96,9 @@ export default function NotificationPreferences({ user }: { user: User }) {
               />
             </SettingRow>
           )}
+          <SettingRow label={t('pushPrefs.drafts')} hint={t('pushPrefs.draftsHint')} htmlFor="pushDrafts">
+            <Switch id="pushDrafts" checked={user.pushDrafts} onCheckedChange={(on) => void save({ pushDrafts: on })} />
+          </SettingRow>
           {user.isAdmin && (
             <SettingRow label={t('pushPrefs.system')} hint={t('pushPrefs.systemHint')} htmlFor="pushSystem">
               <Switch id="pushSystem" checked={user.pushSystem} onCheckedChange={(on) => void save({ pushSystem: on })} />
@@ -160,7 +135,7 @@ export default function NotificationPreferences({ user }: { user: User }) {
                     title={t('pushPrefs.remove')}
                     onClick={() =>
                       removeDevice.mutate(device.id, {
-                        onSuccess: () => device.id === thisDevice?.id && void disablePush().then(() => setEndpoint(null)),
+                        onSuccess: () => device.id === thisDevice?.id && void disablePush().then(push.refresh),
                       })
                     }
                   >

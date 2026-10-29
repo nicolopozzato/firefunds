@@ -21,6 +21,7 @@ const TAB_PAGES = new Set([
   '/transactions/transfers',
   '/transactions/investments',
   '/transactions/recurring',
+  '/transactions/drafts',
   '/investments/overview',
   '/investments/instruments',
   '/more',
@@ -37,6 +38,7 @@ const MORE_PAGES = [
   '/reports/net-worth',
   '/profile',
   '/preferences',
+  '/sources',
   '/admin/users',
   '/admin/settings',
   '/admin/backups',
@@ -65,9 +67,14 @@ export function tabOf(pathname: string): MobileTab {
   return 'more'
 }
 
-/** New and edit forms: full screen, their Save bar takes the bottom bar's place. */
+/** New and edit forms, a draft's review, the import, a source's rules: full screen, their Save bar takes the bottom bar's place. */
 export function isFormPage(pathname: string): boolean {
-  return pathname.endsWith('/new') || pathname.endsWith('/edit')
+  return (
+    pathname.endsWith('/new') ||
+    pathname.endsWith('/edit') ||
+    pathname === '/transactions/import' ||
+    /^\/(transactions\/drafts|sources)\/[^/]+$/.test(pathname)
+  )
 }
 
 export function isTabPage(pathname: string): boolean {

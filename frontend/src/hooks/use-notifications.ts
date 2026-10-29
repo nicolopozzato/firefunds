@@ -35,9 +35,10 @@ export function useDismissNotification() {
 }
 
 /** The user's devices that receive push notifications. */
-export function usePushDevices() {
+export function usePushDevices(enabled = true) {
   return useQuery({
     queryKey: ['push-devices'],
+    enabled,
     queryFn: async () => (await api.get<PushDevice[]>('/api/push/subscriptions')).data,
   })
 }

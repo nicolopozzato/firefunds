@@ -5,6 +5,7 @@ namespace App\Recurring\Service;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Entity\AccountType;
+use App\Entity\Draft;
 use App\Entity\RecurrenceMode;
 use App\Entity\RecurringTransaction;
 use App\Entity\Transaction;
@@ -231,6 +232,52 @@ class RecurringTransactionService
             throw new ApiException(ErrorCode::TransactionNotLinkable, [], Response::HTTP_CONFLICT);
         }
         $this->linkOccurrence($recurring, $day, $transaction);
+        $this->entityManager->flush();
+
+        return $transaction;
+    }
+
+    /**
+     * The recurring transaction a draft is (the bank's notification of a
+     * subscription, a bill): one whose next occurrence falls within
+     * MATCH_DAYS of it, going the same way, on the same account when the
+     * draft knows it, else for the very same amount. Only one may fit: two
+     * would be a guess.
+     *
+     * @return array{0: RecurringTransaction, 1: \DateTimeImmutable}|null
+     */
+    public function matchDraft(Draft $draft): ?array
+    {
+        $day = new \DateTimeImmutable($draft->getOccurredAt()->format('Y-m-d'));
+        $account = $draft->getAssetAccount();
+        $direction = $draft->effectiveDirection();
+        $found = [];
+        foreach ($this->repository->findByUser($draft->getUser()) as $recurring) {
+            $next = $recurring->isPaused() ? null : $recurring->nextOccurrence();
+            if ($next === null || abs((int) $next->diff($day)->format('%r%a')) > self::MATCH_DAYS) {
+                continue;
+            }
+            $kind = $recurring->getSourceAccount()?->getType() === AccountType::Asset
+                ? ($recurring->getDestinationAccount()?->getType() === AccountType::Asset ? null : 'out')
+                : 'in';
+            if ($direction !== null && $kind !== null && $direction !== $kind) {
+                continue;
+            }
+            $sameAmount = bccomp($recurring->amountOn($next), $draft->getAmount(), 2) === 0;
+            $sameAccount = $account !== null && $recurring->getAssetAccount()->getId()->equals($account->getId());
+            if ($sameAccount || ($account === null && $sameAmount)) {
+                $found[] = [$recurring, $next];
+            }
+        }
+
+        return \count($found) === 1 ? $found[0] : null;
+    }
+
+    /** A draft recognised as an occurrence: recorded now, with its amount and time, as the recurrence would. */
+    public function recordFromDraft(RecurringTransaction $recurring, \DateTimeImmutable $day, Draft $draft): Transaction
+    {
+        $transaction = $this->createOccurrence($recurring, $day, new \DateTimeImmutable($draft->getOccurredAt()->format('Y-m-d')), $draft->getAmount());
+        $transaction->setOccurredAt(new \DateTimeImmutable($draft->getOccurredAt()->format('Y-m-d H:i:s'), new \DateTimeZone($draft->getTimezone())));
         $this->entityManager->flush();
 
         return $transaction;
