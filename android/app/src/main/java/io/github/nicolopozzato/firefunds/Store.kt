@@ -6,9 +6,10 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * What the app keeps on the phone: the server and token, the apps seen
- * posting notifications (names only) and which of them to read, and the
- * notifications waiting to be sent (a file, so a restart loses none).
+ * What the app keeps on the phone: the server and token, which apps to read
+ * (and when each last posted a notification, never what it said), how the
+ * last send went, and the notifications waiting to be sent (a file, so a
+ * restart loses none).
  */
 class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("firefunds", Context.MODE_PRIVATE)
@@ -25,30 +26,49 @@ class Store(private val context: Context) {
     val isConfigured: Boolean
         get() = serverUrl.isNotEmpty() && token.isNotEmpty()
 
-    fun isEnabled(packageName: String): Boolean = prefs.getStringSet("enabled", emptySet())!!.contains(packageName)
+    /** Who the server says the token is, from the last check; empty when it failed. */
+    var connectedAs: String
+        get() = prefs.getString("connectedAs", "") ?: ""
+        set(value) = prefs.edit().putString("connectedAs", value).apply()
+
+    fun enabledApps(): Set<String> = prefs.getStringSet("enabled", emptySet())!!
+
+    fun isEnabled(packageName: String): Boolean = enabledApps().contains(packageName)
 
     fun setEnabled(packageName: String, on: Boolean) {
-        val apps = prefs.getStringSet("enabled", emptySet())!!.toMutableSet()
+        val apps = enabledApps().toMutableSet()
         if (on) apps.add(packageName) else apps.remove(packageName)
         prefs.edit().putStringSet("enabled", apps).apply()
     }
 
-    /** An app posted a notification: its name and when, never what it said. */
-    fun recordSeen(packageName: String, label: String) {
+    /** One of the apps read posted a notification: when, never what it said. */
+    fun recordSeen(packageName: String) {
         val seen = JSONObject(prefs.getString("seen", "{}") ?: "{}")
-        seen.put(packageName, JSONObject().put("label", label).put("at", System.currentTimeMillis()))
+        seen.put(packageName, System.currentTimeMillis())
         prefs.edit().putString("seen", seen.toString()).apply()
     }
 
-    data class SeenApp(val packageName: String, val label: String, val at: Long)
-
-    /** Most recent first: the bank's app is on top right after its notification. */
-    fun seenApps(): List<SeenApp> {
+    /** When the app last posted a notification read here, 0 if never. */
+    fun lastSeen(packageName: String): Long {
         val seen = JSONObject(prefs.getString("seen", "{}") ?: "{}")
-        return seen.keys().asSequence().map { key ->
-            val app = seen.getJSONObject(key)
-            SeenApp(key, app.optString("label", key), app.optLong("at"))
-        }.sortedByDescending { it.at }.toList()
+        // Before 1.1 each app was an object with its name.
+        return seen.optJSONObject(packageName)?.optLong("at") ?: seen.optLong(packageName)
+    }
+
+    /** The last notification the server took, 0 if none yet. */
+    val lastSentAt: Long
+        get() = prefs.getLong("lastSentAt", 0)
+
+    /** Why the last try to send failed; empty once one goes through. */
+    val lastError: String
+        get() = prefs.getString("lastError", "") ?: ""
+
+    fun recordSent() {
+        prefs.edit().putLong("lastSentAt", System.currentTimeMillis()).putString("lastError", "").apply()
+    }
+
+    fun recordError(error: String) {
+        prefs.edit().putString("lastError", error).apply()
     }
 
     @Synchronized
@@ -63,8 +83,16 @@ class Store(private val context: Context) {
     @Synchronized
     fun queue(): JSONArray = if (queueFile.exists()) JSONArray(queueFile.readText()) else JSONArray()
 
+    /** Takes these out of the queue, leaving any that arrived while they were being sent. */
     @Synchronized
-    fun replaceQueue(left: JSONArray) {
+    fun removeFromQueue(keys: Set<String>) {
+        if (keys.isEmpty()) return
+        val queue = queue()
+        val left = JSONArray()
+        for (i in 0 until queue.length()) {
+            val item = queue.getJSONObject(i)
+            if (item.optString("key") !in keys) left.put(item)
+        }
         queueFile.writeText(left.toString())
     }
 }

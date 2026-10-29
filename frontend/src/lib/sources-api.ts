@@ -33,6 +33,8 @@ export interface SourceNotification {
   text: string
   postedAt: string
   status: 'draft' | 'ignored' | 'unread'
+  /** The draft it became, as it stands now. */
+  draft: { id: string; status: 'pending' | 'accepted' | 'matched' | 'discarded'; transactionId: string | null } | null
   reading: Reading | null
 }
 
@@ -52,6 +54,11 @@ export const sourcesApi = {
   /** How these rules, not saved yet, read the latest notifications. */
   async preview(id: string, rules: SourceRule[]): Promise<SourceNotification[]> {
     return (await api.post<SourceNotification[]>(`/api/sources/${id}/preview`, { rules })).data
+  },
+
+  /** For good, with its notifications; its drafts still waiting are discarded. */
+  async remove(id: string): Promise<void> {
+    await api.delete(`/api/sources/${id}`)
   },
 
   async reread(id: string): Promise<number> {

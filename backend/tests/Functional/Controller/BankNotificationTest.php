@@ -74,6 +74,30 @@ class BankNotificationTest extends WebTestCaseBase
         $this->assertSame(0, $this->send('GET', '/api/sources')[0]['unread']);
     }
 
+    public function testANotificationSaysWhatItsDraftBecame(): void
+    {
+        $first = $this->notify('Pagamento di 50,00 EUR presso RISTORANTE DA MARIO', 'k1');
+        $source = $this->send('GET', '/api/sources')[0];
+        $this->assertSame(['id' => $first['draftId'], 'status' => 'pending', 'transactionId' => null], $this->send('GET', "/api/sources/{$source['id']}")['notifications'][0]['draft']);
+
+        $this->send('POST', "/api/drafts/{$first['draftId']}/discard");
+        $this->assertSame('discarded', $this->send('GET', "/api/sources/{$source['id']}")['notifications'][0]['draft']['status']);
+    }
+
+    public function testDeletingASourceRemovesItsNotificationsAndDiscardsItsWaitingDrafts(): void
+    {
+        $draftId = $this->notify('Pagamento di 5,00 EUR presso MARIO', 'k1')['draftId'];
+        $source = $this->send('GET', '/api/sources')[0];
+
+        $this->client->request('DELETE', "/api/sources/{$source['id']}");
+        $this->assertResponseStatusCodeSame(204);
+        $this->assertSame([], $this->send('GET', '/api/sources'));
+        $this->assertSame('discarded', $this->send('GET', "/api/drafts/{$draftId}")['status']);
+        $this->assertSame([], $this->send('GET', '/api/drafts'));
+
+        $this->assertSame('draft', $this->notify('Pagamento di 5,00 EUR presso MARIO', 'k1')['status'], 'a new notification makes the source again');
+    }
+
     /** @return array<string, mixed> */
     private function notify(string $text, string $key): array
     {

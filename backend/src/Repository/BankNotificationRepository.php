@@ -23,10 +23,18 @@ class BankNotificationRepository extends ServiceEntityRepository
         return $this->findOneBy(['user' => $user, 'deviceKey' => $key]);
     }
 
-    /** @return list<BankNotification> newest first */
+    /** @return list<BankNotification> newest first, with the drafts they became */
     public function findLatest(NotificationSource $source, int $limit = 50): array
     {
-        return $this->findBy(['source' => $source], ['postedAt' => 'DESC'], $limit);
+        return $this->createQueryBuilder('n')
+            ->addSelect('d')
+            ->leftJoin('n.draft', 'd')
+            ->andWhere('n.source = :source')
+            ->setParameter('source', $source)
+            ->orderBy('n.postedAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     /** @return list<BankNotification> */

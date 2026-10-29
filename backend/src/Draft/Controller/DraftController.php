@@ -9,6 +9,7 @@ use App\Draft\DTO\AcceptDraftRequest;
 use App\Draft\DTO\CreateDraftRequest;
 use App\Draft\DTO\DraftResponse;
 use App\Draft\Service\DraftService;
+use App\Draft\Service\DraftSuggestions;
 use App\Entity\ApiToken;
 use App\Entity\Draft;
 use App\Repository\DraftRepository;
@@ -30,13 +31,24 @@ class DraftController extends AbstractController
     public function __construct(
         private readonly DraftService $drafts,
         private readonly DraftRepository $repository,
+        private readonly DraftSuggestions $suggestions,
     ) {
     }
 
     #[Route('', name: 'api_drafts_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        return $this->json(array_map($this->toResponse(...), $this->repository->findPending($this->getCurrentUser())));
+        $drafts = $this->repository->findPending($this->getCurrentUser());
+        $suggestions = $this->suggestions->forDrafts($this->getCurrentUser(), $drafts);
+
+        return $this->json(array_map(fn (Draft $draft) => $this->toResponse($draft, $suggestions[(string) $draft->getId()] ?? null), $drafts));
+    }
+
+    /** The latest dealt with, to see what became of them. */
+    #[Route('/recent', name: 'api_drafts_recent', methods: ['GET'])]
+    public function recent(): JsonResponse
+    {
+        return $this->json(array_map(fn (Draft $draft) => $this->toResponse($draft), $this->repository->findRecentlyClosed($this->getCurrentUser())));
     }
 
     /**
@@ -55,7 +67,9 @@ class DraftController extends AbstractController
     #[Route('/{id}', name: 'api_drafts_get', methods: ['GET'], requirements: self::ID)]
     public function get(string $id): JsonResponse
     {
-        return $this->json($this->toResponse($this->findOwned($id)));
+        $draft = $this->findOwned($id);
+
+        return $this->json($this->toResponse($draft, $this->suggestions->forDrafts($this->getCurrentUser(), [$draft])[(string) $draft->getId()] ?? null));
     }
 
     #[Route('/{id}/accept', name: 'api_drafts_accept', methods: ['POST'], requirements: self::ID)]
@@ -80,9 +94,10 @@ class DraftController extends AbstractController
         return new JsonResponse(null, 204);
     }
 
-    private function toResponse(Draft $draft): DraftResponse
+    /** @param array<string, mixed>|null $suggestion */
+    private function toResponse(Draft $draft, ?array $suggestion = null): DraftResponse
     {
-        return DraftResponse::fromEntity($draft, $this->drafts->currency($draft));
+        return DraftResponse::fromEntity($draft, $this->drafts->currency($draft), $suggestion);
     }
 
     private function findOwned(string $id): Draft

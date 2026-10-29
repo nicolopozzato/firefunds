@@ -5,6 +5,7 @@ namespace App\Tests\Functional\Controller;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
+use App\Entity\Category;
 use App\Entity\Currency;
 use App\Entity\Transaction;
 use App\Entity\User;
@@ -136,6 +137,64 @@ class DraftTest extends WebTestCaseBase
         ]);
         $this->assertResponseStatusCodeSame(200);
         $this->assertSame(1, $this->get('/api/transactions?kind=cash')['total']);
+    }
+
+    public function testADraftSuggestsThePayeeAndCategoryFromWhatCameBefore(): void
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $checking = $entityManager->find(Account::class, $this->checking);
+        $grocer = new Account($this->user, AccountType::Expense, 'Esselunga');
+        $bar = new Account($this->user, AccountType::Expense, 'Bar Centrale');
+        $groceries = new Category($this->user, 'Spesa');
+        $entityManager->persist($grocer);
+        $entityManager->persist($bar);
+        $entityManager->persist($groceries);
+        $past = new Transaction($this->user, $checking, $grocer, new \DateTimeImmutable('2026-10-01T10:00:00'), '80.0000', 'EUR');
+        $past->setDescription('Esselunga');
+        $past->setCategory($groceries);
+        $entityManager->persist($past);
+        $entityManager->flush();
+
+        $shop = $this->draft(['amount' => '42', 'occurredAt' => '2026-10-28T18:00:00', 'description' => 'ESSELUNGA MILANO 1234', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $suggestion = $this->get("/api/drafts/{$shop['id']}")['suggestion'];
+        $this->assertSame('withdrawal', $suggestion['kind']);
+        $this->assertSame('Esselunga', $suggestion['account']['name'], 'the past description is in the new one');
+        $this->assertSame((string) $groceries->getId(), $suggestion['categoryId']);
+
+        $dinner = $this->draft(['amount' => '30', 'occurredAt' => '2026-10-28T21:00:00', 'description' => 'DA MARIO', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $this->assertSame($this->restaurant, $this->get("/api/drafts/{$dinner['id']}")['suggestion']['account']['id'], 'named like a payee');
+
+        $coffee = $this->draft(['amount' => '2', 'occurredAt' => '2026-10-28T08:00:00', 'description' => 'BAR CENTRLE', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $suggestion = $this->get("/api/drafts/{$coffee['id']}")['suggestion'];
+        $this->assertNull($suggestion['account']);
+        $this->assertSame(['Bar Centrale'], array_column($suggestion['similar'], 'name'), 'misspelt: offered, not chosen');
+    }
+
+    public function testTheTwoLegsOfATransferAreOne(): void
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $savings = new Account($this->user, AccountType::Asset, 'Revolut');
+        $savings->setAssetKind(AssetAccountKind::Checking);
+        $savings->setCurrency($entityManager->find(Account::class, $this->checking)->getCurrency());
+        $entityManager->persist($savings);
+        $entityManager->flush();
+        $savingsId = (string) $savings->getId();
+
+        $out = $this->draft(['amount' => '100', 'occurredAt' => '2026-10-28T09:00:00', 'description' => 'Bonifico', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $in = $this->draft(['amount' => '100', 'occurredAt' => '2026-10-28T09:02:00', 'description' => 'Ricarica', 'destinationAccountId' => $savingsId, 'direction' => 'in']);
+
+        $suggestion = $this->get("/api/drafts/{$out['id']}")['suggestion'];
+        $this->assertSame(['transfer', $savingsId, $in['id']], [$suggestion['kind'], $suggestion['account']['id'], $suggestion['pairedDraftId']]);
+
+        $this->post("/api/drafts/{$out['id']}/accept", ['parts' => [
+            ['description' => 'Ricarica Revolut', 'amount' => '100', 'occurredAt' => '2026-10-28T09:00:00', 'sourceAccountId' => $this->checking, 'destinationAccountId' => $savingsId],
+        ]]);
+        $this->assertResponseIsSuccessful();
+        $transfer = json_decode((string) $this->client->getResponse()->getContent(), true)[0];
+        $this->assertSame([], $this->get('/api/drafts'), 'the other leg closed with it');
+        $other = $this->get("/api/drafts/{$in['id']}");
+        $this->assertSame(['matched', [$transfer['id']]], [$other['status'], $other['transactionIds']]);
+        $this->assertEqualsCanonicalizing([$out['id'], $in['id']], array_column($this->get('/api/drafts/recent'), 'id'));
     }
 
     /**

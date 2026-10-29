@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, RotateCw, X } from 'lucide-react'
+import { Plus, RotateCw, Trash2, X } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import PageActions from '@/components/PageActions'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import FormSection from '@/components/FormSection'
 import FormActions from '@/components/FormActions'
 import Field from '@/components/Field'
@@ -34,12 +36,14 @@ export default function SourcePage() {
   const { t } = useTranslation()
   const { id = '' } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { data: source, error, refetch } = useQuery({ meta: { quietError: true }, queryKey: ['sources', id], queryFn: () => sourcesApi.get(id) })
   const { data: assets } = useAllAccounts('asset')
   const [accountId, setAccountId] = useState('')
   const [rules, setRules] = useState<SourceRule[]>([])
   const [preview, setPreview] = useState<SourceNotification[] | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useFormFill(source ? source.id : null, () => {
     if (!source) return
@@ -91,9 +95,27 @@ export default function SourcePage() {
     }
   }
 
+  const remove = async () => {
+    setBusy(true)
+    try {
+      await sourcesApi.remove(source.id)
+      toast.success(t('sources.deleted'))
+      void dataChanged(queryClient)
+      navigate('/sources')
+    } catch (deleteError) {
+      toast.error(handleApiError(deleteError))
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
-      <PageHeader title={source.appName} description={source.packageName} />
+      <PageHeader
+        title={source.appName}
+        description={source.packageName}
+        compactActions
+        actions={<PageActions actions={[{ label: t('common.delete'), icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true) }]} />}
+      />
 
       <FormSection title={t('sources.account')}>
         <Field label={t('sources.accountLabel')} hint={t('sources.accountHint')}>
@@ -167,6 +189,15 @@ export default function SourcePage() {
           {t('sources.saveAndReread')}
         </Button>
       </FormActions>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t('sources.deleteTitle', { name: source.appName })}
+        description={t('sources.deleteDescription')}
+        onConfirm={remove}
+        pending={busy}
+      />
     </div>
   )
 }
@@ -175,7 +206,7 @@ export default function SourcePage() {
 function ReadingBadge({ notification }: { notification: SourceNotification }) {
   const { t } = useTranslation()
   const reading = notification.reading
-  const done = notification.status === 'draft' ? <Badge variant="secondary" className="font-normal">{t('sources.status_draft')}</Badge> : null
+  const done = notification.draft ? <DraftBadge draft={notification.draft} /> : null
   if (!reading) {
     return (
       <span className="flex gap-1.5">
@@ -197,4 +228,17 @@ function ReadingBadge({ notification }: { notification: SourceNotification }) {
       </Badge>
     </span>
   )
+}
+
+/** What the draft a notification became is now, opening it or its transaction. */
+function DraftBadge({ draft }: { draft: NonNullable<SourceNotification['draft']> }) {
+  const { t } = useTranslation()
+  const to = draft.status === 'pending' ? `/transactions/drafts/${draft.id}` : draft.transactionId ? `/transactions/${draft.transactionId}` : null
+  const badge = (
+    <Badge variant={draft.status === 'pending' ? 'info' : 'secondary'} className="shrink-0 font-normal">
+      {t(`sources.draft_${draft.status}`)}
+    </Badge>
+  )
+
+  return to ? <Link to={to} className="shrink-0 hover:opacity-80">{badge}</Link> : badge
 }

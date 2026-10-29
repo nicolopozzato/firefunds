@@ -1,6 +1,5 @@
 package io.github.nicolopozzato.firefunds
 
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,34 +14,32 @@ class Server(private val store: Store) {
     /**
      * Sends what waits, oldest first: one the server took (or refused as
      * wrong: it would be refused again) leaves the queue; on no network, a
-     * server down or a token refused, it stays for the next try.
+     * server down or a token refused, it stays for the next try. One send at
+     * a time: a notification arriving meanwhile waits for the next.
      *
      * @return how many are left
      */
-    fun sendQueue(): Int {
+    fun sendQueue(): Int = synchronized(LOCK) {
         if (!store.isConfigured) return store.queue().length()
         val queue = store.queue()
-        val left = JSONArray()
-        var stop = false
+        val done = mutableSetOf<String>()
         for (i in 0 until queue.length()) {
             val item = queue.getJSONObject(i)
-            if (stop) {
-                left.put(item)
-                continue
-            }
             val status = try {
                 call("POST", "/api/bank-notifications", item).status
             } catch (e: Exception) {
-                -1
+                store.recordError(e.message ?: e.javaClass.simpleName)
+                break
             }
-            val retry = status == -1 || status == 401 || status == 403 || status == 408 || status == 429 || status >= 500
-            if (retry) {
-                left.put(item)
-                stop = true
+            if (status == 401 || status == 403 || status == 408 || status == 429 || status >= 500) {
+                store.recordError("HTTP $status")
+                break
             }
+            done.add(item.optString("key"))
+            if (status < 300) store.recordSent()
         }
-        store.replaceQueue(left)
-        return left.length()
+        store.removeFromQueue(done)
+        return store.queue().length()
     }
 
     private fun call(method: String, path: String, body: JSONObject?): Answer {
@@ -64,5 +61,9 @@ class Server(private val store: Store) {
         } finally {
             connection.disconnect()
         }
+    }
+
+    companion object {
+        private val LOCK = Any()
     }
 }

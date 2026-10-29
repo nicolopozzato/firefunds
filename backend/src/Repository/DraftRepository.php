@@ -31,6 +31,20 @@ class DraftRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** @return list<Draft> dealt with (recorded, matched, discarded), the latest first */
+    public function findRecentlyClosed(User $user, int $limit = 20): array
+    {
+        return $this->withRelations()
+            ->andWhere('d.user = :user')
+            ->andWhere('d.status != :pending')
+            ->setParameter('user', $user)
+            ->setParameter('pending', Draft::STATUS_PENDING)
+            ->orderBy('d.closedAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findOneByUserAndId(User $user, string $id): ?Draft
     {
         if (!Uuid::isValid($id)) {

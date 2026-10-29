@@ -5,6 +5,7 @@ namespace App\BankNotification\Controller;
 use App\BankNotification\DTO\IncomingNotificationRequest;
 use App\BankNotification\DTO\SourceRequest;
 use App\BankNotification\Service\BankNotificationService;
+use App\BankNotification\Service\SourceRemover;
 use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
@@ -25,6 +26,7 @@ class BankNotificationController extends AbstractController
     public function __construct(
         private readonly BankNotificationService $service,
         private readonly NotificationSourceRepository $sources,
+        private readonly SourceRemover $remover,
     ) {
     }
 
@@ -67,6 +69,15 @@ class BankNotificationController extends AbstractController
         $this->service->update($source, $request->accountId, $request->rules);
 
         return $this->json(self::toArray($source));
+    }
+
+    /** For good, with its notifications; the drafts they made still waiting are discarded. */
+    #[Route('/api/sources/{id}', name: 'api_sources_delete', methods: ['DELETE'], requirements: self::ID)]
+    public function delete(string $id): JsonResponse
+    {
+        $this->remover->delete($this->findOwned($id));
+
+        return new JsonResponse(null, 204);
     }
 
     /** How these rules (not saved yet) would read the latest notifications. */

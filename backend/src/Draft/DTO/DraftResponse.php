@@ -10,6 +10,7 @@ final readonly class DraftResponse
 {
     /**
      * @param list<string> $transactionIds
+     * @param array<string, mixed>|null $suggestion what it most likely is (DraftSuggestions), pending drafts only
      */
     public function __construct(
         public string $id,
@@ -30,10 +31,12 @@ final readonly class DraftResponse
         public ?TransactionResponse $possibleDuplicate,
         public array $transactionIds,
         public string $createdAt,
+        public ?array $suggestion = null,
     ) {
     }
 
-    public static function fromEntity(Draft $draft, string $currency): self
+    /** @param array<string, mixed>|null $suggestion */
+    public static function fromEntity(Draft $draft, string $currency, ?array $suggestion = null): self
     {
         return new self(
             id: (string) $draft->getId(),
@@ -53,6 +56,7 @@ final readonly class DraftResponse
             possibleDuplicate: $draft->getPossibleDuplicate() !== null ? TransactionResponse::fromEntity($draft->getPossibleDuplicate()) : null,
             transactionIds: $draft->getTransactionIds(),
             createdAt: $draft->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            suggestion: $suggestion,
         );
     }
 }

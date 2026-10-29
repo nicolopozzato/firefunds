@@ -5,33 +5,37 @@ import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.Instant
 
 /**
- * Hears every notification the phone shows. Of each app it keeps only the
- * name (to offer it in the list); the notifications of the apps the user
- * turned on are queued whole (app, title, text, time) and sent.
+ * Hears every notification the phone shows and keeps only those of the
+ * apps the user turned on: queued whole (app, title, text, time) and sent
+ * at once. Only when that fails (no network, server down) is the queue
+ * left to SendJob, which tries again as soon as Android lets it.
  */
 class NotificationReader : NotificationListenerService() {
 
+    override fun onListenerConnected() {
+        // After a restart or an update: anything left waiting goes now.
+        if (Store(this).queue().length() > 0) send()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        val store = Store(this)
+        if (!store.isEnabled(sbn.packageName)) return
         val notification = sbn.notification
-        if (sbn.packageName == packageName) return
         // Progress bars, music, a group's summary: never a payment.
         if (notification.flags and (Notification.FLAG_ONGOING_EVENT or Notification.FLAG_GROUP_SUMMARY) != 0) return
-
-        val store = Store(this)
-        store.recordSeen(sbn.packageName, label(sbn.packageName))
-        if (!store.isEnabled(sbn.packageName)) return
 
         val extras = notification.extras
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString() ?: ""
         if (title.isBlank() && text.isBlank()) return
 
+        store.recordSeen(sbn.packageName)
         val zone = ZoneId.systemDefault()
         store.enqueue(
             JSONObject()
@@ -43,7 +47,13 @@ class NotificationReader : NotificationListenerService() {
                 .put("timezone", zone.id)
                 .put("key", sbn.key + "@" + sbn.postTime),
         )
-        SendJob.schedule(this)
+        send()
+    }
+
+    private fun send() {
+        Thread {
+            if (Server(Store(this)).sendQueue() > 0) SendJob.schedule(this)
+        }.start()
     }
 
     private fun label(packageName: String): String = try {

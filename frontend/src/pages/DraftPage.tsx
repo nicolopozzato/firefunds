@@ -23,7 +23,7 @@ import { handleApiError } from '@/lib/error-handler'
 import { cn, currencySymbolFor, formatAccountBalance, formatMoney, formatShortDate, formatTime24h } from '@/lib/utils'
 import type { AccountType } from '@/types/account'
 import type { Draft } from '@/types/draft'
-import type { CreateTransactionRequest, Transaction } from '@/types/transaction'
+import type { AccountRef, CreateTransactionRequest, Transaction } from '@/types/transaction'
 
 type Kind = 'withdrawal' | 'deposit' | 'transfer'
 
@@ -47,18 +47,21 @@ interface Part {
   categoryId: string
 }
 
-/** The first part: the draft as it came, on the user's default account when it says none. */
+/** The first part: the draft as it came, on the user's default account when it says none, completed with what it most likely is. */
 function firstPart(draft: Draft, defaultAccountId: string | null): Part {
-  const kind: Kind = draft.direction === 'in' ? 'deposit' : 'withdrawal'
-  const asset = (kind === 'deposit' ? draft.destinationAccount : draft.sourceAccount)?.id ?? defaultAccountId ?? ''
+  const suggestion = draft.suggestion
+  const kind: Kind = suggestion?.kind ?? (draft.direction === 'in' ? 'deposit' : 'withdrawal')
+  const incoming = draft.direction === 'in' || (draft.direction === null && kind === 'deposit')
+  const asset = (incoming ? draft.destinationAccount : draft.sourceAccount)?.id ?? defaultAccountId ?? ''
+  const other = (incoming ? draft.sourceAccount : draft.destinationAccount)?.id ?? suggestion?.account?.id ?? ''
   return {
     key: 0,
     kind,
     amount: String(Number(draft.amount)),
     description: draft.description ?? '',
-    sourceId: kind === 'deposit' ? (draft.sourceAccount?.id ?? '') : asset,
-    destinationId: kind === 'deposit' ? asset : (draft.destinationAccount?.id ?? ''),
-    categoryId: '',
+    sourceId: incoming ? other : asset,
+    destinationId: incoming ? asset : other,
+    categoryId: suggestion?.categoryId ?? '',
   }
 }
 
@@ -170,6 +173,10 @@ export default function DraftPage() {
         />
       )}
 
+      {draft.suggestion?.pairedDraftId && !closed && parts[0].kind === 'transfer' && (
+        <p className="rounded-xl border border-info/40 bg-info/5 px-4 py-3 text-sm">{t('drafts.pairedTransfer', { account: draft.suggestion.account?.name })}</p>
+      )}
+
       <FormSection
         title={t(parts.length > 1 ? 'drafts.partsTitle' : 'drafts.partTitle')}
         aside={
@@ -192,6 +199,7 @@ export default function DraftPage() {
             accounts={byType}
             categories={(categories?.items ?? []).map((category) => ({ value: category.id, label: category.name }))}
             symbol={symbol}
+            similar={index === 0 ? (draft.suggestion?.similar ?? []) : []}
             onChange={(patch) => update(part.key, patch)}
             onRemove={parts.length > 1 ? () => setParts((current) => current.filter((p) => p.key !== part.key)) : undefined}
           />
@@ -245,12 +253,14 @@ interface PartEditorProps {
   accounts: Record<'asset' | 'expense' | 'revenue', { id: string; name: string; currencyCode: string | null; currentBalance: string; currencySymbol: string | null }[]>
   categories: { value: string; label: string }[]
   symbol: string
+  /** Payees with a similar name, offered under the payee field while it is empty. */
+  similar: AccountRef[]
   onChange: (patch: Partial<Part>) => void
   onRemove?: () => void
 }
 
 /** One transaction the draft becomes: its kind, amount, what, between which accounts, its category. */
-function PartEditor({ part, index, accounts, categories, symbol, onChange, onRemove }: PartEditorProps) {
+function PartEditor({ part, index, accounts, categories, symbol, similar, onChange, onRemove }: PartEditorProps) {
   const { t } = useTranslation()
   const sides = SIDES[part.kind]
   const options = (type: AccountType, selected: string) => {
@@ -310,6 +320,7 @@ function PartEditor({ part, index, accounts, categories, symbol, onChange, onRem
           placeholder={t(sides.source === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
           clearable={part.kind === 'deposit'}
         />
+        {part.kind === 'deposit' && !part.sourceId && <SimilarPayees similar={similar} type="revenue" onPick={(sourceId) => onChange({ sourceId })} />}
       </Field>
       <Field label={t(part.kind === 'withdrawal' ? 'transactionForm.destinationExpense' : 'transactionForm.destinationAsset')}>
         <Combobox
@@ -320,6 +331,7 @@ function PartEditor({ part, index, accounts, categories, symbol, onChange, onRem
           placeholder={t(sides.destination === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
           clearable={part.kind === 'withdrawal'}
         />
+        {part.kind === 'withdrawal' && !part.destinationId && <SimilarPayees similar={similar} type="expense" onPick={(destinationId) => onChange({ destinationId })} />}
       </Field>
       <Field label={t('transactionForm.category')} className="sm:col-span-2" optional>
         <Combobox
@@ -334,3 +346,21 @@ function PartEditor({ part, index, accounts, categories, symbol, onChange, onRem
   )
 }
 
+
+/** "Similar: Esselunga · Esselunga Milano": a tap picks one. */
+function SimilarPayees({ similar, type, onPick }: { similar: AccountRef[]; type: AccountType; onPick: (id: string) => void }) {
+  const { t } = useTranslation()
+  const options = similar.filter((account) => account.type === type)
+  if (options.length === 0) return null
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="text-muted-foreground">{t('drafts.similar')}</span>
+      {options.map((account) => (
+        <button key={account.id} type="button" onClick={() => onPick(account.id)} className="rounded-full border px-2.5 py-1 hover:bg-muted">
+          {account.name}
+        </button>
+      ))}
+    </div>
+  )
+}

@@ -1552,7 +1552,18 @@
     "accepted_one": "Transazione registrata",
     "accepted_other": "{{count}} transazioni registrate",
     "linked": "Collegata alla transazione esistente",
-    "discarded": "Scartata"
+    "discarded": "Scartata",
+    "notUnderstood_one": "{{count}} notifica di {{app}} non capita",
+    "notUnderstood_other": "{{count}} notifiche di {{app}} non capite",
+    "teach": "Insegna a leggerle",
+    "sureHint_one": "{{count}} movimento riconosciuto da quelli passati.",
+    "sureHint_other": "{{count}} movimenti riconosciuti da quelli passati.",
+    "recordSure_one": "Registra il riconosciuto",
+    "recordSure_other": "Registra i {{count}} riconosciuti",
+    "suggestedTransfer": "Giroconto con {{account}}",
+    "recentTitle": "Gestiti di recente",
+    "similar": "Simili:",
+    "pairedTransfer": "È arrivato anche l'altro lato, su {{account}}: registrandolo come giroconto si sistema anche quello."
   },
   "csvImport": {
     "title": "Importa da CSV",
@@ -1616,7 +1627,7 @@
     "step2": "Scarica l'app sul telefono e installala (Android chiede di consentire l'installazione da questa fonte).",
     "step3": "Aprila, scrivi l'indirizzo di questo server e il token, poi «Salva e verifica».",
     "step4": "Dai all'app l'accesso alle notifiche.",
-    "step5": "Quando arriva la prima notifica della banca, attiva quell'app nell'elenco. Poi in Fonti scegli il conto.",
+    "step5": "In «Scegli le app» attiva l'app della tua banca. Poi in Fonti scegli il conto.",
     "download": "Scarica l'app (APK)",
     "sources": "Fonti"
   },
@@ -1651,10 +1662,16 @@
     "ignored": "Ignorata",
     "generic": "lettura generica",
     "byRule": "regola {{number}}",
-    "status_draft": "Già bozza",
     "saved": "Salvata",
     "saveAndReread": "Salva e rileggi",
     "reread_one": "{{count}} nuova bozza",
-    "reread_other": "{{count}} nuove bozze"
+    "reread_other": "{{count}} nuove bozze",
+    "deleted": "Fonte eliminata",
+    "deleteTitle": "Eliminare {{name}}?",
+    "deleteDescription": "Le sue notifiche vengono cancellate e le bozze ancora da rivedere scartate; i movimenti già registrati restano. Spegni l'app anche sul telefono, o tornerà con la prossima notifica.",
+    "draft_pending": "Da rivedere",
+    "draft_accepted": "Registrata",
+    "draft_matched": "Riconosciuta",
+    "draft_discarded": "Scartata"
   }
 }

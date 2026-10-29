@@ -9,6 +9,10 @@ export function useDrafts() {
   return useQuery({ queryKey: ['drafts', 'list'], queryFn: () => draftsApi.list(), refetchInterval: 60_000 })
 }
 
+export function useRecentDrafts() {
+  return useQuery({ queryKey: ['drafts', 'recent'], queryFn: () => draftsApi.recent() })
+}
+
 export function useDraft(id: string) {
   return useQuery({ meta: { quietError: true }, queryKey: ['drafts', 'detail', id], queryFn: () => draftsApi.get(id), enabled: !!id })
 }

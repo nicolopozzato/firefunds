@@ -1545,7 +1545,18 @@
     "accepted_one": "Transaction recorded",
     "accepted_other": "{{count}} transactions recorded",
     "linked": "Linked to the existing transaction",
-    "discarded": "Discarded"
+    "discarded": "Discarded",
+    "notUnderstood_one": "{{count}} notification from {{app}} not understood",
+    "notUnderstood_other": "{{count}} notifications from {{app}} not understood",
+    "teach": "Teach how to read them",
+    "sureHint_one": "{{count}} transaction recognised from past ones.",
+    "sureHint_other": "{{count}} transactions recognised from past ones.",
+    "recordSure_one": "Record the recognised one",
+    "recordSure_other": "Record the {{count}} recognised",
+    "suggestedTransfer": "Transfer with {{account}}",
+    "recentTitle": "Recently handled",
+    "similar": "Similar:",
+    "pairedTransfer": "The other side arrived too, on {{account}}: record this as a transfer and that one is settled with it."
   },
   "csvImport": {
     "title": "Import from CSV",
@@ -1609,7 +1620,7 @@
     "step2": "Download the app on the phone and install it (Android asks to allow installing from this source).",
     "step3": "Open it, write this server's address and the token, then \"Save and check\".",
     "step4": "Give the app access to notifications.",
-    "step5": "When your bank's first notification arrives, turn that app on in the list. Then pick its account in Sources.",
+    "step5": "In \"Choose apps\" turn on your bank's app. Then pick its account in Sources.",
     "download": "Download the app (APK)",
     "sources": "Sources"
   },
@@ -1644,10 +1655,16 @@
     "ignored": "Ignored",
     "generic": "generic reading",
     "byRule": "rule {{number}}",
-    "status_draft": "Draft already",
     "saved": "Saved",
     "saveAndReread": "Save and read again",
     "reread_one": "{{count}} new draft",
-    "reread_other": "{{count}} new drafts"
+    "reread_other": "{{count}} new drafts",
+    "deleted": "Source deleted",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescription": "Its notifications are erased and the drafts still to review discarded; transactions already recorded stay. Turn the app off on the phone too, or it comes back with its next notification.",
+    "draft_pending": "To review",
+    "draft_accepted": "Recorded",
+    "draft_matched": "Recognised",
+    "draft_discarded": "Discarded"
   }
 }

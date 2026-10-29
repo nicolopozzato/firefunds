@@ -8,12 +8,14 @@ use App\Core\Period\TransactionMoment;
 use App\Draft\DTO\AcceptDraftRequest;
 use App\Draft\DTO\CreateDraftRequest;
 use App\Entity\Account;
+use App\Entity\AccountType;
 use App\Entity\Draft;
 use App\Entity\Transaction;
 use App\Entity\User;
 use App\Notification\Service\NotificationCenter;
 use App\Recurring\Service\RecurringTransactionService;
 use App\Repository\AccountRepository;
+use App\Repository\DraftRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\DTO\CreateTransactionRequest;
 use App\Transaction\Service\TransactionPayloads;
@@ -38,6 +40,7 @@ class DraftService
         private readonly RecurringTransactionService $recurring,
         private readonly NotificationCenter $notifications,
         private readonly TransactionPayloads $parts,
+        private readonly DraftRepository $drafts,
     ) {
     }
 
@@ -144,6 +147,9 @@ class DraftService
             }
             $draft->close(Draft::STATUS_ACCEPTED, array_map(static fn (Transaction $t) => $t->getId()->toRfc4122(), $created));
             $this->notifications->resolve('draft:'.$draft->getId()->toRfc4122());
+            foreach ($created as $transaction) {
+                $this->closeOtherLeg($draft, $transaction);
+            }
             $this->entityManager->flush();
 
             return $created;
@@ -167,6 +173,39 @@ class DraftService
         $draft->close(Draft::STATUS_DISCARDED, []);
         $this->notifications->resolve('draft:'.$draft->getId()->toRfc4122());
         $this->entityManager->flush();
+    }
+
+    /**
+     * A transfer between two of the user's accounts is often told twice (the
+     * bank it leaves, the one it reaches): the other leg's draft, still
+     * pending, closes on the transfer just recorded.
+     */
+    private function closeOtherLeg(Draft $recorded, Transaction $transfer): void
+    {
+        $from = $transfer->getSourceAccount();
+        $to = $transfer->getDestinationAccount();
+        if ($from?->getType() !== AccountType::Asset || $to?->getType() !== AccountType::Asset) {
+            return;
+        }
+        foreach ($this->drafts->findPending($recorded->getUser()) as $other) {
+            if ($other->getId()->equals($recorded->getId())) {
+                continue;
+            }
+            $direction = $other->effectiveDirection() ?? $other->getDirection();
+            $account = $other->getAssetAccount();
+            $leg = match (true) {
+                $direction === 'out' && $account?->getId()->equals($from->getId()) => $transfer->getAmount(),
+                $direction === 'in' && $account?->getId()->equals($to->getId()) => $transfer->getDestinationAmount() ?? $transfer->getAmount(),
+                default => null,
+            };
+            if ($leg !== null && bccomp($other->getAmount(), $leg, 4) === 0
+                && abs($other->getOccurredAt()->getTimestamp() - $transfer->getOccurredAt()->getTimestamp()) <= 86_400) {
+                $other->close(Draft::STATUS_MATCHED, [$transfer->getId()->toRfc4122()]);
+                $this->notifications->resolve('draft:'.$other->getId()->toRfc4122());
+
+                return;
+            }
+        }
     }
 
     /** The currency of its account, else the user's. */

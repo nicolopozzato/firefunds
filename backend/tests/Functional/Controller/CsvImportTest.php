@@ -2,7 +2,7 @@
 
 namespace App\Tests\Functional\Controller;
 
-use App\CsvImport\Service\CsvImportService;
+use App\Transaction\Service\DescriptionHistory;
 use App\Entity\Account;
 use App\Entity\AccountType;
 use App\Entity\AssetAccountKind;
@@ -111,7 +111,7 @@ class CsvImportTest extends WebTestCaseBase
 
     public function testADescriptionIsKeyedWithoutWhatChangesEveryTime(): void
     {
-        $this->assertSame(CsvImportService::key('POS 12/10 ESSELUNGA MILANO CARTA *1234'), CsvImportService::key('pos 03/11 Esselunga Milano carta *9876'));
+        $this->assertSame(DescriptionHistory::key('POS 12/10 ESSELUNGA MILANO CARTA *1234'), DescriptionHistory::key('pos 03/11 Esselunga Milano carta *9876'));
     }
 
     /**

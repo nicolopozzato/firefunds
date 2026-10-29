@@ -2,21 +2,36 @@
 <resources>
     <string name="intro">Manda le notifiche delle app della banca al tuo server FireFunds, dove diventano movimenti da rivedere.</string>
     <string name="server">Server</string>
+    <string name="server_none">Non ancora configurato.</string>
+    <string name="server_set">Configura</string>
+    <string name="server_change">Modifica</string>
     <string name="server_url">Indirizzo del server, es. https://firefunds.example.com</string>
     <string name="token">Token API (Preferenze → API, «Solo bozze»)</string>
     <string name="save">Salva e verifica</string>
     <string name="checking">Verifico…</string>
-    <string name="connected">Collegato come %1$s</string>
-    <string name="not_connected">Non collegato: %1$s</string>
+    <string name="connected">Collegato come %1$s su %2$s</string>
+    <string name="not_connected">%1$s non risponde: %2$s</string>
     <string name="http_warning">L\'indirizzo non è HTTPS: usalo solo sulla rete di casa.</string>
     <string name="access">Accesso alle notifiche</string>
-    <string name="access_on">Attivo: le notifiche vengono lette.</string>
+    <string name="access_on">Attivo</string>
     <string name="access_off">Spento: Android chiede il tuo permesso perché l\'app legga le notifiche.</string>
     <string name="access_open">Apri l\'impostazione</string>
-    <string name="apps">App da leggere</string>
-    <string name="apps_hint">Un\'app compare qui dopo la sua prima notifica. Al server arrivano solo quelle attivate, niente delle altre.</string>
-    <string name="apps_none">Ancora nessuna app: aspetta una notifica dall\'app della banca.</string>
-    <string name="queue">In attesa di invio: %1$d</string>
+    <string name="sending">Invio</string>
+    <string name="all_sent">Niente in attesa</string>
+    <plurals name="waiting">
+        <item quantity="one">%1$d notifica in attesa</item>
+        <item quantity="other">%1$d notifiche in attesa</item>
+    </plurals>
+    <string name="last_sent">Ultimo invio %1$s</string>
+    <string name="never_sent">Ancora nessun invio</string>
+    <string name="send_failed">Ultimo tentativo non riuscito: %1$s</string>
     <string name="send_now">Invia ora</string>
-    <string name="sent">Inviate</string>
+    <string name="apps">App lette</string>
+    <string name="apps_choose">Scegli le app</string>
+    <string name="apps_search">Cerca</string>
+    <string name="apps_none">Ancora nessuna app: scegli quella della tua banca.</string>
+    <string name="apps_hint">Al server arrivano solo le notifiche di queste app, niente delle altre.</string>
+    <string name="last_notification">Ultima notifica %1$s</string>
+    <string name="no_notification">Ancora nessuna notifica</string>
+    <string name="app_removed">Non più installata</string>
 </resources>

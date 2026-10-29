@@ -75,10 +75,11 @@ class BankNotificationService
 
     /**
      * How these rules would read the source's latest notifications: to try a
-     * rule before saving it.
+     * rule before saving it. With the draft each became, as it stands now:
+     * still to review, recorded (its first transaction), matched or discarded.
      *
      * @param list<array{kind: string, pattern: string}> $rules
-     * @return list<array{id: string, title: string, text: string, postedAt: string, status: string, reading: ?array<string, mixed>}>
+     * @return list<array{id: string, title: string, text: string, postedAt: string, status: string, draft: ?array{id: string, status: string, transactionId: ?string}, reading: ?array<string, mixed>}>
      */
     public function preview(NotificationSource $source, array $rules): array
     {
@@ -88,6 +89,11 @@ class BankNotificationService
             'text' => $notification->getText(),
             'postedAt' => $notification->getPostedAt()->format('Y-m-d\TH:i:s'),
             'status' => $notification->getStatus(),
+            'draft' => $notification->getDraft() === null ? null : [
+                'id' => $notification->getDraft()->getId()->toRfc4122(),
+                'status' => $notification->getDraft()->getStatus(),
+                'transactionId' => $notification->getDraft()->getTransactionIds()[0] ?? null,
+            ],
             'reading' => NotificationReading::read($rules, $notification->getFullText()),
         ], $this->notifications->findLatest($source));
     }

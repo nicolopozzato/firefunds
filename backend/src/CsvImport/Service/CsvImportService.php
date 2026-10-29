@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\AccountRepository;
 use App\Repository\RecurringTransactionRepository;
 use App\Repository\TransactionRepository;
+use App\Transaction\Service\DescriptionHistory;
 use App\Transaction\Service\TransactionPayloads;
 use App\Transaction\Service\TransactionService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,7 +33,6 @@ use Doctrine\ORM\EntityManagerInterface;
 class CsvImportService
 {
     private const RECURRING_DAYS = 7;
-    private const HISTORY_YEARS = 3;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -41,6 +41,7 @@ class CsvImportService
         private readonly RecurringTransactionRepository $recurring,
         private readonly TransactionService $transactionService,
         private readonly TransactionPayloads $payloads,
+        private readonly DescriptionHistory $history,
     ) {
     }
 
@@ -65,7 +66,7 @@ class CsvImportService
         $to = new \DateTimeImmutable(max($days));
         $existing = $this->transactions->findOnAccountBetween($account, $from->modify('-1 day'), $to->modify('+1 day'));
         $occurrences = $this->expectedOccurrences($account, $from->modify('-'.self::RECURRING_DAYS.' days'), $to->modify('+'.self::RECURRING_DAYS.' days'));
-        $history = $this->history($user);
+        $history = $this->history->forUser($user);
         $byName = $this->accountsByName($user);
 
         $used = [];
@@ -84,7 +85,7 @@ class CsvImportService
             if ($counterparty !== '' && isset($byName[mb_strtolower($counterparty)])) {
                 $suggestion = ['account' => $byName[mb_strtolower($counterparty)], 'categoryId' => null];
             }
-            $known = $history[self::key($description)] ?? ($counterparty !== '' ? ($history[self::key($counterparty)] ?? null) : null);
+            $known = $history[DescriptionHistory::key($description)] ?? ($counterparty !== '' ? ($history[DescriptionHistory::key($counterparty)] ?? null) : null);
             if ($known !== null) {
                 $other = $out ? $known['destination'] : $known['source'];
                 $suggestion = [
@@ -211,45 +212,6 @@ class CsvImportService
         return $occurrences;
     }
 
-    /**
-     * The latest transaction of each description (normalised) in the last
-     * years: its two sides and category.
-     *
-     * @return array<string, array{source: ?array{id: string, name: string, type: string}, destination: ?array{id: string, name: string, type: string}, categoryId: ?string}>
-     */
-    private function history(User $user): array
-    {
-        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            <<<SQL
-                SELECT DISTINCT ON (lower(t.description)) t.description,
-                       s.id AS source_id, s.name AS source_name, s.type AS source_type,
-                       d.id AS destination_id, d.name AS destination_name, d.type AS destination_type,
-                       t.category_id
-                FROM transaction t
-                LEFT JOIN account s ON s.id = t.source_account_id AND s.deleted_at IS NULL
-                LEFT JOIN account d ON d.id = t.destination_account_id AND d.deleted_at IS NULL
-                WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.description IS NOT NULL
-                  AND t.occurred_at >= :since
-                ORDER BY lower(t.description), t.occurred_at DESC
-                SQL,
-            ['user' => $user->getId()->toRfc4122(), 'since' => (new \DateTimeImmutable('-'.self::HISTORY_YEARS.' years'))->format('Y-m-d')],
-        );
-
-        $history = [];
-        foreach ($rows as $row) {
-            $key = self::key((string) $row['description']);
-            if ($key === '' || isset($history[$key])) {
-                continue;
-            }
-            $side = static fn (string $prefix) => $row[$prefix.'_id'] !== null
-                ? ['id' => (string) $row[$prefix.'_id'], 'name' => (string) $row[$prefix.'_name'], 'type' => (string) $row[$prefix.'_type']]
-                : null;
-            $history[$key] = ['source' => $side('source'), 'destination' => $side('destination'), 'categoryId' => $row['category_id']];
-        }
-
-        return $history;
-    }
-
     /** @return array<string, array{id: string, name: string, type: string}> lower-case name => account */
     private function accountsByName(User $user): array
     {
@@ -261,19 +223,5 @@ class CsvImportService
         }
 
         return $byName;
-    }
-
-    /**
-     * What stays of a bank's description once what changes every time is
-     * gone: digits, dates, card numbers, punctuation ("POS 12/10 ESSELUNGA
-     * MILANO CARTA *1234" and "POS 03/11 ESSELUNGA MILANO CARTA *1234" are
-     * the same shop).
-     */
-    public static function key(string $text): string
-    {
-        $text = mb_strtolower($text);
-        $text = (string) preg_replace('/[^\p{L}\s]+/u', ' ', $text);
-
-        return trim((string) preg_replace('/\s+/', ' ', $text));
     }
 }

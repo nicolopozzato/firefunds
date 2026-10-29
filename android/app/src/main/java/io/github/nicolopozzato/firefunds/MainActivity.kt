@@ -3,45 +3,118 @@ package io.github.nicolopozzato.firefunds
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.InputType
-import android.util.TypedValue
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Switch
-import android.widget.TextView
 import org.json.JSONObject
 
 /**
- * The one screen: the server and token, the permission to read
- * notifications, which apps to read, and what waits to be sent. Built in
- * code, no layout files or libraries, to keep the app small.
+ * The home screen: how things stand (server, access to notifications,
+ * sending) and the apps being read, each with its latest notification. The
+ * server's details open on "Change"; apps are chosen in AppsActivity. Built
+ * in code, no layout files or libraries, to keep the app small.
  */
 class MainActivity : Activity() {
     private lateinit var store: Store
-    private lateinit var status: TextView
-    private lateinit var access: TextView
+    private lateinit var ui: Ui
+    private lateinit var server: Ui.StatusLine
+    private lateinit var serverForm: LinearLayout
+    private lateinit var serverToggle: Button
+    private lateinit var access: Ui.StatusLine
+    private lateinit var accessButton: Button
+    private lateinit var sending: Ui.StatusLine
+    private lateinit var sendButton: Button
     private lateinit var apps: LinearLayout
-    private lateinit var queue: TextView
+    private val handler = Handler(Looper.getMainLooper())
+    private val ticker = object : Runnable {
+        override fun run() {
+            refresh()
+            handler.postDelayed(this, 3_000)
+        }
+    }
+    private var checking = false
+    private var checkError = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store(this)
+        ui = Ui(this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(16), dp(20), dp(32))
+            setPadding(ui.dp(16), ui.dp(16), ui.dp(16), ui.dp(32))
         }
+        root.addView(ui.secondary(getString(R.string.intro)).apply { setPadding(ui.dp(4), 0, ui.dp(4), ui.dp(16)) })
 
-        root.addView(text(getString(R.string.intro)))
+        val status = ui.card()
+        server = ui.StatusLine(getString(R.string.server))
+        status.addView(server.view)
+        serverForm = serverForm()
+        status.addView(serverForm)
+        serverToggle = textButton(getString(R.string.server_change)) {
+            serverForm.visibility = if (serverForm.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+        status.addView(serverToggle)
+        status.addView(ui.divider())
 
-        root.addView(heading(getString(R.string.server)))
+        access = ui.StatusLine(getString(R.string.access))
+        status.addView(access.view)
+        accessButton = textButton(getString(R.string.access_open)) { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        status.addView(accessButton)
+        status.addView(ui.divider())
+
+        sending = ui.StatusLine(getString(R.string.sending))
+        status.addView(sending.view)
+        sendButton = textButton(getString(R.string.send_now)) {
+            Thread {
+                Server(store).sendQueue()
+                runOnUiThread { refresh() }
+            }.start()
+        }
+        status.addView(sendButton)
+        root.addView(status)
+
+        root.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(ui.heading(getString(R.string.apps)), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(textButton(getString(R.string.apps_choose)) { startActivity(Intent(this@MainActivity, AppsActivity::class.java)) })
+        })
+        apps = ui.card()
+        root.addView(apps)
+        root.addView(ui.secondary(getString(R.string.apps_hint)).apply { setPadding(ui.dp(4), 0, ui.dp(4), 0) })
+
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(ui.background)
+            addView(root)
+        })
+        window.decorView.setBackgroundColor(ui.background)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        serverForm.visibility = if (store.isConfigured) View.GONE else View.VISIBLE
+        renderApps()
+        handler.post(ticker)
+        if (store.isConfigured) check()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(ticker)
+    }
+
+    private fun serverForm(): LinearLayout {
         val url = EditText(this).apply {
             hint = getString(R.string.server_url)
-            inputType = InputType.TYPE_TEXT_VARIATION_URI
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setText(store.serverUrl)
         }
         val token = EditText(this).apply {
@@ -49,85 +122,90 @@ class MainActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setText(store.token)
         }
-        status = text("")
-        root.addView(url)
-        root.addView(token)
-        root.addView(Button(this).apply {
-            text = getString(R.string.save)
-            setOnClickListener {
-                store.serverUrl = url.text.toString()
-                store.token = token.text.toString()
-                check()
-            }
-        })
-        root.addView(status)
-
-        root.addView(heading(getString(R.string.access)))
-        access = text("")
-        root.addView(access)
-        root.addView(Button(this).apply {
-            text = getString(R.string.access_open)
-            setOnClickListener { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-        })
-
-        root.addView(heading(getString(R.string.apps)))
-        root.addView(text(getString(R.string.apps_hint)))
-        apps = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(apps)
-
-        queue = text("")
-        root.addView(queue)
-        root.addView(Button(this).apply {
-            text = getString(R.string.send_now)
-            setOnClickListener {
-                Thread {
-                    Server(store).sendQueue()
-                    runOnUiThread { refresh() }
-                }.start()
-            }
-        })
-
-        setContentView(ScrollView(this).apply { addView(root) })
-        if (store.isConfigured) check()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        refresh()
-    }
-
-    private fun refresh() {
-        access.text = getString(if (hasAccess()) R.string.access_on else R.string.access_off)
-        queue.text = getString(R.string.queue, store.queue().length())
-        apps.removeAllViews()
-        val seen = store.seenApps()
-        if (seen.isEmpty()) apps.addView(text(getString(R.string.apps_none)))
-        for (app in seen) {
-            apps.addView(Switch(this).apply {
-                text = app.label
-                isChecked = store.isEnabled(app.packageName)
-                setPadding(0, dp(8), 0, dp(8))
-                setOnCheckedChangeListener { _, on -> store.setEnabled(app.packageName, on) }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(url)
+            addView(token)
+            addView(Button(this@MainActivity).apply {
+                text = getString(R.string.save)
+                setOnClickListener {
+                    store.serverUrl = url.text.toString()
+                    store.token = token.text.toString()
+                    check()
+                }
             })
+        }
+    }
+
+    /** What changes by itself: the server's answer, access, the queue. */
+    private fun refresh() {
+        val host = Uri.parse(store.serverUrl).host ?: store.serverUrl
+        when {
+            !store.isConfigured -> server.set(ui.idle, getString(R.string.server_none))
+            checking -> server.set(ui.idle, getString(R.string.checking))
+            store.connectedAs.isNotEmpty() -> server.set(ui.positive, getString(R.string.connected, store.connectedAs, host))
+            else -> server.set(ui.negative, getString(R.string.not_connected, host, checkError))
+        }
+        if (store.serverUrl.startsWith("http://")) server.detail.append("\n" + getString(R.string.http_warning))
+        serverToggle.text = getString(if (store.isConfigured) R.string.server_change else R.string.server_set)
+
+        val on = hasAccess()
+        access.set(if (on) ui.positive else ui.negative, getString(if (on) R.string.access_on else R.string.access_off))
+        accessButton.visibility = if (on) View.GONE else View.VISIBLE
+
+        val waiting = store.queue().length()
+        val last = if (store.lastSentAt > 0) getString(R.string.last_sent, ui.ago(store.lastSentAt)) else getString(R.string.never_sent)
+        when {
+            waiting == 0 -> sending.set(ui.positive, getString(R.string.all_sent) + "\n" + last)
+            store.lastError.isNotEmpty() -> sending.set(ui.warning, resources.getQuantityString(R.plurals.waiting, waiting, waiting) + "\n" + getString(R.string.send_failed, store.lastError))
+            else -> sending.set(ui.warning, resources.getQuantityString(R.plurals.waiting, waiting, waiting) + "\n" + last)
+        }
+        sendButton.visibility = if (waiting > 0) View.VISIBLE else View.GONE
+    }
+
+    /** The apps being read, most recent notification first. */
+    private fun renderApps() {
+        apps.removeAllViews()
+        val enabled = store.enabledApps().sortedByDescending { store.lastSeen(it) }
+        if (enabled.isEmpty()) {
+            apps.addView(ui.secondary(getString(R.string.apps_none)).apply { setPadding(0, ui.dp(12), 0, ui.dp(12)) })
+            return
+        }
+        enabled.forEachIndexed { index, packageName ->
+            if (index > 0) apps.addView(ui.divider())
+            val app = Ui.app(this, packageName)
+            val seen = store.lastSeen(packageName)
+            val subtitle = when {
+                app == null -> getString(R.string.app_removed)
+                seen > 0 -> getString(R.string.last_notification, ui.ago(seen))
+                else -> getString(R.string.no_notification)
+            }
+            apps.addView(ui.appRow(app?.second, app?.first ?: packageName, subtitle, true) { on -> store.setEnabled(packageName, on) })
         }
     }
 
     /** Asks the server who the token is, so a wrong address or token shows at once. */
     private fun check() {
-        status.text = getString(R.string.checking)
-        val warning = if (store.serverUrl.startsWith("http://")) "\n" + getString(R.string.http_warning) else ""
+        checking = true
+        refresh()
         Thread {
-            val message = try {
+            try {
                 val answer = Server(store).me()
                 if (answer.status == 200) {
-                    getString(R.string.connected, JSONObject(answer.body).optString("firstName"))
+                    store.connectedAs = JSONObject(answer.body).optString("firstName")
                 } else {
-                    getString(R.string.not_connected, "HTTP " + answer.status)
+                    store.connectedAs = ""
+                    checkError = "HTTP " + answer.status
                 }
             } catch (e: Exception) {
-                getString(R.string.not_connected, e.message ?: e.javaClass.simpleName)
+                store.connectedAs = ""
+                checkError = e.message ?: e.javaClass.simpleName
             }
-            runOnUiThread { status.text = message + warning }
+            runOnUiThread {
+                checking = false
+                if (store.connectedAs.isNotEmpty()) serverForm.visibility = View.GONE
+                refresh()
+            }
         }.start()
     }
 
@@ -137,18 +215,12 @@ class MainActivity : Activity() {
         return enabled.split(':').any { it == me }
     }
 
-    private fun heading(value: String) = TextView(this).apply {
-        text = value
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-        setPadding(0, dp(24), 0, dp(8))
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    private fun textButton(label: String, onClick: () -> Unit) = Button(this, null, android.R.attr.borderlessButtonStyle).apply {
+        text = label
+        setTextColor(getColor(R.color.brand))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = android.view.Gravity.START
+        }
+        setOnClickListener { onClick() }
     }
-
-    private fun text(value: String) = TextView(this).apply {
-        text = value
-        setPadding(0, dp(4), 0, dp(4))
-        visibility = View.VISIBLE
-    }
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }

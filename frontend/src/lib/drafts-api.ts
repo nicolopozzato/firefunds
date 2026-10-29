@@ -7,6 +7,11 @@ export const draftsApi = {
     return (await api.get<Draft[]>('/api/drafts')).data
   },
 
+  /** The latest dealt with: recorded, recognised or discarded. */
+  async recent(): Promise<Draft[]> {
+    return (await api.get<Draft[]>('/api/drafts/recent')).data
+  },
+
   async get(id: string): Promise<Draft> {
     return (await api.get<Draft>(`/api/drafts/${id}`)).data
   },

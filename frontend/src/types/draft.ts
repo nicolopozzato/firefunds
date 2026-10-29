@@ -20,6 +20,19 @@ export interface Draft {
   possibleDuplicate: Transaction | null
   transactionIds: string[]
   createdAt: string
+  /** What it most likely is, from what came before (pending drafts only). */
+  suggestion: DraftSuggestion | null
+}
+
+export interface DraftSuggestion {
+  kind: 'withdrawal' | 'deposit' | 'transfer' | null
+  /** The other side. */
+  account: AccountRef | null
+  categoryId: string | null
+  /** The other leg of a transfer, closed with this one. */
+  pairedDraftId: string | null
+  /** Payees with a similar name, when none is sure. */
+  similar: AccountRef[]
 }
 
 export type ApiTokenScope = 'full' | 'drafts'
