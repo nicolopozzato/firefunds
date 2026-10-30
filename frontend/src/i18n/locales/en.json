@@ -1556,7 +1556,8 @@
     "suggestedTransfer": "Transfer with {{account}}",
     "recentTitle": "Recently handled",
     "similar": "Similar:",
-    "pairedTransfer": "The other side arrived too, on {{account}}: record this as a transfer and that one is settled with it."
+    "pairedTransfer": "The other side arrived too, on {{account}}: record this as a transfer and that one is settled with it.",
+    "recentWithPayee": "Lately:"
   },
   "csvImport": {
     "title": "Import from CSV",
@@ -1640,7 +1641,7 @@
     "accountLabel": "Which account its payments are on",
     "accountHint": "Without one, drafts arrive and you pick it.",
     "rules": "How to read them",
-    "rulesHint": "Without rules the app looks for an amount with € or EUR and words like \"payment\" or \"received\". Write a rule as the bank writes, with {amount} and {merchant} where they go and {*} for the rest; or one to ignore (logins, codes, promotions).",
+    "rulesHint": "Without rules the app looks for an amount with € or EUR and words like \"payment\" or \"received\". A rule is for what it misses, or to ignore logins, codes and promotions. They are tried in order from the top: drag them to change it.",
     "kind": "Kind",
     "kind_out": "Out",
     "kind_in": "In",
@@ -1665,6 +1666,19 @@
     "draft_pending": "To review",
     "draft_accepted": "Recorded",
     "draft_matched": "Recognised",
-    "draft_discarded": "Discarded"
+    "draft_discarded": "Discarded",
+    "editRule": "Edit the rule",
+    "dragToReorder": "Drag to move",
+    "ruleMatches_one": "{{count}} notification read, on {{date}}",
+    "ruleMatches_other": "{{count}} notifications read, the latest on {{date}}",
+    "ruleNoMatches": "No notification read so far",
+    "ruleTryHint": "Write the rule to see which notifications it reads.",
+    "patternLabel": "Notification text",
+    "patternHint": "Write it as the bank does, with {amount} and {merchant} where they go and {*} for the rest.",
+    "patternRequired": "Write the rule's text.",
+    "patternNeedsAmount": "Money out or in needs {{token}}.",
+    "tokenAmount": "{amount}",
+    "tokenMerchant": "{merchant}",
+    "ruleDone": "Done"
   }
 }

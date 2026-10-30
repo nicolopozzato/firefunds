@@ -12,7 +12,10 @@ use App\Draft\Service\DraftService;
 use App\Draft\Service\DraftSuggestions;
 use App\Entity\ApiToken;
 use App\Entity\Draft;
+use App\Entity\AccountType;
+use App\Repository\AccountRepository;
 use App\Repository\DraftRepository;
+use App\Transaction\Service\PayeeHistory;
 use App\Transaction\DTO\TransactionResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,6 +35,8 @@ class DraftController extends AbstractController
         private readonly DraftService $drafts,
         private readonly DraftRepository $repository,
         private readonly DraftSuggestions $suggestions,
+        private readonly PayeeHistory $payees,
+        private readonly AccountRepository $accounts,
     ) {
     }
 
@@ -62,6 +67,19 @@ class DraftController extends AbstractController
         $draft = $this->drafts->create($this->getCurrentUser(), $request, 'api', $token instanceof ApiToken ? $token->getName() : null);
 
         return $this->json($this->toResponse($draft), 201);
+    }
+
+    /** What the user wrote before with this payee: its usual description, the latest descriptions and categories. */
+    #[Route('/payees/{id}', name: 'api_drafts_payee', methods: ['GET'], requirements: self::ID)]
+    public function payee(string $id): JsonResponse
+    {
+        $user = $this->getCurrentUser();
+        $account = $this->accounts->findOneByUserAndId($user, $id);
+        if ($account === null || !\in_array($account->getType(), [AccountType::Expense, AccountType::Revenue], true)) {
+            throw ApiException::notFound(ErrorCode::AccountNotFound);
+        }
+
+        return $this->json($this->payees->forAccounts($user, [$id])[$id] ?? ['usual' => null, 'usualCategoryId' => null, 'categoryId' => null, 'descriptions' => [], 'categories' => []]);
     }
 
     #[Route('/{id}', name: 'api_drafts_get', methods: ['GET'], requirements: self::ID)]

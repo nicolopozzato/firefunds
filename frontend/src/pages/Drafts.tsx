@@ -34,12 +34,13 @@ export function DraftIcon({ draft }: { draft: Draft }) {
  */
 function sureTransaction(draft: Draft, defaultAccountId: string | null): CreateTransactionRequest | null {
   const suggestion = draft.suggestion
-  if (!suggestion?.account || !suggestion.kind || !draft.direction || draft.possibleDuplicate || !draft.description) return null
+  const description = suggestion?.description ?? draft.description
+  if (!suggestion?.account || !suggestion.kind || !draft.direction || draft.possibleDuplicate || !description) return null
   const incoming = draft.direction === 'in'
   const asset = (incoming ? draft.destinationAccount : draft.sourceAccount)?.id ?? defaultAccountId
   if (!asset) return null
   return {
-    description: draft.description,
+    description,
     amount: draft.amount,
     occurredAt: draft.occurredAt,
     timezone: draft.timezone,
@@ -146,7 +147,7 @@ export default function Drafts() {
                 }
                 title={
                   <span className="flex items-center gap-2">
-                    <span className="truncate">{draft.description ?? draft.sourceName ?? t('drafts.untitled')}</span>
+                    <span className="truncate">{draft.suggestion?.description ?? draft.description ?? draft.sourceName ?? t('drafts.untitled')}</span>
                     {draft.possibleDuplicate && <Badge variant="warning" className="shrink-0 font-normal">{t('drafts.maybeDuplicate')}</Badge>}
                   </span>
                 }
@@ -185,7 +186,7 @@ export default function Drafts() {
                 }
                 title={
                   <span className="flex items-center gap-2">
-                    <span className="truncate">{draft.description ?? draft.sourceName ?? t('drafts.untitled')}</span>
+                    <span className="truncate">{draft.suggestion?.description ?? draft.description ?? draft.sourceName ?? t('drafts.untitled')}</span>
                     <Badge variant="secondary" className="shrink-0 font-normal">{t(`sources.draft_${draft.status}`)}</Badge>
                   </span>
                 }

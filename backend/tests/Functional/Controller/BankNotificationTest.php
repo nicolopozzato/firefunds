@@ -67,7 +67,11 @@ class BankNotificationTest extends WebTestCaseBase
             ['kind' => 'out', 'pattern' => 'Operazione autorizzata: {importo} su {esercente}'],
         ];
         $preview = $this->send('POST', "/api/sources/{$source['id']}/preview", ['rules' => $rules]);
-        $this->assertSame(['ignore', 'out'], array_map(static fn (array $n) => $n['reading']['kind'], $preview));
+        $this->assertSame(['ignore', 'out'], array_map(static fn (array $n) => $n['reading']['kind'], $preview['notifications']));
+        $this->assertSame([['matches' => 1, 'lastMatch' => '2026-10-29T12:30:00'], ['matches' => 1, 'lastMatch' => '2026-10-29T12:30:00']], $preview['ruleStats']);
+
+        $shadowed = [['kind' => 'ignore', 'pattern' => '{*}'], ...$rules];
+        $this->assertSame([2, 0, 0], array_column($this->send('POST', "/api/sources/{$source['id']}/preview", ['rules' => $shadowed])['ruleStats'], 'matches'), 'a notification counts for the first rule that reads it');
 
         $this->send('PUT', "/api/sources/{$source['id']}", ['rules' => $rules]);
         $this->assertSame(['drafts' => 1], $this->send('POST', "/api/sources/{$source['id']}/reread"));

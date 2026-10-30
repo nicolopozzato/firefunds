@@ -33,6 +33,20 @@ export interface DraftSuggestion {
   pairedDraftId: string | null
   /** Payees with a similar name, when none is sure. */
   similar: AccountRef[]
+  /** What the user always writes with this payee, in place of the bank's merchant. */
+  description: string | null
+  /** What the user wrote with this payee lately, to pick from. */
+  recent: Pick<PayeeHistory, 'descriptions' | 'categories'> | null
+}
+
+/** What the user wrote before with a payee, whatever account paid; latest first. */
+export interface PayeeHistory {
+  /** The description the latest ones agree on. */
+  usual: string | null
+  usualCategoryId: string | null
+  categoryId: string | null
+  descriptions: { description: string; categoryId: string | null; uses: number }[]
+  categories: string[]
 }
 
 export type ApiTokenScope = 'full' | 'drafts'

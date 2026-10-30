@@ -1563,7 +1563,8 @@
     "suggestedTransfer": "Giroconto con {{account}}",
     "recentTitle": "Gestiti di recente",
     "similar": "Simili:",
-    "pairedTransfer": "È arrivato anche l'altro lato, su {{account}}: registrandolo come giroconto si sistema anche quello."
+    "pairedTransfer": "È arrivato anche l'altro lato, su {{account}}: registrandolo come giroconto si sistema anche quello.",
+    "recentWithPayee": "Di recente:"
   },
   "csvImport": {
     "title": "Importa da CSV",
@@ -1647,7 +1648,7 @@
     "accountLabel": "Su quale conto vanno i pagamenti",
     "accountHint": "Senza conto, le bozze arrivano e lo scegli tu.",
     "rules": "Come leggerle",
-    "rulesHint": "Senza regole l'app cerca un importo con € o EUR e parole come «pagamento» o «accredito». Scrivi una regola come la banca scrive, con {importo} e {esercente} dove vanno e {*} per il resto; oppure una da ignorare (accessi, codici, promozioni).",
+    "rulesHint": "Senza regole l'app cerca un importo con € o EUR e parole come «pagamento» o «accredito». Una regola serve per quello che sfugge, o per ignorare accessi, codici e promozioni. Si provano in ordine dall'alto: trascinale per cambiarlo.",
     "kind": "Tipo",
     "kind_out": "Uscita",
     "kind_in": "Entrata",
@@ -1672,6 +1673,19 @@
     "draft_pending": "Da rivedere",
     "draft_accepted": "Registrata",
     "draft_matched": "Riconosciuta",
-    "draft_discarded": "Scartata"
+    "draft_discarded": "Scartata",
+    "editRule": "Modifica la regola",
+    "dragToReorder": "Trascina per spostare",
+    "ruleMatches_one": "{{count}} notifica letta, il {{date}}",
+    "ruleMatches_other": "{{count}} notifiche lette, l'ultima il {{date}}",
+    "ruleNoMatches": "Nessuna notifica letta finora",
+    "ruleTryHint": "Scrivi la regola per vedere quali notifiche legge.",
+    "patternLabel": "Testo della notifica",
+    "patternHint": "Scrivi come scrive la banca, con {importo} e {esercente} dove vanno e {*} per il resto.",
+    "patternRequired": "Scrivi il testo della regola.",
+    "patternNeedsAmount": "Per un'uscita o un'entrata serve {{token}}.",
+    "tokenAmount": "{importo}",
+    "tokenMerchant": "{esercente}",
+    "ruleDone": "Fatto"
   }
 }

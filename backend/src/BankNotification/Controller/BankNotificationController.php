@@ -59,7 +59,7 @@ class BankNotificationController extends AbstractController
     {
         $source = $this->findOwned($id);
 
-        return $this->json([...self::toArray($source), 'notifications' => $this->service->preview($source, $source->getRules())]);
+        return $this->json([...self::toArray($source), ...$this->reading($source, $source->getRules())]);
     }
 
     #[Route('/api/sources/{id}', name: 'api_sources_update', methods: ['PUT'], requirements: self::ID)]
@@ -80,11 +80,11 @@ class BankNotificationController extends AbstractController
         return new JsonResponse(null, 204);
     }
 
-    /** How these rules (not saved yet) would read the latest notifications. */
+    /** How these rules (not saved yet) would read the latest notifications, and what each reads over time. */
     #[Route('/api/sources/{id}/preview', name: 'api_sources_preview', methods: ['POST'], requirements: self::ID)]
     public function preview(string $id, #[MapRequestPayload] SourceRequest $request): JsonResponse
     {
-        return $this->json($this->service->preview($this->findOwned($id), $request->rules));
+        return $this->json($this->reading($this->findOwned($id), $request->rules));
     }
 
     /** The ones not understood yet, read again with the saved rules: those now understood become drafts. */
@@ -92,6 +92,15 @@ class BankNotificationController extends AbstractController
     public function reread(string $id): JsonResponse
     {
         return $this->json(['drafts' => $this->service->reread($this->findOwned($id))]);
+    }
+
+    /**
+     * @param list<array{kind: string, pattern: string}> $rules
+     * @return array<string, mixed>
+     */
+    private function reading(NotificationSource $source, array $rules): array
+    {
+        return ['notifications' => $this->service->preview($source, $rules), 'ruleStats' => $this->service->ruleStats($source, $rules)];
     }
 
     /** @return array<string, mixed> */

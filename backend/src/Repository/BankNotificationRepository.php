@@ -37,6 +37,22 @@ class BankNotificationRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Every notification of the source, only what the rules read: to count
+     * what each rule reads over time.
+     *
+     * @return list<array{title: string, text: string, postedAt: \DateTimeImmutable}>
+     */
+    public function findTexts(NotificationSource $source): array
+    {
+        return $this->createQueryBuilder('n')
+            ->select('n.title', 'n.text', 'n.postedAt')
+            ->andWhere('n.source = :source')
+            ->setParameter('source', $source)
+            ->getQuery()
+            ->getArrayResult();
+    }
+
     /** @return list<BankNotification> */
     public function findUnread(NotificationSource $source): array
     {

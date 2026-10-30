@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { ApiToken, ApiTokenScope, Draft } from '@/types/draft'
+import type { ApiToken, ApiTokenScope, Draft, PayeeHistory } from '@/types/draft'
 import type { CreateTransactionRequest, Transaction } from '@/types/transaction'
 
 export const draftsApi = {
@@ -17,6 +17,11 @@ export const draftsApi = {
   },
 
   /** It becomes these transactions: one, or several when split. */
+  /** What the user wrote before with this payee (an expense or revenue account). */
+  async payee(accountId: string): Promise<PayeeHistory> {
+    return (await api.get<PayeeHistory>(`/api/drafts/payees/${accountId}`)).data
+  },
+
   async accept(id: string, parts: CreateTransactionRequest[]): Promise<Transaction[]> {
     return (await api.post<Transaction[]>(`/api/drafts/${id}/accept`, { parts })).data
   },

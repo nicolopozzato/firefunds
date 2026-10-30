@@ -9,17 +9,24 @@ use App\Entity\User;
 use App\Repository\AccountRepository;
 use App\Repository\DraftRepository;
 use App\Transaction\Service\DescriptionHistory;
+use App\Transaction\Service\PayeeHistory;
 
 /**
  * What a pending draft most likely is, for the review to start from: its
  * kind, the other side and the category. In order:
  * - another pending draft of the same amount, the other way, on another of
  *   the user's accounts within a day: the two legs of a transfer;
+ * - money from or to the user themself ("bonifico da Nicolò Pozzato"): a
+ *   transfer, with the account the latest transfer that way came from or
+ *   went to;
  * - the latest transaction with the same words (or words one holds of the
  *   other: "ESSELUNGA MILANO" and "Esselunga");
  * - an account named like it (one of the user's own: a transfer);
  * - else payees with a similar name, to pick from.
- * One query for the history and one for the accounts, whatever the drafts.
+ * With a payee, what the user wrote with it before (PayeeHistory): its usual
+ * description in place of the bank's merchant when the latest ones agree,
+ * the latest descriptions and categories to pick from, and the category.
+ * A few queries for all the drafts, whatever their number.
  */
 class DraftSuggestions
 {
@@ -29,12 +36,13 @@ class DraftSuggestions
         private readonly DescriptionHistory $history,
         private readonly AccountRepository $accounts,
         private readonly DraftRepository $drafts,
+        private readonly PayeeHistory $payees,
     ) {
     }
 
     /**
      * @param list<Draft> $drafts
-     * @return array<string, array{kind: ?string, account: ?array{id: string, name: string, type: string}, categoryId: ?string, pairedDraftId: ?string, similar: list<array{id: string, name: string, type: string}>}> by draft id, pending ones only
+     * @return array<string, array{kind: ?string, account: ?array{id: string, name: string, type: string}, categoryId: ?string, pairedDraftId: ?string, similar: list<array{id: string, name: string, type: string}>, description: ?string, recent: ?array{descriptions: list<array{description: string, categoryId: ?string, uses: int}>, categories: list<string>}}> by draft id, pending ones only
      */
     public function forDrafts(User $user, array $drafts): array
     {
@@ -50,10 +58,41 @@ class DraftSuggestions
             }
         }
         $pending = $this->drafts->findPending($user);
+        $self = DescriptionHistory::key($user->getFirstName().' '.$user->getLastName());
 
         $result = [];
+        $toSelf = ['in' => [], 'out' => []];
         foreach ($drafts as $draft) {
-            $result[(string) $draft->getId()] = $this->suggest($draft, $history, $accounts, $pending);
+            $id = (string) $draft->getId();
+            $result[$id] = $this->suggest($draft, $history, $accounts, $pending, $self);
+            if ($result[$id]['kind'] === 'transfer' && $result[$id]['account'] === null && $draft->getAssetAccount() !== null) {
+                $toSelf[$draft->effectiveDirection() ?? $draft->getDirection()][$id] = (string) $draft->getAssetAccount()->getId();
+            }
+        }
+
+        // Money from or to themself: the account the latest transfer that way came from or went to.
+        foreach ($toSelf as $direction => $assets) {
+            $partners = $this->payees->lastTransferPartners($user, array_values($assets), $direction);
+            foreach ($assets as $id => $asset) {
+                $result[$id]['account'] = $partners[$asset] ?? null;
+            }
+        }
+
+        $payeeIds = [];
+        foreach ($result as $suggestion) {
+            if ($suggestion['kind'] !== 'transfer' && $suggestion['account'] !== null) {
+                $payeeIds[] = $suggestion['account']['id'];
+            }
+        }
+        $payees = $this->payees->forAccounts($user, $payeeIds);
+        foreach ($result as $id => $suggestion) {
+            $payee = $suggestion['kind'] !== 'transfer' && $suggestion['account'] !== null ? $payees[$suggestion['account']['id']] ?? null : null;
+            if ($payee === null) {
+                continue;
+            }
+            $result[$id]['description'] = $payee['usual'];
+            $result[$id]['categoryId'] = $payee['usual'] !== null ? ($payee['usualCategoryId'] ?? $payee['categoryId']) : ($suggestion['categoryId'] ?? $payee['categoryId']);
+            $result[$id]['recent'] = ['descriptions' => $payee['descriptions'], 'categories' => $payee['categories']];
         }
 
         return $result;
@@ -63,13 +102,14 @@ class DraftSuggestions
      * @param array<string, array{source: ?array{id: string, name: string, type: string}, destination: ?array{id: string, name: string, type: string}, categoryId: ?string}> $history
      * @param array<string, list<Account>> $accounts by type
      * @param list<Draft> $pending
-     * @return array{kind: ?string, account: ?array{id: string, name: string, type: string}, categoryId: ?string, pairedDraftId: ?string, similar: list<array{id: string, name: string, type: string}>}
+     * @param string $self the user's name, as a key
+     * @return array{kind: ?string, account: ?array{id: string, name: string, type: string}, categoryId: ?string, pairedDraftId: ?string, similar: list<array{id: string, name: string, type: string}>, description: ?string, recent: null}
      */
-    private function suggest(Draft $draft, array $history, array $accounts, array $pending): array
+    private function suggest(Draft $draft, array $history, array $accounts, array $pending, string $self): array
     {
         $direction = $draft->effectiveDirection() ?? $draft->getDirection();
         $asset = $draft->getAssetAccount();
-        $suggestion = ['kind' => null, 'account' => null, 'categoryId' => null, 'pairedDraftId' => null, 'similar' => []];
+        $suggestion = ['kind' => null, 'account' => null, 'categoryId' => null, 'pairedDraftId' => null, 'similar' => [], 'description' => null, 'recent' => null];
         if ($direction === null || ($draft->getSourceAccount() !== null && $draft->getDestinationAccount() !== null)) {
             return $suggestion;
         }
@@ -85,6 +125,9 @@ class DraftSuggestions
         // A notification without a merchant is named after its app: the bank, not a payee.
         if ($text === '' || $text === DescriptionHistory::key((string) $draft->getSourceName())) {
             return $suggestion;
+        }
+        if (self::isSelf($text, $self)) {
+            return [...$suggestion, 'kind' => 'transfer'];
         }
 
         $known = $history[$text] ?? $this->closest($text, $history);
@@ -111,7 +154,7 @@ class DraftSuggestions
                         ...$suggestion,
                         'kind' => $type === AccountType::Asset->value ? 'transfer' : $plainKind,
                         'account' => $ref,
-                        'categoryId' => $known['categoryId'] ?? $this->categoryOf($ref['id'], $history),
+                        'categoryId' => $known['categoryId'] ?? null,
                     ];
                 }
             }
@@ -162,19 +205,22 @@ class DraftSuggestions
     }
 
     /**
-     * The category of the latest transaction with that account on its other side.
-     *
-     * @param array<string, array{source: ?array{id: string, name: string, type: string}, destination: ?array{id: string, name: string, type: string}, categoryId: ?string}> $history
+     * Whether the text names the user ("Nicolo Pozzato", "Nicolò", "Pozzato
+     * Nicolo'"): every word of it is a word of their name, or it holds their
+     * whole name.
      */
-    private function categoryOf(string $accountId, array $history): ?string
+    private static function isSelf(string $text, string $self): bool
     {
-        foreach ($history as $known) {
-            if ($known['categoryId'] !== null && (($known['destination']['id'] ?? null) === $accountId || ($known['source']['id'] ?? null) === $accountId)) {
-                return $known['categoryId'];
-            }
+        $words = explode(' ', $text);
+        $name = array_filter(explode(' ', $self), static fn (string $word) => mb_strlen($word) >= 3);
+        if ($name === []) {
+            return false;
+        }
+        if (array_diff($words, $name) === [] && max(array_map('mb_strlen', $words)) >= 4) {
+            return true;
         }
 
-        return null;
+        return \count($name) >= 2 && array_diff($name, $words) === [];
     }
 
     /**

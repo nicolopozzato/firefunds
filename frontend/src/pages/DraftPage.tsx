@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import SegmentedControl from '@/components/ui/segmented-control'
 import { useAllAccounts } from '@/hooks/use-accounts'
 import { useAllClassification } from '@/hooks/use-classification'
-import { useAcceptDraft, useDiscardDraft, useDraft, useLinkDraft } from '@/hooks/use-drafts'
+import { useAcceptDraft, useDiscardDraft, useDraft, useLinkDraft, usePayeeHistory } from '@/hooks/use-drafts'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { useAuth } from '@/contexts/AuthContext'
 import { handleApiError } from '@/lib/error-handler'
@@ -58,7 +58,7 @@ function firstPart(draft: Draft, defaultAccountId: string | null): Part {
     key: 0,
     kind,
     amount: String(Number(draft.amount)),
-    description: draft.description ?? '',
+    description: suggestion?.description ?? draft.description ?? '',
     sourceId: incoming ? other : asset,
     destinationId: incoming ? asset : other,
     categoryId: suggestion?.categoryId ?? '',
@@ -277,6 +277,13 @@ function PartEditor({ part, index, accounts, categories, symbol, similar, onChan
     onChange({ kind, sourceId: kind === 'deposit' ? '' : asset, destinationId: kind === 'deposit' ? asset : '' })
   }
 
+  // What was written before with the payee, whatever account paid: a description (with its category) or a category to pick.
+  const payeeId = part.kind === 'withdrawal' ? part.destinationId : part.kind === 'deposit' ? part.sourceId : ''
+  const { data: payee } = usePayeeHistory(payeeId && !isPending(payeeId) ? payeeId : null)
+  const typed = part.description.trim().toLowerCase()
+  const recentDescriptions = (payee?.descriptions ?? []).filter((recent) => recent.description.toLowerCase() !== typed)
+  const recentCategories = (payee?.categories ?? []).filter((id) => id !== part.categoryId).flatMap((id) => categories.filter((category) => category.value === id))
+
   // A past transaction picked under the description: its kind, accounts and category.
   const copyFrom = (past: Transaction) => {
     const kind: Kind = past.sourceAccount?.type === 'asset' && past.destinationAccount?.type === 'asset' ? 'transfer' : past.sourceAccount?.type === 'asset' ? 'withdrawal' : 'deposit'
@@ -310,6 +317,14 @@ function PartEditor({ part, index, accounts, categories, symbol, similar, onChan
       </Field>
       <Field label={t('transactionForm.descriptionField')}>
         <DescriptionField id={`description-${part.key}`} required value={part.description} onChange={(description) => onChange({ description })} onPick={copyFrom} />
+        <Choices
+          label={t('drafts.recentWithPayee')}
+          options={recentDescriptions.map((recent) => ({
+            key: recent.description,
+            label: recent.description,
+            onPick: () => onChange({ description: recent.description, ...(recent.categoryId ? { categoryId: recent.categoryId } : {}) }),
+          }))}
+        />
       </Field>
       <Field label={t(part.kind === 'deposit' ? 'transactionForm.sourceRevenue' : 'transactionForm.sourceAsset')}>
         <Combobox
@@ -341,6 +356,10 @@ function PartEditor({ part, index, accounts, categories, symbol, similar, onChan
           onCreate={(name) => onChange({ categoryId: `${NEW_PREFIX}${name}` })}
           placeholder={t('transactionForm.selectCategory')}
         />
+        <Choices
+          label={t('drafts.recentWithPayee')}
+          options={recentCategories.map((category) => ({ key: category.value, label: category.label, onPick: () => onChange({ categoryId: category.value }) }))}
+        />
       </Field>
     </div>
   )
@@ -350,15 +369,25 @@ function PartEditor({ part, index, accounts, categories, symbol, similar, onChan
 /** "Similar: Esselunga · Esselunga Milano": a tap picks one. */
 function SimilarPayees({ similar, type, onPick }: { similar: AccountRef[]; type: AccountType; onPick: (id: string) => void }) {
   const { t } = useTranslation()
-  const options = similar.filter((account) => account.type === type)
+
+  return (
+    <Choices
+      label={t('drafts.similar')}
+      options={similar.filter((account) => account.type === type).map((account) => ({ key: account.id, label: account.name, onPick: () => onPick(account.id) }))}
+    />
+  )
+}
+
+/** A few values under a field, a tap picks one; nothing when there are none. */
+function Choices({ label, options }: { label: string; options: { key: string; label: string; onPick: () => void }[] }) {
   if (options.length === 0) return null
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-      <span className="text-muted-foreground">{t('drafts.similar')}</span>
-      {options.map((account) => (
-        <button key={account.id} type="button" onClick={() => onPick(account.id)} className="rounded-full border px-2.5 py-1 hover:bg-muted">
-          {account.name}
+      <span className="text-muted-foreground">{label}</span>
+      {options.map((option) => (
+        <button key={option.key} type="button" onClick={option.onPick} className="max-w-full truncate rounded-full border px-2.5 py-1 hover:bg-muted">
+          {option.label}
         </button>
       ))}
     </div>

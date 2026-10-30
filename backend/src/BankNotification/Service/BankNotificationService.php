@@ -98,6 +98,32 @@ class BankNotificationService
         ], $this->notifications->findLatest($source));
     }
 
+    /**
+     * What each rule reads among all the source's notifications, in order (a
+     * notification goes to the first rule that reads it): how many and the
+     * latest. A rule that reads none can go.
+     *
+     * @param list<array{kind: string, pattern: string}> $rules
+     * @return list<array{matches: int, lastMatch: ?string}> one per rule
+     */
+    public function ruleStats(NotificationSource $source, array $rules): array
+    {
+        $stats = array_fill(0, \count($rules), ['matches' => 0, 'lastMatch' => null]);
+        foreach ($this->notifications->findTexts($source) as $row) {
+            $rule = NotificationReading::read($rules, trim($row['title']."\n".$row['text']))['rule'] ?? null;
+            if ($rule === null) {
+                continue;
+            }
+            $postedAt = $row['postedAt']->format('Y-m-d\TH:i:s');
+            ++$stats[$rule]['matches'];
+            if ($stats[$rule]['lastMatch'] === null || $postedAt > $stats[$rule]['lastMatch']) {
+                $stats[$rule]['lastMatch'] = $postedAt;
+            }
+        }
+
+        return array_values($stats);
+    }
+
     /** @param list<array{kind: string, pattern: string}> $rules */
     public function update(NotificationSource $source, ?string $accountId, array $rules): void
     {

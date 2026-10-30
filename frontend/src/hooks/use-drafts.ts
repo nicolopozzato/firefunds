@@ -17,6 +17,11 @@ export function useDraft(id: string) {
   return useQuery({ meta: { quietError: true }, queryKey: ['drafts', 'detail', id], queryFn: () => draftsApi.get(id), enabled: !!id })
 }
 
+/** What the user wrote before with a payee: none for a payee still to create. */
+export function usePayeeHistory(accountId: string | null) {
+  return useQuery({ queryKey: ['drafts', 'payee', accountId], queryFn: () => draftsApi.payee(accountId!), enabled: !!accountId, staleTime: 60_000 })
+}
+
 /** Accepting, linking or discarding changes transactions, balances and the bell: everything refetches. */
 function useDraftMutation<T, R>(mutationFn: (variables: T) => Promise<R>) {
   const queryClient = useQueryClient()

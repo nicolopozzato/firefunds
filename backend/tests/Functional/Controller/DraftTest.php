@@ -170,6 +170,76 @@ class DraftTest extends WebTestCaseBase
         $this->assertSame(['Bar Centrale'], array_column($suggestion['similar'], 'name'), 'misspelt: offered, not chosen');
     }
 
+    public function testAPayeeGivesTheDescriptionAndCategoriesUsedWithIt(): void
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $checking = $entityManager->find(Account::class, $this->checking);
+        $card = new Account($this->user, AccountType::Asset, 'Card');
+        $card->setAssetKind(AssetAccountKind::Checking);
+        $card->setCurrency($checking->getCurrency());
+        $fibre = new Account($this->user, AccountType::Expense, 'Dimensione');
+        $amazon = new Account($this->user, AccountType::Expense, 'Amazon');
+        $home = new Category($this->user, 'Casa');
+        $tech = new Category($this->user, 'Elettronica');
+        foreach ([$card, $fibre, $amazon, $home, $tech] as $entity) {
+            $entityManager->persist($entity);
+        }
+        $past = function (Account $from, Account $to, string $day, string $description, Category $category) use ($entityManager): void {
+            $transaction = new Transaction($this->user, $from, $to, new \DateTimeImmutable($day.'T10:00:00'), '29.9000', 'EUR');
+            $transaction->setDescription($description);
+            $transaction->setCategory($category);
+            $entityManager->persist($transaction);
+        };
+        $past($checking, $fibre, '2026-08-05', 'Fibra casa', $home);
+        $past($card, $fibre, '2026-09-05', 'Fibra casa', $home);
+        $past($checking, $amazon, '2026-09-10', 'Mobiletto', $home);
+        $past($card, $amazon, '2026-10-10', 'Cavo USB', $tech);
+        $entityManager->flush();
+
+        $bill = $this->draft(['amount' => '29.90', 'occurredAt' => '2026-10-28T08:00:00', 'description' => 'DIMENSIONE', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $suggestion = $this->get("/api/drafts/{$bill['id']}")['suggestion'];
+        $this->assertSame(['Dimensione', 'Fibra casa', (string) $home->getId()], [$suggestion['account']['name'], $suggestion['description'], $suggestion['categoryId']], 'the latest ones agree, whichever account paid');
+
+        $parcel = $this->draft(['amount' => '15', 'occurredAt' => '2026-10-28T09:00:00', 'description' => 'AMAZON', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $suggestion = $this->get("/api/drafts/{$parcel['id']}")['suggestion'];
+        $this->assertNull($suggestion['description'], 'they differ: nothing chosen');
+        $this->assertSame((string) $tech->getId(), $suggestion['categoryId'], 'the latest');
+        $this->assertSame(['Cavo USB', 'Mobiletto'], array_column($suggestion['recent']['descriptions'], 'description'));
+        $this->assertSame([(string) $tech->getId(), (string) $home->getId()], $suggestion['recent']['categories']);
+        $this->assertSame($suggestion['recent']['descriptions'], $this->get('/api/drafts/payees/'.$amazon->getId())['descriptions']);
+
+        // Recorded as "Fibra casa", the bank's "DIMENSIONE" still leads to its payee.
+        $this->post("/api/drafts/{$bill['id']}/accept", ['parts' => [
+            ['description' => 'Fibra casa', 'amount' => '29.90', 'occurredAt' => '2026-10-28T08:00:00', 'sourceAccountId' => $this->checking, 'destinationAccountId' => (string) $fibre->getId()],
+        ]]);
+        $fibre->setName('Linkem');
+        $entityManager->flush();
+        $next = $this->draft(['amount' => '29.90', 'occurredAt' => '2026-10-28T19:00:00', 'description' => 'DIMENSIONE', 'sourceAccountId' => $this->checking, 'direction' => 'out']);
+        $this->assertSame((string) $fibre->getId(), $this->get("/api/drafts/{$next['id']}")['suggestion']['account']['id']);
+    }
+
+    public function testMoneyFromOrToTheUserThemselfIsATransfer(): void
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $this->user->setFirstName('Nicolò');
+        $this->user->setLastName('Pozzato');
+        $checking = $entityManager->find(Account::class, $this->checking);
+        $broker = new Account($this->user, AccountType::Asset, 'Trade Republic');
+        $broker->setAssetKind(AssetAccountKind::Checking);
+        $broker->setCurrency($checking->getCurrency());
+        $entityManager->persist($broker);
+        $entityManager->persist(new Transaction($this->user, $checking, $broker, new \DateTimeImmutable('2026-10-01T10:00:00'), '500.0000', 'EUR'));
+        $entityManager->flush();
+
+        foreach (["Nicolo' Pozzato", 'NICOLO', 'Pozzato Nicolò'] as $i => $name) {
+            $in = $this->draft(['amount' => (string) (200 + $i), 'occurredAt' => '2026-10-28T10:00:00', 'description' => $name, 'destinationAccountId' => (string) $broker->getId(), 'direction' => 'in']);
+            $suggestion = $this->get("/api/drafts/{$in['id']}")['suggestion'];
+            $this->assertSame(['transfer', $this->checking], [$suggestion['kind'], $suggestion['account']['id'] ?? null], $name);
+        }
+        $other = $this->draft(['amount' => '10', 'occurredAt' => '2026-10-28T10:00:00', 'description' => 'Nicola Rossi', 'destinationAccountId' => (string) $broker->getId(), 'direction' => 'in']);
+        $this->assertNotSame('transfer', $this->get("/api/drafts/{$other['id']}")['suggestion']['kind']);
+    }
+
     public function testTheTwoLegsOfATransferAreOne(): void
     {
         $entityManager = static::getContainer()->get(EntityManagerInterface::class);
