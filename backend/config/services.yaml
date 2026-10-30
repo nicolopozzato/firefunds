@@ -42,6 +42,14 @@ when@test:
             arguments:
                 $providers: []
 
+        # Nor is GitHub asked for the latest release: any request fails.
+        github.client.offline:
+            class: Symfony\Component\HttpClient\MockHttpClient
+            arguments: [[]]
+        App\Update\GitHubReleases:
+            arguments:
+                $githubClient: '@github.client.offline'
+
         # In memory and never reset between requests: each test starts from
         # zero and failed logins don't pile up across test runs.
         login_throttling.storage:

@@ -31,6 +31,19 @@ class DraftRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** How many wait for the user: the badge on the inbox, polled every minute. */
+    public function countPending(User $user): int
+    {
+        return (int) $this->createQueryBuilder('d')
+            ->select('COUNT(d.id)')
+            ->andWhere('d.user = :user')
+            ->andWhere('d.status = :pending')
+            ->setParameter('user', $user)
+            ->setParameter('pending', Draft::STATUS_PENDING)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /** @return list<Draft> dealt with (recorded, matched, discarded), the latest first */
     public function findRecentlyClosed(User $user, int $limit = 20): array
     {

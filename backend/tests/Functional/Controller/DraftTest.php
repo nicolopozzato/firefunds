@@ -56,6 +56,7 @@ class DraftTest extends WebTestCaseBase
         $this->assertSame('pending', $draft['status']);
         $this->assertNull($draft['possibleDuplicate'], 'the 50 at Da Mario is two days later: another one');
         $this->assertSame(['draft_new'], array_column($this->get('/api/notifications'), 'type'));
+        $this->assertSame(['pending' => 1], $this->get('/api/drafts/count'));
 
         // 25 dinner, 25 a friend's: recorded as taken out, no account on the other side.
         $this->post("/api/drafts/{$draft['id']}/accept", ['parts' => [
@@ -65,6 +66,7 @@ class DraftTest extends WebTestCaseBase
         $this->assertResponseIsSuccessful();
         $this->assertCount(2, json_decode((string) $this->client->getResponse()->getContent(), true));
         $this->assertSame([], $this->get('/api/drafts'));
+        $this->assertSame(['pending' => 0], $this->get('/api/drafts/count'));
         $this->assertSame([], $this->get('/api/notifications'));
 
         $this->post("/api/drafts/{$draft['id']}/discard", []);

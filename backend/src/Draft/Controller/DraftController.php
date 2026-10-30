@@ -49,6 +49,13 @@ class DraftController extends AbstractController
         return $this->json(array_map(fn (Draft $draft) => $this->toResponse($draft, $suggestions[(string) $draft->getId()] ?? null), $drafts));
     }
 
+    /** How many wait for the user, without building them (the list computes suggestions). */
+    #[Route('/count', name: 'api_drafts_count', methods: ['GET'])]
+    public function count(): JsonResponse
+    {
+        return $this->json(['pending' => $this->repository->countPending($this->getCurrentUser())]);
+    }
+
     /** The latest dealt with, to see what became of them. */
     #[Route('/recent', name: 'api_drafts_recent', methods: ['GET'])]
     public function recent(): JsonResponse

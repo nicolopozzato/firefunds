@@ -54,6 +54,12 @@ export function runSummary(task: TaskKey, run: TaskRun): RunSummary | null {
       if (created === 0 && linked === 0 && reminded === 0) return { key: 'recurringNone' }
       return { key: 'recurringDone', params: { count: created, linked, reminded } }
     }
+    case 'updates':
+      if (details.skipped === 'off') return { key: 'updatesOff' }
+      if (typeof details.latest !== 'string') return { key: 'updatesNone' }
+      return details.available === true
+        ? { key: 'updatesAvailable', params: { latest: details.latest, current: String(details.current ?? '') } }
+        : { key: 'updatesCurrent', params: { latest: details.latest } }
   }
 }
 

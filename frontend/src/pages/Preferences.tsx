@@ -24,6 +24,7 @@ import { useSavePreferences } from '@/hooks/use-preferences'
 import DashboardPreferences from '@/components/DashboardPreferences'
 import NotificationPreferences from '@/components/NotificationPreferences'
 import ApiTokensPreferences from '@/components/ApiTokensPreferences'
+import ProfileSettings from '@/components/ProfileSettings'
 import ExchangeRatesPanel from '@/components/ExchangeRatesPanel'
 import { useExchangeRatesOverview } from '@/hooks/use-exchange-rates'
 import { useAuth } from '@/contexts/AuthContext'
@@ -295,7 +296,7 @@ function GeneralPreferences({ user }: { user: User }) {
   )
 }
 
-type PreferencesTab = 'general' | 'dashboard' | 'notifications' | 'api' | 'rates'
+type PreferencesTab = 'general' | 'dashboard' | 'notifications' | 'connections' | 'rates' | 'account'
 
 export default function Preferences() {
   const { t } = useTranslation()
@@ -306,18 +307,21 @@ export default function Preferences() {
   const hasRates = !!rates && rates.currencies.length > 0
   const requested = searchParams.get('tab')
   const tab: PreferencesTab =
-    requested === 'dashboard' || requested === 'notifications' || requested === 'api'
+    requested === 'dashboard' || requested === 'notifications' || requested === 'connections' || requested === 'account'
       ? requested
-      : requested === 'rates' && hasRates
-        ? 'rates'
-        : 'general'
+      : requested === 'api'
+        ? 'connections'
+        : requested === 'rates' && hasRates
+          ? 'rates'
+          : 'general'
 
   const tabs: { value: PreferencesTab; label: string }[] = [
     { value: 'general', label: t('preferences.general') },
     { value: 'dashboard', label: t('preferences.dashboard') },
     { value: 'notifications', label: t('preferences.notifications') },
-    { value: 'api', label: t('preferences.api') },
+    { value: 'connections', label: t('preferences.connections') },
     ...(hasRates ? [{ value: 'rates' as const, label: t('preferences.exchangeRates') }] : []),
+    { value: 'account', label: t('preferences.account') },
   ]
 
   return (
@@ -340,8 +344,10 @@ export default function Preferences() {
             user && <GeneralPreferences user={user} />
           ) : tab === 'notifications' ? (
             user && <NotificationPreferences user={user} />
-          ) : tab === 'api' ? (
+          ) : tab === 'connections' ? (
             <ApiTokensPreferences />
+          ) : tab === 'account' ? (
+            <ProfileSettings />
           ) : (
             <DashboardPreferences />
           )}

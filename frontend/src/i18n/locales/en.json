@@ -11,7 +11,6 @@
     "edit": "Edit",
     "loading": "Loading...",
     "refreshing": "Refreshing…",
-    "profile": "Profile",
     "admin": "Admin",
     "yes": "Yes",
     "no": "No",
@@ -106,7 +105,7 @@
     "revenueAccounts": "Revenue accounts",
     "noAccount": "No account",
     "noAccountsShown": "No account to show on the dashboard.",
-    "chooseAccounts": "Choose the accounts in preferences",
+    "chooseAccounts": "Choose the accounts in settings",
     "balanceOn": "on {{date}}",
     "noTransactionsInPeriod": "No transactions in this period",
     "allTransactions": "Open account",
@@ -445,8 +444,6 @@
     "importCsv": "Import CSV"
   },
   "profile": {
-    "title": "Profile",
-    "description": "Manage your account information",
     "personalInfo": "Personal Information",
     "personalInfoDescription": "Update your first name, last name and email",
     "saved": "Changes saved successfully",
@@ -460,7 +457,7 @@
     "passwordChanged": "Password updated. Your other devices will have to sign in again."
   },
   "preferences": {
-    "title": "Preferences",
+    "title": "Settings",
     "language": "Language",
     "numberFormat": "Number format",
     "theme": "Theme",
@@ -526,7 +523,8 @@
     "investmentUnitPercent": "%",
     "investmentUnitMoney": "Currency",
     "notifications": "Notifications",
-    "api": "API"
+    "connections": "Connections",
+    "account": "Account"
   },
   "admin": {
     "title": "Administration",
@@ -538,7 +536,13 @@
       "registrationEnabled": "Registration enabled",
       "registrationHint": "The first registered user automatically becomes admin and disables registration.",
       "registrationTurnedOn": "Registration enabled: new users can create an account.",
-      "registrationTurnedOff": "Registration disabled: no new accounts can be created."
+      "registrationTurnedOff": "Registration disabled: no new accounts can be created.",
+      "updates": "Updates",
+      "updatesDescription": "Tell administrators when a new version of FireFunds is out.",
+      "updateCheckEnabled": "Check for new versions",
+      "updateCheckHint": "Twice a day the server asks GitHub for the latest release. Nothing else is sent.",
+      "updateCheckTurnedOn": "Checking for new versions is on.",
+      "updateCheckTurnedOff": "Checking for new versions is off."
     },
     "users": {
       "title": "Users",
@@ -660,7 +664,11 @@
         "recurringNone": "No transactions to create.",
         "recurringFailed_one": "{{count}} recurring transaction not created ({{created}} created).",
         "recurringFailed_other": "{{count}} recurring transactions not created ({{created}} created).",
-        "recurringDone": "Created {{count}}, recognised {{linked}}, reminders {{reminded}}."
+        "recurringDone": "Created {{count}}, recognised {{linked}}, reminders {{reminded}}.",
+        "updatesOff": "Checking for new versions is off.",
+        "updatesNone": "No release published yet.",
+        "updatesAvailable": "Version {{latest}} is out (this server runs {{current}}).",
+        "updatesCurrent": "Latest version: {{latest}}."
       },
       "prices": "Prices",
       "pricesDescription": "Latest close available for each symbol.",
@@ -686,7 +694,9 @@
       "task_recurring": "Recurring transactions",
       "taskDescription_recurring": "Creates recurring transactions once their day and time come.",
       "scheduleEvery_one": "Every minute",
-      "scheduleEvery_other": "Every {{count}} minutes"
+      "scheduleEvery_other": "Every {{count}} minutes",
+      "task_updates": "New versions",
+      "taskDescription_updates": "Checks GitHub for a new release of FireFunds."
     }
   },
   "errors": {
@@ -1074,8 +1084,8 @@
     "deleteConfirmDescription": "You are about to delete \"{{name}}\": it will no longer show in the app.",
     "deleteInUseWarning": "These transactions will be deleted too: balances and positions of the investment accounts involved will change.",
     "capitalGainsTaxRate": "Capital gains tax rate (%)",
-    "capitalGainsTaxRatePlaceholder": "{{rate}} (from preferences)",
-    "capitalGainsTaxRateHint": "Empty = {{rate}} from your preferences.",
+    "capitalGainsTaxRatePlaceholder": "{{rate}} (from settings)",
+    "capitalGainsTaxRateHint": "Empty = {{rate}} from your settings.",
     "whiteListShare": "White-list share (%)",
     "taxColumn": "Capital gains tax",
     "whiteListImplied": "about {{share}} in white-list bonds",
@@ -1266,7 +1276,7 @@
     "notificationsAction": "Turn on",
     "preferences": "Check currency and formats",
     "preferencesHint": "Currency, number format and time zone, if they aren't right already.",
-    "preferencesAction": "Open preferences"
+    "preferencesAction": "Open settings"
   },
   "reconcile": {
     "action": "Check balance",
@@ -1522,6 +1532,8 @@
   },
   "drafts": {
     "title": "To review",
+    "titleWaiting_one": "To review, {{count}} waiting",
+    "titleWaiting_other": "To review, {{count}} waiting",
     "description": "Transactions that came from outside: your bank's notifications, other programs.",
     "emptyTitle": "Nothing to review",
     "emptyDescription": "Transactions sent by the Android app or by other programs through the API arrive here.",
@@ -1557,7 +1569,12 @@
     "recentTitle": "Recently handled",
     "similar": "Similar:",
     "pairedTransfer": "The other side arrived too, on {{account}}: record this as a transfer and that one is settled with it.",
-    "recentWithPayee": "Lately:"
+    "recentWithPayee": "Lately:",
+    "closed_discarded": "This draft was discarded.",
+    "closed_accepted": "This draft was recorded.",
+    "closed_matched": "This draft was already recorded.",
+    "openTransaction": "Open the transaction",
+    "openTransactionNumber": "Transaction {{number}}"
   },
   "csvImport": {
     "title": "Import from CSV",
@@ -1613,6 +1630,37 @@
     "removePart": "Remove this part",
     "part": "Part {{number}}",
     "ofFile": "{{assigned}} of {{total}} in the file"
+  },
+  "apiUsage": {
+    "title": "Use the API",
+    "description": "To send transactions from other programs, like iPhone Shortcuts or a script. You need a token, made above.",
+    "address": "Address for drafts",
+    "addressHint": "Send a POST request with the token in the Authorization header. A draft lands in To review and you are notified.",
+    "example": "Example",
+    "shortcuts": "iPhone (Shortcuts)",
+    "tokenHint": "Put your token in place of ff_….",
+    "step1": "Open the Shortcuts app and make a new shortcut.",
+    "step2": "Add the «Get Contents of URL» action and paste the address above.",
+    "step3": "Tap «Show More»: method POST.",
+    "step4": "Headers: Authorization = Bearer {{token}}, and Content-Type = application/json.",
+    "step5": "Request Body: JSON, with the fields below (example).",
+    "step6": "Amount and date can come from the shortcut's variables. The first time, allow access to this address.",
+    "shortcutsBody": "Request body, to adapt:",
+    "iosNotifications": "iOS doesn't give Shortcuts the text of other apps' notifications: the shortcut starts from an automation on messages or e-mail, from a tap on the Home Screen or from the Share menu.",
+    "fields": "Fields (* required)",
+    "field_amount": "Positive amount, as text: \"12.50\".",
+    "field_occurredAt": "When it happened, in local time there: 2026-10-28T12:30:00, no offset.",
+    "field_description": "Description, up to 255 characters.",
+    "field_direction": "out if you spent, in if you received. Left out, you decide when reviewing.",
+    "field_timezone": "Zone of the date, e.g. Europe/Rome. Yours when left out.",
+    "field_sourceAccountId": "Account the money leaves (id, from /api/accounts/asset).",
+    "field_destinationAccountId": "Account it arrives on (id).",
+    "field_notes": "Notes.",
+    "field_rawText": "The original text, e.g. of the notification. Shown when reviewing.",
+    "field_ifExists": "What to do if an identical transaction is there already: review (ask you, the default), skip, annotate or create.",
+    "ifExistsHint": "Identical: same amount to the cent, within a day, on the same account when given. A draft matching an expected recurring transaction is recorded by itself.",
+    "downloadSpec": "Download the OpenAPI description",
+    "specHint": "Every endpoint, field and response, to open in Postman, Insomnia or a client generator. Always up to date with this version."
   },
   "androidApp": {
     "title": "Android app",
@@ -1680,5 +1728,12 @@
     "tokenAmount": "{amount}",
     "tokenMerchant": "{merchant}",
     "ruleDone": "Done"
+  },
+  "update": {
+    "available": "FireFunds {{version}} is available",
+    "current": "This server runs {{version}}",
+    "releaseNotes": "What's new",
+    "howTo": "To update, pull the new image on the server:",
+    "later": "Later"
   }
 }

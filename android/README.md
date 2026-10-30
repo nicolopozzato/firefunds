@@ -5,7 +5,7 @@ A small companion app: it reads the notifications of the apps you choose
 become transactions to review ("To review"). No open banking, no data kept
 on the phone beyond what waits to be sent.
 
-Install it from your FireFunds server: Preferences → API → Android app. The
+Install it from your FireFunds server: Settings → Connections → Android app. The
 same page says how to set it up (a "Drafts only" API token, the server's
 address, access to notifications, which apps to read).
 

@@ -5,6 +5,7 @@ namespace App\Admin\Controller;
 use App\Admin\DTO\SettingsResponse;
 use App\Admin\DTO\UpdateSettingsRequest;
 use App\Service\SettingsService;
+use App\Update\UpdateCheck;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -17,15 +18,14 @@ class SettingsController extends AbstractController
 {
     public function __construct(
         private readonly SettingsService $settingsService,
+        private readonly UpdateCheck $updates,
     ) {
     }
 
     #[Route('', name: 'api_admin_settings_get', methods: ['GET'])]
     public function get(): JsonResponse
     {
-        return $this->json(new SettingsResponse(
-            registrationEnabled: $this->settingsService->isRegistrationEnabled(),
-        ));
+        return $this->json($this->response());
     }
 
     #[Route('', name: 'api_admin_settings_update', methods: ['PUT'])]
@@ -36,9 +36,18 @@ class SettingsController extends AbstractController
         } else {
             $this->settingsService->disableRegistration();
         }
+        if ($request->updateCheckEnabled !== null) {
+            $this->updates->setEnabled($request->updateCheckEnabled);
+        }
 
-        return $this->json(new SettingsResponse(
+        return $this->json($this->response());
+    }
+
+    private function response(): SettingsResponse
+    {
+        return new SettingsResponse(
             registrationEnabled: $this->settingsService->isRegistrationEnabled(),
-        ));
+            updateCheckEnabled: $this->updates->isEnabled(),
+        );
     }
 }

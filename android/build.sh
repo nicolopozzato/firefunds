@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the signed APK in a container (no Android SDK needed here) and puts
-# it where the web app offers it for download (Preferences → API).
+# it where the web app offers it for download (Settings → Connections).
 #
 #   android/build.sh
 #

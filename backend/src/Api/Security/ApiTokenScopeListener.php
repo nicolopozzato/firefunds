@@ -22,7 +22,7 @@ final readonly class ApiTokenScopeListener
     private const NEVER = '#^/api/(tokens|admin|push|auth/me/password)(/|$)#';
     private const DRAFTS = [
         'POST' => '#^/api/(drafts|bank-notifications)$#',
-        'GET' => '#^/api/(accounts/[^/]+|categories|tags|auth/me)$#',
+        'GET' => '#^/api/(accounts/[^/]+|categories|tags|auth/me|openapi\.json)$#',
     ];
 
     public function __construct(private Security $security)

@@ -9,6 +9,11 @@ export function useDrafts() {
   return useQuery({ queryKey: ['drafts', 'list'], queryFn: () => draftsApi.list(), refetchInterval: 60_000 })
 }
 
+/** How many drafts wait: the inbox's badge, looked at again every minute. */
+export function usePendingDraftCount() {
+  return useQuery({ queryKey: ['drafts', 'count'], queryFn: () => draftsApi.count(), refetchInterval: 60_000 })
+}
+
 export function useRecentDrafts() {
   return useQuery({ queryKey: ['drafts', 'recent'], queryFn: () => draftsApi.recent() })
 }

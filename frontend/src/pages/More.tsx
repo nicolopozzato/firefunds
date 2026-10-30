@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Banknote, CalendarClock, ChevronRight, DatabaseBackup, FileBarChart, LogOut, Settings, ShieldCheck, ShoppingCart, Tag, Tags, Users, Wallet, type LucideIcon } from 'lucide-react'
+import { Banknote, CalendarClock, ChevronRight, FileBarChart, FileUp, LogOut, Settings, ShieldCheck, ShoppingCart, Tag, Tags, Wallet, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getFullName } from '@/types/auth'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { UpdateRow } from '@/components/UpdateNotice'
 
 /** "0.1.0" -> "0.1", as at the bottom of every page on larger screens. */
 const APP_VERSION = __APP_VERSION__.split('.').slice(0, 2).join('.')
@@ -57,7 +58,9 @@ export default function More() {
     <div className="mx-auto max-w-xl space-y-6">
       <h1 className="page-title">{t('navigation.more')}</h1>
 
-      <Link to="/profile" className="flex items-center gap-4 surface p-4 transition-colors active:bg-accent">
+      <UpdateRow />
+
+      <Link to="/preferences?tab=account" className="flex items-center gap-4 surface p-4 transition-colors active:bg-accent">
         <Avatar className="h-12 w-12">
           <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--series-2))] to-[hsl(var(--series-5))] text-base text-white">{initials}</AvatarFallback>
         </Avatar>
@@ -70,6 +73,14 @@ export default function More() {
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
       </Link>
+
+      <Group
+        title={t('navigation.transactions')}
+        entries={[
+          { label: t('navigation.recurringTransactions'), href: '/transactions/recurring', icon: CalendarClock, tone: 'bg-info/10 text-info' },
+          { label: t('navigation.importCsv'), href: '/transactions/import', icon: FileUp, tone: 'bg-positive/10 text-positive' },
+        ]}
+      />
 
       <Group
         title={t('navigation.accounts')}
@@ -92,20 +103,11 @@ export default function More() {
         entries={[
           { label: t('navigation.reports'), href: '/reports', icon: FileBarChart, tone: 'bg-[hsl(var(--series-3)/0.1)] text-[hsl(var(--series-3))]' },
           { label: t('preferences.title'), href: '/preferences', icon: Settings, tone: 'bg-muted text-muted-foreground' },
+          ...(user?.isAdmin
+            ? [{ label: t('admin.title'), href: '/admin/settings', icon: ShieldCheck, tone: 'bg-muted text-muted-foreground' }]
+            : []),
         ]}
       />
-
-      {user?.isAdmin && (
-        <Group
-          title={t('admin.title')}
-          entries={[
-            { label: t('admin.users.title'), href: '/admin/users', icon: Users, tone: 'bg-muted text-muted-foreground' },
-            { label: t('admin.settings.title'), href: '/admin/settings', icon: ShieldCheck, tone: 'bg-muted text-muted-foreground' },
-            { label: t('admin.backups.title'), href: '/admin/backups', icon: DatabaseBackup, tone: 'bg-muted text-muted-foreground' },
-            { label: t('admin.tasks.title'), href: '/admin/tasks', icon: CalendarClock, tone: 'bg-muted text-muted-foreground' },
-          ]}
-        />
-      )}
 
       <button
         type="button"

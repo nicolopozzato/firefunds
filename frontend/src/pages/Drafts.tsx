@@ -7,7 +7,6 @@ import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, CheckCheck, CircleDashe
 import { Button } from '@/components/ui/button'
 import PageHeader from '@/components/PageHeader'
 import EmptyState from '@/components/EmptyState'
-import { TransactionSectionTabs } from '@/components/layout/SectionTabs'
 import { MobileListCard, MobileListIcon, MobileListRow, MobileListSkeleton } from '@/components/MobileList'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -103,7 +102,6 @@ export default function Drafts() {
           </Button>
         }
       />
-      <TransactionSectionTabs />
 
       {unread.map((source) => (
         <button

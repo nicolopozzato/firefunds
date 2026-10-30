@@ -6,6 +6,7 @@ import { it, enUS } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { MoreHorizontal, Pencil, Trash2, Plus, ArrowDownToLine, ArrowUpToLine, Copy, CalendarRange, ListFilter } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import DraftInboxButton from '@/components/DraftInboxButton'
 import Pagination from '@/components/Pagination'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import { Button } from '@/components/ui/button'
@@ -168,20 +169,24 @@ export default function InvestmentTransactionsTable() {
       <PageHeader
         title={t('investmentTransactions.title')}
         description={t('investmentTransactions.description')}
+        compactActions
         actions={
-          // Phones add from the bottom bar's "+".
-          <Button onClick={() => navigate(`${basePath}/new`)} className="hidden md:inline-flex">
-            <Plus className="mr-2 h-4 w-4" />
-            {t('investmentTransactions.add')}
-          </Button>
+          <>
+            <DraftInboxButton />
+            {/* Phones add from the bottom bar's "+". */}
+            <Button onClick={() => navigate(`${basePath}/new`)} className="hidden md:inline-flex">
+              <Plus className="mr-2 h-4 w-4" />
+              {t('investmentTransactions.add')}
+            </Button>
+          </>
         }
       />
 
       <TransactionSectionTabs />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {/* Phones show the period in the top bar. */}
-        <div className={cn('items-center gap-2 text-sm text-muted-foreground', showAll ? 'flex' : 'hidden md:flex')}>
+      {/* Phones change the period in the top bar ("All" included): the row is only there to leave "every date". */}
+      <div className={cn('flex-wrap items-center justify-between gap-2', showAll ? 'flex' : 'hidden md:flex')}>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarRange className="h-4 w-4" />
           {showAll ? t('transactionsCommon.allRange') : rangeLabel}
         </div>

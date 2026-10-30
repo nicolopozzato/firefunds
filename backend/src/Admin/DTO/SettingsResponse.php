@@ -6,6 +6,7 @@ final readonly class SettingsResponse
 {
     public function __construct(
         public bool $registrationEnabled,
+        public bool $updateCheckEnabled,
     ) {
     }
 }

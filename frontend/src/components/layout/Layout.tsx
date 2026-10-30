@@ -5,6 +5,7 @@ import Header from './Header'
 import MobileTopBar from './MobileTopBar'
 import BottomNav from './BottomNav'
 import ExchangeRateWarning from './ExchangeRateWarning'
+import { UpdateDialog } from '@/components/UpdateNotice'
 import PullToRefresh from './PullToRefresh'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useHideAmounts } from '@/hooks/use-hide-amounts'
@@ -108,6 +109,7 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {isMobile && <BottomNav />}
+      <UpdateDialog />
     </div>
   )
 }

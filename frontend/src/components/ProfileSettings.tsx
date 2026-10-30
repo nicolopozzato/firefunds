@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import PageHeader from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { authApi } from '@/lib/auth-api'
 import { handleApiError } from '@/lib/error-handler'
 
-export default function Profile() {
+/** Settings → Account: name, email and password. */
+export default function ProfileSettings() {
   const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
 
@@ -80,9 +80,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <PageHeader title={t('profile.title')} description={t('profile.description')} />
-
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.personalInfo')}</CardTitle>

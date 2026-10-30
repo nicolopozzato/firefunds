@@ -1,5 +1,24 @@
 export interface ServerSettings {
   registrationEnabled: boolean
+  /** Whether the server asks GitHub for new versions (the `updates` task). */
+  updateCheckEnabled: boolean
+}
+
+/** A published FireFunds version: "0.10.0", its release notes on GitHub. */
+export interface Release {
+  version: string
+  url: string
+  publishedAt: string | null
+}
+
+/** What the last check for new versions found (GET /api/admin/update). */
+export interface UpdateStatus {
+  enabled: boolean
+  /** The version the server runs: "dev" on a development build. */
+  currentVersion: string
+  latest: Release | null
+  updateAvailable: boolean
+  checkedAt: string | null
 }
 
 export interface AdminUser {
@@ -58,7 +77,7 @@ export interface BackupsOverview extends BackupSettings {
   backups: BackupFile[]
 }
 
-export type TaskKey = 'prices' | 'rates' | 'backup' | 'cleanup' | 'recurring'
+export type TaskKey = 'prices' | 'rates' | 'backup' | 'cleanup' | 'recurring' | 'updates'
 export type TaskRunStatus = 'running' | 'success' | 'partial' | 'failed' | 'interrupted'
 
 export interface TaskRun {

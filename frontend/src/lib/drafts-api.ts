@@ -7,6 +7,11 @@ export const draftsApi = {
     return (await api.get<Draft[]>('/api/drafts')).data
   },
 
+  /** How many wait for the user. */
+  async count(): Promise<number> {
+    return (await api.get<{ pending: number }>('/api/drafts/count')).data.pending
+  },
+
   /** The latest dealt with: recorded, recognised or discarded. */
   async recent(): Promise<Draft[]> {
     return (await api.get<Draft[]>('/api/drafts/recent')).data

@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dataChanged } from '@/lib/data-changed'
 import { adminApi } from '@/lib/admin-api'
+import { useAuth } from '@/contexts/AuthContext'
 import type {
   AdminUserFields,
   BackupSettings,
@@ -24,8 +25,25 @@ export function useUpdateServerSettings() {
     mutationFn: (data: ServerSettings) => adminApi.updateSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'update'] })
     },
   })
+}
+
+/**
+ * The newer FireFunds release, for administrators only: null when there is
+ * none (or the check is off). The server looks twice a day, so an hour old is fresh.
+ */
+export function useAvailableUpdate() {
+  const { user } = useAuth()
+  const { data } = useQuery({
+    queryKey: ['admin', 'update'],
+    queryFn: () => adminApi.getUpdate(),
+    enabled: !!user?.isAdmin,
+    staleTime: 60 * 60 * 1000,
+  })
+
+  return user?.isAdmin && data?.updateAvailable && data.latest ? { latest: data.latest, current: data.currentVersion } : null
 }
 
 export function useBackups() {

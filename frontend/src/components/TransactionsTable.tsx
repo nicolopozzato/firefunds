@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
 import { Plus, CalendarRange, ListFilter } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
+import DraftInboxButton from '@/components/DraftInboxButton'
 import TransactionList from '@/components/TransactionList'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import { Button } from '@/components/ui/button'
@@ -93,20 +94,24 @@ export default function TransactionsTable({
       <PageHeader
         title={title}
         description={description}
+        compactActions
         actions={
-          // Phones add from the bottom bar's "+".
-          <Button onClick={() => navigate(newTransactionPath)} className="hidden md:inline-flex">
-            <Plus className="mr-2 h-4 w-4" />
-            {t('transactionsCommon.add')}
-          </Button>
+          <>
+            <DraftInboxButton />
+            {/* Phones add from the bottom bar's "+". */}
+            <Button onClick={() => navigate(newTransactionPath)} className="hidden md:inline-flex">
+              <Plus className="mr-2 h-4 w-4" />
+              {t('transactionsCommon.add')}
+            </Button>
+          </>
         }
       />
 
       <TransactionSectionTabs />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {/* Phones show the period in the top bar. */}
-        <div className={cn('items-center gap-2 text-sm text-muted-foreground', showAll ? 'flex' : 'hidden md:flex')}>
+      {/* Phones change the period in the top bar ("All" included): the row is only there to leave "every date". */}
+      <div className={cn('flex-wrap items-center justify-between gap-2', showAll ? 'flex' : 'hidden md:flex')}>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarRange className="h-4 w-4" />
           {showAll ? t('transactionsCommon.allRange') : rangeLabel}
         </div>

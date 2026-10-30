@@ -20,6 +20,9 @@ class Setting
     public const KEY_PUSH_PUBLIC_KEY = 'push_public_key';
     public const KEY_PUSH_PRIVATE_KEY = 'push_private_key';
     public const KEY_PUSH_SUBJECT = 'push_subject';
+    /** New versions on GitHub (UpdateCheck): whether to look, and what was found (JSON). */
+    public const KEY_UPDATE_CHECK_ENABLED = 'update_check_enabled';
+    public const KEY_LATEST_RELEASE = 'latest_release';
 
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]

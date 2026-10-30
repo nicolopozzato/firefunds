@@ -51,7 +51,6 @@ const More = lazy(() => import('./pages/More'))
 const InvestmentInstruments = lazy(() => import('./pages/InvestmentInstruments'))
 const InvestmentInstrumentFormPage = lazy(() => import('./pages/InvestmentInstrumentFormPage'))
 const InvestmentInstrumentDetailPage = lazy(() => import('./pages/InvestmentInstrumentDetailPage'))
-const Profile = lazy(() => import('./pages/Profile'))
 const Preferences = lazy(() => import('./pages/Preferences'))
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'))
 const AdminBackups = lazy(() => import('./pages/admin/AdminBackups'))
@@ -180,7 +179,7 @@ function AppRoutes() {
                 <Route path="/reports/net-worth" element={<NetWorthReport />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/more" element={<More />} />
-                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile" element={<Navigate to="/preferences?tab=account" replace />} />
                 <Route path="/preferences" element={<Preferences />} />
                 <Route
                   path="/admin/settings"

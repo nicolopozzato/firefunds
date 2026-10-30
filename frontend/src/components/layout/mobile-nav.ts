@@ -20,8 +20,6 @@ const TAB_PAGES = new Set([
   '/transactions/deposit',
   '/transactions/transfers',
   '/transactions/investments',
-  '/transactions/recurring',
-  '/transactions/drafts',
   '/investments/overview',
   '/investments/instruments',
   '/more',
@@ -29,6 +27,8 @@ const TAB_PAGES = new Set([
 
 /** Lists opened from the "More" page: going back from them returns there. */
 const MORE_PAGES = [
+  '/transactions/recurring',
+  '/transactions/import',
   '/accounts/asset',
   '/accounts/expense',
   '/accounts/revenue',
@@ -36,7 +36,6 @@ const MORE_PAGES = [
   '/tags',
   '/reports/income-expenses',
   '/reports/net-worth',
-  '/profile',
   '/preferences',
   '/sources',
   '/admin/users',
@@ -60,7 +59,11 @@ export function showsPeriod(pathname: string): boolean {
   return !pathname.endsWith('/new') && PERIOD_PAGES.some((pattern) => pattern.test(pathname))
 }
 
+/** Transaction pages opened from "More", not from the Transactions tab. */
+const MORE_TRANSACTION_PAGES = /^\/transactions\/(recurring|import)(\/|$)/
+
 export function tabOf(pathname: string): MobileTab {
+  if (MORE_TRANSACTION_PAGES.test(pathname)) return 'more'
   if (pathname.startsWith('/transactions') || pathname.startsWith('/search')) return 'transactions'
   if (pathname.startsWith('/investments')) return 'investments'
   if (pathname === '/' || pathname.startsWith('/dashboard')) return 'home'

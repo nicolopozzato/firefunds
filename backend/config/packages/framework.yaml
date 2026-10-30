@@ -20,6 +20,14 @@ framework:
                 timeout: 10
                 max_duration: 60
                 max_redirects: 3
+            # The latest FireFunds release (GitHubReleases), twice a day.
+            github.client:
+                base_uri: 'https://api.github.com/repos/nicolopozzato/firefunds/'
+                timeout: 10
+                max_duration: 20
+                headers:
+                    Accept: 'application/vnd.github+json'
+                    User-Agent: 'FireFunds'
             yahoo.client:
                 base_uri: 'https://query1.finance.yahoo.com/v8/finance/chart/'
                 timeout: 5

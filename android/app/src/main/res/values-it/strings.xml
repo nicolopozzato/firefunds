@@ -6,7 +6,7 @@
     <string name="server_set">Configura</string>
     <string name="server_change">Modifica</string>
     <string name="server_url">Indirizzo del server, es. https://firefunds.example.com</string>
-    <string name="token">Token API (Preferenze → API, «Solo bozze»)</string>
+    <string name="token">Token API (Impostazioni → Collegamenti, «Solo bozze»)</string>
     <string name="save">Salva e verifica</string>
     <string name="checking">Verifico…</string>
     <string name="connected">Collegato come %1$s su %2$s</string>

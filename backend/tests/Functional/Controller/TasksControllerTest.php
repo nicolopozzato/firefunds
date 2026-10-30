@@ -30,7 +30,7 @@ class TasksControllerTest extends WebTestCaseBase
         $overview = $this->request('GET', '/api/admin/tasks');
 
         $this->assertResponseIsSuccessful();
-        $this->assertSame(['prices', 'rates', 'recurring', 'backup', 'cleanup'], array_column($overview['tasks'], 'key'));
+        $this->assertSame(['prices', 'rates', 'recurring', 'backup', 'cleanup', 'updates'], array_column($overview['tasks'], 'key'));
         $this->assertSame('Europe/Rome', $overview['timezone']);
         $this->assertNotEmpty($overview['tasks'][0]['nextRunAt']);
         $this->assertIsArray($overview['symbols']);

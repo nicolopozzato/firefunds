@@ -10,6 +10,8 @@ interface NavLink {
   icon: LucideIcon
   /** When true, only an exact pathname match highlights this link (no prefix match for nested routes like /new or /:id/edit). */
   matchExact?: boolean
+  /** How many wait there (drafts to review): shown when more than none. */
+  badge?: number
 }
 
 interface CollapsibleNavSectionProps {
@@ -51,7 +53,12 @@ function SubLinks({ links, className, onNavigate }: { links: NavLink[]; classNam
               <div className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
             )}
             <item.icon className="h-4 w-4" />
-            {item.name}
+            <span className="flex-1">{item.name}</span>
+            {!!item.badge && (
+              <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-none text-destructive-foreground tabular-nums">
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
+            )}
           </Link>
         )
       })}

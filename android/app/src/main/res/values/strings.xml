@@ -7,7 +7,7 @@
     <string name="server_set">Set up</string>
     <string name="server_change">Change</string>
     <string name="server_url">Server address, e.g. https://firefunds.example.com</string>
-    <string name="token">API token (Preferences → API, \"Drafts only\")</string>
+    <string name="token">API token (Settings → Connections, \"Drafts only\")</string>
     <string name="save">Save and check</string>
     <string name="checking">Checking…</string>
     <string name="connected">Connected as %1$s on %2$s</string>

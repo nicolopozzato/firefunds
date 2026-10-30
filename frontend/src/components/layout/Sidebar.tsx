@@ -32,6 +32,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import CollapsibleNavSection from './CollapsibleNavSection'
+import { usePendingDraftCount } from '@/hooks/use-drafts'
 
 const COLLAPSED_KEY = 'firefunds.sidebarCollapsed'
 /** With no choice saved yet, narrower screens (tablets) start with the menu reduced to icons. */
@@ -129,6 +130,8 @@ export default function Sidebar() {
   const isInvestmentsSectionActive = location.pathname.startsWith('/investments')
   const [isInvestmentsOpen, setIsInvestmentsOpen] = useState(isInvestmentsSectionActive)
 
+  const { data: pendingDrafts } = usePendingDraftCount()
+
   const transactionLinks = [
     {
       name: t('navigation.allTransactions'),
@@ -169,6 +172,7 @@ export default function Sidebar() {
       name: t('navigation.drafts'),
       href: '/transactions/drafts',
       icon: Inbox,
+      badge: pendingDrafts,
     },
     {
       name: t('navigation.importCsv'),

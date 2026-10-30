@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
 import { Copy, Download, KeyRound, Plus, Trash2 } from 'lucide-react'
+import ApiUsage from '@/components/ApiUsage'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Field from '@/components/Field'
 import { Button } from '@/components/ui/button'
@@ -116,6 +117,8 @@ export default function ApiTokensPreferences() {
           )}
         </CardContent>
       </Card>
+
+      <ApiUsage token={made?.token} />
 
       <Card>
         <CardHeader className="pb-2 sm:pb-2">

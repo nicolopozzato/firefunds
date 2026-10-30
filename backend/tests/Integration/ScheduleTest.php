@@ -8,7 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 /**
  * The scheduler's times, in Rome whatever the server's own (UTC) clock says.
  * Messages in order: the retry, then the tasks as the administrator's page
- * lists them (prices, rates, backup, cleanup).
+ * lists them (prices, rates, recurring, backup, cleanup, updates).
  */
 class ScheduleTest extends KernelTestCase
 {
@@ -37,6 +37,12 @@ class ScheduleTest extends KernelTestCase
     public function testRecurringTransactionsAreCreatedEveryQuarterOfAnHour(): void
     {
         $this->assertSame(['10:15', '10:30', '10:45'], $this->nextRuns(3, '2026-10-01 10:00:00', 3, 'H:i'));
+    }
+
+    /** GitHub is asked for a new release twice a day. */
+    public function testUpdatesAreCheckedTwiceADay(): void
+    {
+        $this->assertSame(['01 21:40', '02 09:40', '02 21:40'], $this->nextRuns(6, '2026-10-01 10:00:00', 3, 'd H:i'));
     }
 
     /** The retry, every 15 minutes, never at a minute a task runs (0, 5, 10, 15, 20, 30, 45): it would race the run it repeats. */

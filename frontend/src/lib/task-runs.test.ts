@@ -30,6 +30,13 @@ describe('runSummary', () => {
     expect(runSummary('backup', run({ file: 'firefunds_x.tar', size: 10, deleted: 2 }))).toEqual({ key: 'backupDone', params: { file: 'firefunds_x.tar', count: 2 } })
     expect(runSummary('cleanup', run({ revoked: 0, runs: 0 }))).toEqual({ key: 'cleanupNone' })
     expect(runSummary('cleanup', run({ revoked: 3, runs: 40 }))).toEqual({ key: 'cleanupDone', params: { sessions: 3, runs: 40 } })
+    expect(runSummary('updates', run({ skipped: 'off' }))).toEqual({ key: 'updatesOff' })
+    expect(runSummary('updates', run({ latest: null, current: '0.9.0', available: false }))).toEqual({ key: 'updatesNone' })
+    expect(runSummary('updates', run({ latest: '0.10.0', current: '0.9.0', available: true }))).toEqual({
+      key: 'updatesAvailable',
+      params: { latest: '0.10.0', current: '0.9.0' },
+    })
+    expect(runSummary('updates', run({ latest: '0.9.0', current: '0.9.0', available: false }))).toEqual({ key: 'updatesCurrent', params: { latest: '0.9.0' } })
   })
 
   it('has nothing to say for a run still going, cut off, or failed before reporting', () => {

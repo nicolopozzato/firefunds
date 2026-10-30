@@ -7,7 +7,6 @@ import EmptyState from '@/components/EmptyState'
 import Stat from '@/components/Stat'
 import LoadFailed from '@/components/LoadFailed'
 import RecurringKindIcon from '@/components/RecurringKindIcon'
-import { TransactionSectionTabs } from '@/components/layout/SectionTabs'
 import { MobileListCard, MobileListIcon, MobileListRow, MobileListSection, MobileListSkeleton } from '@/components/MobileList'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -57,7 +56,6 @@ export default function RecurringTransactions() {
         }
       />
 
-      <TransactionSectionTabs />
 
       {isLoading ? (
         <div className="space-y-4">

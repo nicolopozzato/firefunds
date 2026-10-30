@@ -44,8 +44,9 @@ class RegistrationAndAdminTest extends WebTestCaseBase
         $admin = $this->user('admin@example.test');
         static::authenticate($this->client, $admin);
 
-        $this->assertSame(['registrationEnabled' => false], $this->request('GET', '/api/admin/settings'));
-        $this->assertSame(['registrationEnabled' => true], $this->request('PUT', '/api/admin/settings', ['registrationEnabled' => true]));
+        $this->assertSame(['registrationEnabled' => false, 'updateCheckEnabled' => true], $this->request('GET', '/api/admin/settings'));
+        $this->assertSame(['registrationEnabled' => true, 'updateCheckEnabled' => true], $this->request('PUT', '/api/admin/settings', ['registrationEnabled' => true]));
+        $this->assertSame(['registrationEnabled' => true, 'updateCheckEnabled' => false], $this->request('PUT', '/api/admin/settings', ['registrationEnabled' => true, 'updateCheckEnabled' => false]));
 
         $this->client->setServerParameter('HTTP_AUTHORIZATION', '');
         $joined = $this->register('joined@example.test');
@@ -67,6 +68,7 @@ class RegistrationAndAdminTest extends WebTestCaseBase
             ['GET', '/api/admin/settings', null],
             ['PUT', '/api/admin/settings', ['registrationEnabled' => true]],
             ['GET', '/api/admin/backups', null],
+            ['GET', '/api/admin/update', null],
             ['POST', '/api/admin/backups', null],
         ] as [$method, $uri, $body]) {
             $this->request($method, $uri, $body);

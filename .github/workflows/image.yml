@@ -2,6 +2,9 @@
 # ghcr.io/nicolopozzato/firefunds when a release tag (bin/release) reaches
 # the public repository: v1.2.3 → :1.2.3, :1.2 and :latest.
 # On the server: docker compose pull && docker compose up -d
+# Once the image is pushed, a GitHub release for the tag: what the app's
+# update check reads (GitHubReleases), so administrators hear of a version
+# only when it can be pulled.
 # Only after checks.yml passes on the same code. Actions are pinned to a
 # commit (the version in the comment).
 name: Image
@@ -25,6 +28,9 @@ jobs:
     # The private dev repository gets the same tags: only the public one publishes.
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # the GitHub release
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -55,3 +61,11 @@ jobs:
           build-args: APP_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --latest

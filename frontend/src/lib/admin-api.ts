@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { AdminUser, AdminUserFields, BackupSettings, CreateUserRequest, BackupsOverview, ServerSettings, SetPasswordRequest, TaskKey, TaskRun, TasksOverview } from '@/types/admin'
+import type { AdminUser, AdminUserFields, BackupSettings, CreateUserRequest, BackupsOverview, ServerSettings, SetPasswordRequest, TaskKey, TaskRun, TasksOverview, UpdateStatus } from '@/types/admin'
 import type { PaginatedResponse } from '@/types/pagination'
 
 export const adminApi = {
@@ -10,6 +10,11 @@ export const adminApi = {
 
   async updateSettings(data: ServerSettings): Promise<ServerSettings> {
     const response = await api.put<ServerSettings>('/api/admin/settings', data)
+    return response.data
+  },
+
+  async getUpdate(): Promise<UpdateStatus> {
+    const response = await api.get<UpdateStatus>('/api/admin/update')
     return response.data
   },
 

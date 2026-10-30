@@ -11,7 +11,6 @@
     "edit": "Modifica",
     "loading": "Caricamento...",
     "refreshing": "Aggiornamento…",
-    "profile": "Profilo",
     "admin": "Admin",
     "yes": "Sì",
     "no": "No",
@@ -106,7 +105,7 @@
     "revenueAccounts": "Conti entrate",
     "noAccount": "Nessun conto",
     "noAccountsShown": "Nessun conto da mostrare in dashboard.",
-    "chooseAccounts": "Scegli i conti nelle preferenze",
+    "chooseAccounts": "Scegli i conti nelle impostazioni",
     "balanceOn": "al {{date}}",
     "noTransactionsInPeriod": "Nessuna transazione nel periodo",
     "allTransactions": "Vedi il conto",
@@ -445,8 +444,6 @@
     "importCsv": "Importa CSV"
   },
   "profile": {
-    "title": "Profilo",
-    "description": "Gestisci le informazioni del tuo account",
     "personalInfo": "Informazioni personali",
     "personalInfoDescription": "Modifica il tuo nome, cognome ed email",
     "saved": "Modifiche salvate con successo",
@@ -460,7 +457,7 @@
     "passwordChanged": "Password aggiornata. Sugli altri dispositivi dovrai accedere di nuovo."
   },
   "preferences": {
-    "title": "Preferenze",
+    "title": "Impostazioni",
     "language": "Lingua",
     "numberFormat": "Formato numeri",
     "theme": "Tema",
@@ -526,7 +523,8 @@
     "investmentUnitPercent": "%",
     "investmentUnitMoney": "Valuta",
     "notifications": "Notifiche",
-    "api": "API"
+    "connections": "Collegamenti",
+    "account": "Account"
   },
   "admin": {
     "title": "Amministrazione",
@@ -538,7 +536,13 @@
       "registrationEnabled": "Registrazione abilitata",
       "registrationHint": "Il primo utente registrato diventa automaticamente amministratore e disabilita la registrazione.",
       "registrationTurnedOn": "Registrazione abilitata: nuovi utenti possono creare un account.",
-      "registrationTurnedOff": "Registrazione disabilitata: nessun nuovo account può essere creato."
+      "registrationTurnedOff": "Registrazione disabilitata: nessun nuovo account può essere creato.",
+      "updates": "Aggiornamenti",
+      "updatesDescription": "Avvisa gli amministratori quando esce una nuova versione di FireFunds.",
+      "updateCheckEnabled": "Controlla le nuove versioni",
+      "updateCheckHint": "Due volte al giorno il server chiede a GitHub l'ultima versione pubblicata. Non viene inviato nient'altro.",
+      "updateCheckTurnedOn": "Controllo delle nuove versioni attivato.",
+      "updateCheckTurnedOff": "Controllo delle nuove versioni disattivato."
     },
     "users": {
       "title": "Utenti",
@@ -660,7 +664,11 @@
         "recurringNone": "Nessuna transazione da creare.",
         "recurringFailed_one": "{{count}} ricorrente non creata ({{created}} create).",
         "recurringFailed_other": "{{count}} ricorrenti non create ({{created}} create).",
-        "recurringDone": "Create {{count}}, riconosciute {{linked}}, promemoria {{reminded}}."
+        "recurringDone": "Create {{count}}, riconosciute {{linked}}, promemoria {{reminded}}.",
+        "updatesOff": "Il controllo delle nuove versioni è disattivato.",
+        "updatesNone": "Nessuna versione pubblicata.",
+        "updatesAvailable": "È uscita la versione {{latest}} (questo server usa la {{current}}).",
+        "updatesCurrent": "Ultima versione: {{latest}}."
       },
       "prices": "Prezzi",
       "pricesDescription": "Ultima chiusura disponibile per ogni simbolo.",
@@ -686,7 +694,9 @@
       "task_recurring": "Transazioni ricorrenti",
       "taskDescription_recurring": "Crea le transazioni ricorrenti quando arrivano il giorno e l'ora previsti.",
       "scheduleEvery_one": "Ogni minuto",
-      "scheduleEvery_other": "Ogni {{count}} minuti"
+      "scheduleEvery_other": "Ogni {{count}} minuti",
+      "task_updates": "Nuove versioni",
+      "taskDescription_updates": "Controlla su GitHub se è uscita una nuova versione di FireFunds."
     }
   },
   "errors": {
@@ -1074,8 +1084,8 @@
     "deleteConfirmDescription": "Stai per eliminare \"{{name}}\": non comparirà più nell'app.",
     "deleteInUseWarning": "Verranno eliminate anche queste operazioni: saldi e posizioni dei conti titoli coinvolti cambieranno.",
     "capitalGainsTaxRate": "Aliquota plusvalenze (%)",
-    "capitalGainsTaxRatePlaceholder": "{{rate}} (dalle preferenze)",
-    "capitalGainsTaxRateHint": "Vuoto = {{rate}} delle preferenze.",
+    "capitalGainsTaxRatePlaceholder": "{{rate}} (dalle impostazioni)",
+    "capitalGainsTaxRateHint": "Vuoto = {{rate}} delle impostazioni.",
     "whiteListShare": "Quota white list (%)",
     "taxColumn": "Tassa plusvalenza",
     "whiteListImplied": "circa {{share}} in titoli white list",
@@ -1266,7 +1276,7 @@
     "notificationsAction": "Attiva",
     "preferences": "Controlla valuta e formati",
     "preferencesHint": "Valuta, formato dei numeri e fuso orario, se non sono già giusti.",
-    "preferencesAction": "Apri preferenze"
+    "preferencesAction": "Apri impostazioni"
   },
   "reconcile": {
     "action": "Verifica saldo",
@@ -1529,6 +1539,8 @@
   },
   "drafts": {
     "title": "Da rivedere",
+    "titleWaiting_one": "Da rivedere, {{count}} in attesa",
+    "titleWaiting_other": "Da rivedere, {{count}} in attesa",
     "description": "Movimenti arrivati da fuori: le notifiche della banca, altri programmi.",
     "emptyTitle": "Niente da rivedere",
     "emptyDescription": "Qui arrivano i movimenti mandati dall'app Android o da altri programmi tramite API.",
@@ -1564,7 +1576,12 @@
     "recentTitle": "Gestiti di recente",
     "similar": "Simili:",
     "pairedTransfer": "È arrivato anche l'altro lato, su {{account}}: registrandolo come giroconto si sistema anche quello.",
-    "recentWithPayee": "Di recente:"
+    "recentWithPayee": "Di recente:",
+    "closed_discarded": "Questa bozza è stata scartata.",
+    "closed_accepted": "Questa bozza è stata registrata.",
+    "closed_matched": "Questa bozza era già registrata.",
+    "openTransaction": "Apri il movimento",
+    "openTransactionNumber": "Movimento {{number}}"
   },
   "csvImport": {
     "title": "Importa da CSV",
@@ -1620,6 +1637,37 @@
     "removePart": "Togli questa parte",
     "part": "Parte {{number}}",
     "ofFile": "{{assigned}} su {{total}} del file"
+  },
+  "apiUsage": {
+    "title": "Usa l'API",
+    "description": "Per mandare movimenti da altri programmi, come i Comandi dell'iPhone o uno script. Serve un token, creato qui sopra.",
+    "address": "Indirizzo per le bozze",
+    "addressHint": "Si manda una richiesta POST con il token nell'intestazione Authorization. Una bozza finisce in «Da rivedere» e ti arriva la notifica.",
+    "example": "Esempio",
+    "shortcuts": "iPhone (Comandi)",
+    "tokenHint": "Al posto di ff_… metti il tuo token.",
+    "step1": "Apri l'app Comandi e crea un comando nuovo.",
+    "step2": "Aggiungi l'azione «Ottieni contenuti da URL» e incolla l'indirizzo qui sopra.",
+    "step3": "Tocca «Mostra altro»: metodo POST.",
+    "step4": "Intestazioni: Authorization = Bearer {{token}}, e Content-Type = application/json.",
+    "step5": "Corpo della richiesta: JSON, con i campi qui sotto (esempio).",
+    "step6": "Importo e data possono venire dalle variabili del comando. Al primo uso consenti l'accesso a questo indirizzo.",
+    "shortcutsBody": "Corpo della richiesta, da adattare:",
+    "iosNotifications": "iOS non lascia ai Comandi il testo delle notifiche delle altre app: il comando parte da un'automazione su messaggi o e-mail, da un tocco sulla schermata Home o dal menu Condividi.",
+    "fields": "Campi (* obbligatori)",
+    "field_amount": "Importo positivo, come testo: \"12.50\".",
+    "field_occurredAt": "Quando è successo, nell'ora del posto: 2026-10-28T12:30:00, senza fuso.",
+    "field_description": "Descrizione, fino a 255 caratteri.",
+    "field_direction": "out se hai speso, in se hai ricevuto. Se manca lo decidi tu in revisione.",
+    "field_timezone": "Fuso della data, es. Europe/Rome. Se manca, il tuo.",
+    "field_sourceAccountId": "Conto da cui escono i soldi (id, da /api/accounts/asset).",
+    "field_destinationAccountId": "Conto su cui arrivano (id).",
+    "field_notes": "Note.",
+    "field_rawText": "Il testo originale, es. della notifica. Si vede in revisione.",
+    "field_ifExists": "Cosa fare se c'è già un movimento identico: review (chiedi a te, il predefinito), skip, annotate o create.",
+    "ifExistsHint": "Identico: stesso importo al centesimo, entro un giorno, sullo stesso conto se indicato. Una bozza che corrisponde a una ricorrenza attesa viene registrata da sola.",
+    "downloadSpec": "Scarica la descrizione OpenAPI",
+    "specHint": "Tutti gli endpoint, i campi e le risposte, da aprire in Postman, Insomnia o un generatore di client. Sempre aggiornata a questa versione."
   },
   "androidApp": {
     "title": "App Android",
@@ -1687,5 +1735,12 @@
     "tokenAmount": "{importo}",
     "tokenMerchant": "{esercente}",
     "ruleDone": "Fatto"
+  },
+  "update": {
+    "available": "È disponibile FireFunds {{version}}",
+    "current": "Questo server usa la {{version}}",
+    "releaseNotes": "Novità",
+    "howTo": "Per aggiornare, scarica la nuova immagine sul server:",
+    "later": "Più tardi"
   }
 }

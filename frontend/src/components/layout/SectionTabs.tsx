@@ -32,7 +32,7 @@ function SectionTabs({ label, links }: { label: string; links: SectionLink[] }) 
   )
 }
 
-/** The transaction lists: all, withdrawals, deposits, transfers, investment trades. */
+/** The transaction lists: all, withdrawals, deposits, transfers, investment trades. To review is the inbox beside the title, recurring ones are in "More". */
 export function TransactionSectionTabs() {
   const { t } = useTranslation()
   return (
@@ -44,8 +44,6 @@ export function TransactionSectionTabs() {
         { label: t('navigation.depositsShort'), href: '/transactions/deposit' },
         { label: t('navigation.transferTransactions'), href: '/transactions/transfers' },
         { label: t('navigation.investmentTransactions'), href: '/transactions/investments' },
-        { label: t('navigation.recurringTransactions'), href: '/transactions/recurring' },
-        { label: t('navigation.drafts'), href: '/transactions/drafts' },
       ]}
     />
   )

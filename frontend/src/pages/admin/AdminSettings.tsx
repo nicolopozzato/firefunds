@@ -16,20 +16,33 @@ export default function AdminSettings() {
   const updateSettings = useUpdateServerSettings()
 
   const [registrationEnabled, setRegistrationEnabled] = useState(false)
+  const [updateCheckEnabled, setUpdateCheckEnabled] = useState(true)
 
   useEffect(() => {
     if (settings) {
       setRegistrationEnabled(settings.registrationEnabled)
+      setUpdateCheckEnabled(settings.updateCheckEnabled)
     }
   }, [settings])
 
   const handleToggle = async (checked: boolean) => {
     setRegistrationEnabled(checked)
     try {
-      await updateSettings.mutateAsync({ registrationEnabled: checked })
+      await updateSettings.mutateAsync({ registrationEnabled: checked, updateCheckEnabled })
       toast.success(t(checked ? 'admin.settings.registrationTurnedOn' : 'admin.settings.registrationTurnedOff'))
     } catch (error) {
       setRegistrationEnabled(!checked)
+      toast.error(handleApiError(error))
+    }
+  }
+
+  const handleUpdateCheckToggle = async (checked: boolean) => {
+    setUpdateCheckEnabled(checked)
+    try {
+      await updateSettings.mutateAsync({ registrationEnabled, updateCheckEnabled: checked })
+      toast.success(t(checked ? 'admin.settings.updateCheckTurnedOn' : 'admin.settings.updateCheckTurnedOff'))
+    } catch (error) {
+      setUpdateCheckEnabled(!checked)
       toast.error(handleApiError(error))
     }
   }
@@ -56,6 +69,22 @@ export default function AdminSettings() {
       </Card>
 
       <p className="text-xs text-muted-foreground">{t('admin.settings.registrationHint')}</p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('admin.settings.updates')}</CardTitle>
+          <CardDescription>{t('admin.settings.updatesDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <SettingRow label={t('admin.settings.updateCheckEnabled')} hint={t('admin.settings.updateCheckHint')} htmlFor="updateCheckEnabled">
+              <Switch id="updateCheckEnabled" checked={updateCheckEnabled} disabled={updateSettings.isPending} onCheckedChange={handleUpdateCheckToggle} />
+            </SettingRow>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

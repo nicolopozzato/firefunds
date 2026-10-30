@@ -109,6 +109,35 @@ export default function DraftPage() {
   const assigned = parts.reduce((sum, part) => sum + (Number(part.amount) || 0), 0)
   const update = (key: number, patch: Partial<Part>) => setParts((current) => current.map((part) => (part.key === key ? { ...part, ...patch } : part)))
   const closed = draft.status !== 'pending'
+  const arrivedSection = (
+    <FormSection title={t('drafts.arrived')} aside={<span className={cn('figure-md', draft.direction === 'out' ? 'text-negative' : draft.direction === 'in' ? 'text-positive' : '')}>{formatMoney(draft.direction === 'out' ? -Number(draft.amount) : Number(draft.amount), symbol)}</span>}>
+      <div className="space-y-2 text-sm">
+        <div className="text-muted-foreground">
+          {formatShortDate(draft.occurredAt.slice(0, 10))} · {formatTime24h(draft.occurredAt)} · {draft.sourceName ?? t(`drafts.source_${draft.source}`, { defaultValue: draft.source })}
+        </div>
+        {draft.rawText && <p className="whitespace-pre-wrap rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs">{draft.rawText}</p>}
+        {draft.notes && <p className="whitespace-pre-wrap">{draft.notes}</p>}
+      </div>
+    </FormSection>
+  )
+
+  // Dealt with: what arrived and what became of it, nothing left to change.
+  if (closed) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <PageHeader title={t('drafts.reviewTitle')} />
+        {arrivedSection}
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+          <p className="min-w-0 flex-1 text-sm">{t(`drafts.closed_${draft.status}`)}</p>
+          {draft.transactionIds.map((transactionId, index) => (
+            <Button key={transactionId} variant="outline" onClick={() => navigate(`/transactions/${transactionId}`)}>
+              {draft.transactionIds.length > 1 ? t('drafts.openTransactionNumber', { number: index + 1 }) : t('drafts.openTransaction')}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   const split = () =>
     setParts((current) => {
@@ -155,17 +184,9 @@ export default function DraftPage() {
     <div className="max-w-3xl space-y-6">
       <PageHeader title={t('drafts.reviewTitle')} description={t('drafts.reviewDescription')} />
 
-      <FormSection title={t('drafts.arrived')} aside={<span className={cn('figure-md', draft.direction === 'out' ? 'text-negative' : draft.direction === 'in' ? 'text-positive' : '')}>{formatMoney(draft.direction === 'out' ? -Number(draft.amount) : Number(draft.amount), symbol)}</span>}>
-        <div className="space-y-2 text-sm">
-          <div className="text-muted-foreground">
-            {formatShortDate(draft.occurredAt.slice(0, 10))} · {formatTime24h(draft.occurredAt)} · {draft.sourceName ?? t(`drafts.source_${draft.source}`, { defaultValue: draft.source })}
-          </div>
-          {draft.rawText && <p className="whitespace-pre-wrap rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs">{draft.rawText}</p>}
-          {draft.notes && <p className="whitespace-pre-wrap">{draft.notes}</p>}
-        </div>
-      </FormSection>
+      {arrivedSection}
 
-      {draft.possibleDuplicate && !closed && (
+      {draft.possibleDuplicate && (
         <DuplicateCard
           transaction={draft.possibleDuplicate}
           busy={link.isPending}
@@ -173,7 +194,7 @@ export default function DraftPage() {
         />
       )}
 
-      {draft.suggestion?.pairedDraftId && !closed && parts[0].kind === 'transfer' && (
+      {draft.suggestion?.pairedDraftId && parts[0].kind === 'transfer' && (
         <p className="rounded-xl border border-info/40 bg-info/5 px-4 py-3 text-sm">{t('drafts.pairedTransfer', { account: draft.suggestion.account?.name })}</p>
       )}
 
@@ -211,13 +232,13 @@ export default function DraftPage() {
       </FormSection>
 
       <FormActions>
-        <Button type="button" variant="outline" className="text-destructive hover:text-destructive" disabled={closed || discard.isPending} onClick={() => void run(() => discard.mutateAsync(draft.id), t('drafts.discarded'))}>
+        <Button type="button" variant="outline" className="text-destructive hover:text-destructive" disabled={discard.isPending} onClick={() => void run(() => discard.mutateAsync(draft.id), t('drafts.discarded'))}>
           <Trash2 className="mr-2 h-4 w-4" />
           {t('drafts.discard')}
         </Button>
         <Button
           type="button"
-          disabled={closed || accept.isPending || parts.some((part) => !(Number(part.amount) > 0) || !part.description.trim() || !occurredAt)}
+          disabled={accept.isPending || parts.some((part) => !(Number(part.amount) > 0) || !part.description.trim() || !occurredAt)}
           onClick={() => void run(() => accept.mutateAsync({ id: draft.id, parts: parts.map(toRequest) }), t('drafts.accepted', { count: parts.length }))}
         >
           <Check className="mr-2 h-4 w-4" />

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CalendarClock, DatabaseBackup, LogOut, Settings, ShieldCheck, User as UserIcon, Users } from 'lucide-react'
+import { ArrowUpCircle, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,17 +13,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { useAvailableUpdate } from '@/hooks/use-admin'
 
 export default function Header() {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const update = useAvailableUpdate()
   // The reports choose their own range: the app's period means nothing there.
   const showsPeriod = !useLocation().pathname.startsWith('/reports')
 
@@ -54,55 +55,40 @@ export default function Header() {
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
+              {update && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-info ring-2 ring-background" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{user ? getFullName(user) : ''}</p>
-                  {user?.isAdmin && (
-                    <Badge variant="secondary" className="text-xs">{t('common.admin')}</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {user?.email}
-                </p>
+            {/* Who is signed in: opens their account (name, email, password). */}
+            <DropdownMenuItem onClick={() => navigate('/preferences?tab=account')} className="flex-col items-start gap-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">{user ? getFullName(user) : ''}</p>
+                {user?.isAdmin && (
+                  <Badge variant="secondary" className="text-xs">{t('common.admin')}</Badge>
+                )}
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/profile')}>
-              <UserIcon className="mr-2 h-4 w-4" />
-              {t('common.profile')}
+              <p className="text-xs text-muted-foreground">
+                {user?.email}
+              </p>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate('/preferences')}>
               <Settings className="mr-2 h-4 w-4" />
               {t('preferences.title')}
             </DropdownMenuItem>
-
             {user?.isAdmin && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                  {t('admin.title')}
-                </DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => navigate('/admin/users')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  {t('admin.users.title')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  {t('admin.settings.title')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/backups')}>
-                  <DatabaseBackup className="mr-2 h-4 w-4" />
-                  {t('admin.backups.title')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/tasks')}>
-                  <CalendarClock className="mr-2 h-4 w-4" />
-                  {t('admin.tasks.title')}
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                {t('admin.title')}
+              </DropdownMenuItem>
+            )}
+            {update && (
+              <DropdownMenuItem asChild>
+                <a href={update.latest.url} target="_blank" rel="noreferrer" className="text-info focus:text-info">
+                  <ArrowUpCircle className="mr-2 h-4 w-4" />
+                  {t('update.available', { version: update.latest.version })}
+                </a>
+              </DropdownMenuItem>
             )}
 
             <DropdownMenuSeparator />
