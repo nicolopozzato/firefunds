@@ -15,6 +15,11 @@
     <string name="access">Accesso alle notifiche</string>
     <string name="access_on">Attivo</string>
     <string name="access_off">Spento: Android chiede il tuo permesso perché l\'app legga le notifiche.</string>
+    <string name="access_stopped">Attivo, ma Android ha fermato la lettura: le notifiche in arrivo ora potrebbero andare perse. Spegnere e riaccendere l\'accesso la fa ripartire.</string>
+    <string name="battery">Batteria</string>
+    <string name="battery_free">Nessuna limitazione</string>
+    <string name="battery_limited">Ottimizzata: Android può fermare l\'app in background e le notifiche vanno perse. Lasciala funzionare senza limitazioni; su alcuni telefoni (Xiaomi, Huawei, Oppo…) attiva anche l\'avvio automatico nelle impostazioni dell\'app.</string>
+    <string name="battery_open">Togli la limitazione</string>
     <string name="access_open">Apri l\'impostazione</string>
     <string name="sending">Invio</string>
     <string name="all_sent">Niente in attesa</string>

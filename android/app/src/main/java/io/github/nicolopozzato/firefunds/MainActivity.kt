@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
@@ -30,6 +31,8 @@ class MainActivity : Activity() {
     private lateinit var serverToggle: Button
     private lateinit var access: Ui.StatusLine
     private lateinit var accessButton: Button
+    private lateinit var battery: Ui.StatusLine
+    private lateinit var batteryButton: Button
     private lateinit var sending: Ui.StatusLine
     private lateinit var sendButton: Button
     private lateinit var apps: LinearLayout
@@ -70,6 +73,14 @@ class MainActivity : Activity() {
         status.addView(accessButton)
         status.addView(ui.divider())
 
+        battery = ui.StatusLine(getString(R.string.battery))
+        status.addView(battery.view)
+        batteryButton = textButton(getString(R.string.battery_open)) {
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+        }
+        status.addView(batteryButton)
+        status.addView(ui.divider())
+
         sending = ui.StatusLine(getString(R.string.sending))
         status.addView(sending.view)
         sendButton = textButton(getString(R.string.send_now)) {
@@ -104,6 +115,10 @@ class MainActivity : Activity() {
         renderApps()
         handler.post(ticker)
         if (store.isConfigured) check()
+        if (hasAccess()) {
+            Watchdog.schedule(this)
+            if (NotificationReader.connected == null) NotificationReader.rebind(this)
+        }
     }
 
     override fun onPause() {
@@ -150,8 +165,16 @@ class MainActivity : Activity() {
         serverToggle.text = getString(if (store.isConfigured) R.string.server_change else R.string.server_set)
 
         val on = hasAccess()
-        access.set(if (on) ui.positive else ui.negative, getString(if (on) R.string.access_on else R.string.access_off))
-        accessButton.visibility = if (on) View.GONE else View.VISIBLE
+        when {
+            !on -> access.set(ui.negative, getString(R.string.access_off))
+            NotificationReader.connected == null -> access.set(ui.warning, getString(R.string.access_stopped))
+            else -> access.set(ui.positive, getString(R.string.access_on))
+        }
+        accessButton.visibility = if (on && NotificationReader.connected != null) View.GONE else View.VISIBLE
+
+        val free = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+        battery.set(if (free) ui.positive else ui.warning, getString(if (free) R.string.battery_free else R.string.battery_limited))
+        batteryButton.visibility = if (free) View.GONE else View.VISIBLE
 
         val waiting = store.queue().length()
         val last = if (store.lastSentAt > 0) getString(R.string.last_sent, ui.ago(store.lastSentAt)) else getString(R.string.never_sent)

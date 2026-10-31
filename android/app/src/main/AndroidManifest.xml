@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Watchdog survives a restart (a persisted job). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- To ask, from the home screen, to be left out of battery optimisation. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- To list the installed apps (those in the launcher) to choose from. -->
     <queries>
@@ -46,6 +50,11 @@
 
         <service
             android:name=".SendJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".Watchdog"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>

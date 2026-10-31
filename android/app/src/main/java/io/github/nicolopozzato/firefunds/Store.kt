@@ -14,6 +14,7 @@ import java.io.File
 class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("firefunds", Context.MODE_PRIVATE)
     private val queueFile = File(context.filesDir, "queue.json")
+    private val keysFile = File(context.filesDir, "queued-keys.json")
 
     var serverUrl: String
         get() = prefs.getString("server", "") ?: ""
@@ -71,21 +72,34 @@ class Store(private val context: Context) {
         prefs.edit().putString("lastError", error).apply()
     }
 
-    @Synchronized
-    fun enqueue(notification: JSONObject) {
+    /**
+     * Queues a notification unless this one (same key) was queued already:
+     * Android may tell the same one twice, and the catch-up on reconnect
+     * goes through every notification still in the shade.
+     *
+     * @return false when it was already queued
+     */
+    fun enqueue(notification: JSONObject): Boolean = synchronized(LOCK) {
+        val key = notification.optString("key")
+        val known = recentKeys()
+        if (key in known) return false
+        known.add(key)
+        // Enough to cover the shade and a day of notifications.
+        while (known.size > 1000) known.removeAt(0)
+        write(keysFile, JSONArray(known).toString())
+
         val queue = queue()
         queue.put(notification)
         // A phone offline for days keeps the latest 500.
         while (queue.length() > 500) queue.remove(0)
-        queueFile.writeText(queue.toString())
+        write(queueFile, queue.toString())
+        return true
     }
 
-    @Synchronized
-    fun queue(): JSONArray = if (queueFile.exists()) JSONArray(queueFile.readText()) else JSONArray()
+    fun queue(): JSONArray = synchronized(LOCK) { read(queueFile)?.let(::JSONArray) ?: JSONArray() }
 
     /** Takes these out of the queue, leaving any that arrived while they were being sent. */
-    @Synchronized
-    fun removeFromQueue(keys: Set<String>) {
+    fun removeFromQueue(keys: Set<String>) = synchronized(LOCK) {
         if (keys.isEmpty()) return
         val queue = queue()
         val left = JSONArray()
@@ -93,6 +107,33 @@ class Store(private val context: Context) {
             val item = queue.getJSONObject(i)
             if (item.optString("key") !in keys) left.put(item)
         }
-        queueFile.writeText(left.toString())
+        write(queueFile, left.toString())
+    }
+
+    private fun recentKeys(): MutableList<String> {
+        val keys = read(keysFile)?.let(::JSONArray) ?: JSONArray()
+        return MutableList(keys.length()) { keys.getString(it) }
+    }
+
+    /** The file's text; null when missing or unreadable (cut short by a crash), so one bad file never stops the reading. */
+    private fun read(file: File): String? = try {
+        file.takeIf { it.exists() }?.readText()?.also { JSONArray(it) }
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Written whole or not at all: a temporary file, then renamed over the old one. */
+    private fun write(file: File, text: String) {
+        val temp = File(file.path + ".tmp")
+        temp.writeText(text)
+        if (!temp.renameTo(file)) {
+            file.writeText(text)
+            temp.delete()
+        }
+    }
+
+    companion object {
+        /** One lock for every Store: the reader, the sender and the screen each make their own. */
+        private val LOCK = Any()
     }
 }

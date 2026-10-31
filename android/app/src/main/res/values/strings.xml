@@ -16,6 +16,11 @@
     <string name="access">Access to notifications</string>
     <string name="access_on">On</string>
     <string name="access_off">Off: Android needs your permission to let the app read notifications.</string>
+    <string name="access_stopped">On, but Android has stopped the reader: notifications arriving now could be missed. Turning access off and on again restarts it.</string>
+    <string name="battery">Battery</string>
+    <string name="battery_free">Not restricted</string>
+    <string name="battery_limited">Optimised: Android may stop the app in the background and notifications get lost. Allow it to run without restrictions; on some phones (Xiaomi, Huawei, Oppo…) also turn on autostart in the app\'s settings.</string>
+    <string name="battery_open">Remove the restriction</string>
     <string name="access_open">Open the setting</string>
     <string name="sending">Sending</string>
     <string name="all_sent">Nothing waiting</string>
