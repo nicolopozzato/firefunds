@@ -10,9 +10,6 @@ import PullToRefresh from './PullToRefresh'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useHideAmounts } from '@/hooks/use-hide-amounts'
 
-/** "0.1.0" -> "0.1": major.minor is enough to tell versions apart at a glance. */
-const APP_VERSION = __APP_VERSION__.split('.').slice(0, 2).join('.')
-
 /** How far down each visited page was scrolled, by history entry, to restore it on Back. */
 const scrollPositions = new Map<string, number>()
 
@@ -101,7 +98,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               {/* Signature at the bottom of every page: also leaves some air under the last table. On phones it is on the "More" page. */}
               <footer className="mt-auto hidden pt-10 text-xs text-muted-foreground/60 md:block">
-                FireFunds <span className="text-[10px]">v{APP_VERSION}</span>
+                FireFunds <span className="text-[10px]">v{__APP_VERSION__}</span>
               </footer>
             </div>
           </main>

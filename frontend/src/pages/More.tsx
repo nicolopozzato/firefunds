@@ -8,9 +8,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { UpdateRow } from '@/components/UpdateNotice'
 
-/** "0.1.0" -> "0.1", as at the bottom of every page on larger screens. */
-const APP_VERSION = __APP_VERSION__.split('.').slice(0, 2).join('.')
-
 interface Entry {
   label: string
   href: string
@@ -119,7 +116,7 @@ export default function More() {
       </button>
 
       <p className="text-center text-xs text-muted-foreground/60">
-        FireFunds <span className="text-[10px]">v{APP_VERSION}</span>
+        FireFunds <span className="text-[10px]">v{__APP_VERSION__}</span>
       </p>
     </div>
   )
