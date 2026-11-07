@@ -6,7 +6,9 @@ framework:
     # X-Forwarded-For, which login throttling counts attempts by. Trusted only
     # from TRUSTED_PROXIES (private networks by default: Docker's, whatever
     # pool it picks). The proxy must add the client's address to the header,
-    # not pass on what the client sent (Traefik, Caddy and nginx do).
+    # not pass on what the client sent (Traefik, Caddy and nginx do). Behind
+    # Cloudflare the visitor's address comes from CF-Connecting-IP
+    # (CloudflareClientIpListener).
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['x-forwarded-for']
 

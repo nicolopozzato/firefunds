@@ -50,6 +50,10 @@ export const apiTokensApi = {
     return (await api.post<ApiToken>('/api/tokens', { name, scope })).data
   },
 
+  async rename(id: string, name: string): Promise<ApiToken> {
+    return (await api.put<ApiToken>(`/api/tokens/${id}`, { name })).data
+  },
+
   async revoke(id: string): Promise<void> {
     await api.delete(`/api/tokens/${id}`)
   },

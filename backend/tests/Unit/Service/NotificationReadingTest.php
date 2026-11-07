@@ -32,6 +32,17 @@ class NotificationReadingTest extends TestCase
         );
     }
 
+    public function testARuleWrittenToBeSlowGivesUpQuickly(): void
+    {
+        $limit = ini_get('pcre.backtrack_limit');
+        $rules = array_fill(0, 50, ['kind' => 'ignore', 'pattern' => '{*}a{*}a{*}a{*}a{*}a{*}b']);
+
+        $start = hrtime(true);
+        $this->assertNull(NotificationReading::read($rules, 'b'.str_repeat('a', 3999)));
+        $this->assertLessThan(100, (hrtime(true) - $start) / 1e6, 'milliseconds for 50 such rules');
+        $this->assertSame($limit, ini_get('pcre.backtrack_limit'), 'PHP\'s own limit is put back');
+    }
+
     public function testAmountsInEitherWriting(): void
     {
         $this->assertSame('1234.56', NotificationReading::amount('1.234,56'));

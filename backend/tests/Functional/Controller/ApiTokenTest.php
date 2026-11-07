@@ -47,6 +47,61 @@ class ApiTokenTest extends WebTestCaseBase
         $this->assertResponseIsSuccessful();
     }
 
+    public function testADraftsTokenIsNotToldWhichTransactionADraftMatched(): void
+    {
+        $token = $this->makeToken('Telefono', 'drafts')['token'];
+        $account = $this->call('POST', '/api/accounts/asset', null, ['type' => 'asset', 'name' => 'Conto', 'currencyCode' => 'EUR', 'assetKind' => 'checking'], jwt: true);
+        $this->call('POST', '/api/transactions', null, ['description' => 'Visita', 'sourceAccountId' => $account['id'], 'newDestinationAccountName' => 'Clinica', 'amount' => '42.17', 'occurredAt' => '2026-11-01T10:00:00', 'notes' => 'privata'], jwt: true);
+        $this->assertResponseStatusCodeSame(201);
+
+        $draft = $this->call('POST', '/api/drafts', $token, ['amount' => '42.17', 'occurredAt' => '2026-11-01T12:00:00']);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertNull($draft['possibleDuplicate']);
+        $skipped = $this->call('POST', '/api/drafts', $token, ['amount' => '42.17', 'occurredAt' => '2026-11-01T12:00:00', 'ifExists' => 'skip']);
+        $this->assertSame('matched', $skipped['status']);
+        $this->assertSame([], $skipped['transactionIds']);
+
+        // The user, reviewing it, sees what it matched.
+        $this->assertSame('Visita', $this->call('GET', "/api/drafts/{$draft['id']}", jwt: true)['possibleDuplicate']['description']);
+    }
+
+    public function testAnEncodedPathDoesNotWidenTheScope(): void
+    {
+        $full = $this->makeToken('Script', 'full')['token'];
+        $drafts = $this->makeToken('Telefono', 'drafts')['token'];
+        $account = $this->call('POST', '/api/accounts/asset', null, ['type' => 'asset', 'name' => 'Conto', 'currencyCode' => 'EUR', 'assetKind' => 'checking'], jwt: true);
+
+        // The router decodes the path: these are /api/tokens, /api/push/... and an account's history.
+        $this->call('GET', '/api/%74okens', $full);
+        $this->assertResponseStatusCodeSame(403);
+        $this->call('POST', '/api/%74okens', $full, ['name' => 'x', 'scope' => 'full']);
+        $this->assertResponseStatusCodeSame(403);
+        $this->call('GET', '/api/%70ush/subscriptions', $full);
+        $this->assertResponseStatusCodeSame(403);
+        $this->call('GET', "/api/accounts/{$account['id']}%2Fbalance-history", $drafts);
+        $this->assertResponseStatusCodeSame(403);
+        $this->call('GET', "/api/accounts/{$account['id']}", $drafts);
+        $this->assertResponseIsSuccessful();
+    }
+
+    public function testATokenIsRenamedAndKeepsWorking(): void
+    {
+        $token = $this->makeToken('Telefono', 'drafts');
+
+        $renamed = $this->call('PUT', "/api/tokens/{$token['id']}", null, ['name' => '  Pixel di Nico  '], jwt: true);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame('Pixel di Nico', $renamed['name']);
+        $this->assertSame('Pixel di Nico', $this->call('GET', '/api/tokens', jwt: true)[0]['name']);
+
+        $this->call('PUT', "/api/tokens/{$token['id']}", null, ['name' => ' '], jwt: true);
+        $this->assertResponseStatusCodeSame(422);
+        $this->call('PUT', "/api/tokens/{$token['id']}", $token['token'], ['name' => 'x']);
+        $this->assertResponseStatusCodeSame(403, 'never through a token');
+
+        $draft = $this->call('POST', '/api/drafts', $token['token'], ['amount' => '1.00', 'occurredAt' => '2026-10-28T12:00:00']);
+        $this->assertSame('Pixel di Nico', $draft['sourceName']);
+    }
+
     public function testAnUnknownTokenIsRefused(): void
     {
         $this->call('GET', '/api/accounts/asset', 'ff_'.str_repeat('x', 40));

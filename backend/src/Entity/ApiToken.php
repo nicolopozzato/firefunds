@@ -84,6 +84,12 @@ class ApiToken
         return $this->name;
     }
 
+    /** Only how the user knows it: drafts already made keep the name they came with. */
+    public function rename(string $name): void
+    {
+        $this->name = $name;
+    }
+
     public function getScope(): string
     {
         return $this->scope;

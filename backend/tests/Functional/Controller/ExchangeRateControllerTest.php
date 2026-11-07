@@ -150,6 +150,22 @@ class ExchangeRateControllerTest extends WebTestCaseBase
         $this->assertResponseStatusCodeSame(422);
     }
 
+    public function testOnlyTheCurrenciesTheUserHoldsAreReadable(): void
+    {
+        // Rates of a currency only someone else holds start where their data does.
+        static::getContainer()->get(ExchangeRateRepository::class)->upsert('JPY', ['2026-10-10' => ['160.00000000', ExchangeRateSource::Ecb]]);
+
+        $this->request('GET', '/api/exchange-rates/JPY?from=2026-10-01&to=2026-10-12');
+        $this->assertResponseStatusCodeSame(400);
+        $this->request('PUT', '/api/exchange-rates/JPY/2026-10-10', ['rate' => '0.006']);
+        $this->assertResponseStatusCodeSame(400);
+
+        $client = $this->client;
+        static::authenticate($client, static::createUser());
+        $this->request('GET', '/api/exchange-rates/USD?from=2026-10-10&to=2026-10-12');
+        $this->assertResponseStatusCodeSame(400, 'a single-currency user reads no rates');
+    }
+
     private function userWithDollars(): User
     {
         $other = static::createUser();

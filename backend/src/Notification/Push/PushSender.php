@@ -12,6 +12,7 @@ use Minishlink\WebPush\WebPush;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
 use Symfony\Component\HttpClient\Psr18Client;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -45,40 +46,54 @@ class PushSender
             return 0;
         }
 
-        // Symfony's HTTP client as PSR-18 (the app's proxy and timeouts), with nyholm/psr7's messages.
+        // Symfony's HTTP client as PSR-18, with nyholm/psr7's messages. The
+        // endpoint is the user's to give: never an address of the server's own
+        // networks (localhost holds Caddy's admin API), no redirect to one, and
+        // a slow push service costs seconds, not minutes.
         $factory = new Psr17Factory();
+        $client = new NoPrivateNetworkHttpClient($this->httpClient->withOptions([
+            'max_redirects' => 0,
+            'timeout' => 5,
+            'max_duration' => 10,
+        ]));
         $push = new WebPush(
             ['VAPID' => $this->keys->auth()],
             ['TTL' => 86400, 'urgency' => 'normal'],
-            new Psr18Client($this->httpClient, $factory, $factory),
+            new Psr18Client($client, $factory, $factory),
             $factory,
             $factory,
         );
-        $byEndpoint = [];
-        foreach ($devices as $device) {
-            $byEndpoint[$device->getEndpoint()] = $device;
-            $push->queueNotification(
-                Subscription::create([
-                    'endpoint' => $device->getEndpoint(),
-                    'publicKey' => $device->getPublicKey(),
-                    'authToken' => $device->getAuthToken(),
-                    'contentEncoding' => 'aes128gcm',
-                ]),
-                (string) json_encode($message),
-            );
-        }
-
         $reached = 0;
         $now = $this->clock->now();
-        foreach ($push->flush() as $report) {
-            $device = $byEndpoint[$report->getEndpoint()] ?? null;
-            if ($report->isSuccess()) {
-                $device?->markSent($now);
-                ++$reached;
-            } elseif ($report->isSubscriptionExpired() && $device !== null) {
+        // One device at a time: one that can't be sent to (keys the encryption
+        // refuses) must not stop the others, nor the other users' notifications.
+        foreach ($devices as $device) {
+            try {
+                $push->queueNotification(
+                    Subscription::create([
+                        'endpoint' => $device->getEndpoint(),
+                        'publicKey' => $device->getPublicKey(),
+                        'authToken' => $device->getAuthToken(),
+                        'contentEncoding' => 'aes128gcm',
+                    ]),
+                    (string) json_encode($message),
+                );
+                foreach ($push->flush() as $report) {
+                    if ($report->isSuccess()) {
+                        $device->markSent($now);
+                        ++$reached;
+                    } elseif ($report->isSubscriptionExpired()) {
+                        $this->entityManager->remove($device);
+                    } else {
+                        $this->logger->warning('Push to {host} failed: {reason}', ['host' => parse_url($device->getEndpoint(), \PHP_URL_HOST), 'reason' => $report->getReason()]);
+                    }
+                }
+            } catch (\InvalidArgumentException $e) {
+                // Keys the encryption refuses: never sendable, forgotten like a device its push service says is gone.
+                $this->logger->warning('Push device {id} forgotten: {error}', ['id' => $device->getId()->toRfc4122(), 'error' => $e->getMessage()]);
                 $this->entityManager->remove($device);
-            } else {
-                $this->logger->warning('Push to {endpoint} failed: {reason}', ['endpoint' => $report->getEndpoint(), 'reason' => $report->getReason()]);
+            } catch (\Throwable $e) {
+                $this->logger->error('Push to device {id} failed: {error}', ['id' => $device->getId()->toRfc4122(), 'error' => $e->getMessage()]);
             }
         }
         $this->entityManager->flush();

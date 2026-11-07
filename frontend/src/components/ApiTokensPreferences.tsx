@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
-import { Copy, Download, KeyRound, Plus, Trash2 } from 'lucide-react'
+import { Copy, Download, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
+import ApiTokenRenameDialog from '@/components/ApiTokenRenameDialog'
 import ApiUsage from '@/components/ApiUsage'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Field from '@/components/Field'
@@ -29,6 +30,7 @@ export default function ApiTokensPreferences() {
   const [name, setName] = useState('')
   const [scope, setScope] = useState<ApiTokenScope>('drafts')
   const [made, setMade] = useState<ApiToken | null>(null)
+  const [renaming, setRenaming] = useState<ApiToken | null>(null)
   const [revoking, setRevoking] = useState<ApiToken | null>(null)
 
   const submit = async () => {
@@ -143,6 +145,9 @@ export default function ApiTokensPreferences() {
                       {token.lastUsedAt ? t('apiTokens.lastUsed', { date: formatShortDate(token.lastUsedAt) }) : t('apiTokens.neverUsed')}
                     </div>
                   </div>
+                  <Button variant="ghost" size="icon" aria-label={t('apiTokens.rename')} title={t('apiTokens.rename')} onClick={() => setRenaming(token)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" aria-label={t('apiTokens.revoke')} title={t('apiTokens.revoke')} onClick={() => setRevoking(token)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -154,6 +159,8 @@ export default function ApiTokensPreferences() {
           )}
         </CardContent>
       </Card>
+
+      <ApiTokenRenameDialog token={renaming} onClose={() => setRenaming(null)} />
 
       <ConfirmDialog
         open={!!revoking}

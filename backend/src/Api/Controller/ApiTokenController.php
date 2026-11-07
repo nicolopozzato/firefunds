@@ -3,6 +3,7 @@
 namespace App\Api\Controller;
 
 use App\Api\DTO\CreateApiTokenRequest;
+use App\Api\DTO\RenameApiTokenRequest;
 use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
@@ -15,7 +16,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** The user's personal access tokens: made (shown once), listed, revoked. Never through a token itself. */
+/** The user's personal access tokens: made (shown once), listed, renamed, revoked. Never through a token itself. */
 #[Route('/api/tokens')]
 class ApiTokenController extends AbstractController
 {
@@ -46,15 +47,29 @@ class ApiTokenController extends AbstractController
         return $this->json([...self::toArray($token), 'token' => $plain], 201);
     }
 
+    #[Route('/{id}', name: 'api_tokens_rename', methods: ['PUT'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function rename(string $id, #[MapRequestPayload] RenameApiTokenRequest $request): JsonResponse
+    {
+        $token = $this->findOwned($id);
+        $token->rename(trim($request->name));
+        $this->entityManager->flush();
+
+        return $this->json(self::toArray($token));
+    }
+
     #[Route('/{id}', name: 'api_tokens_revoke', methods: ['DELETE'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     public function revoke(string $id): JsonResponse
     {
-        $token = $this->tokens->findOneByUserAndId($this->getCurrentUser(), $id)
-            ?? throw ApiException::notFound(ErrorCode::ApiTokenNotFound);
-        $token->revoke($this->clock->now());
+        $this->findOwned($id)->revoke($this->clock->now());
         $this->entityManager->flush();
 
         return new JsonResponse(null, 204);
+    }
+
+    private function findOwned(string $id): ApiToken
+    {
+        return $this->tokens->findOneByUserAndId($this->getCurrentUser(), $id)
+            ?? throw ApiException::notFound(ErrorCode::ApiTokenNotFound);
     }
 
     /** 40 characters from [0-9A-Za-z]: about 238 bits. */

@@ -15,7 +15,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * A user whose password an administrator set "to be changed at the next
  * login" (User::$mustChangePassword) gets only who they are and the change
  * of password until they choose one; anything else is a 403 with its code.
- * After the firewall (priority 8), so the user is known.
+ * After the firewall (priority 8), so the user is known. The path is
+ * decoded first, as the firewall and the router do: /%61pi/... is /api/...
  */
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 4)]
 final readonly class PasswordChangeRequiredListener
@@ -28,7 +29,7 @@ final readonly class PasswordChangeRequiredListener
 
     public function __invoke(RequestEvent $event): void
     {
-        if (!$event->isMainRequest() || !str_starts_with($event->getRequest()->getPathInfo(), '/api')) {
+        if (!$event->isMainRequest() || !str_starts_with(rawurldecode($event->getRequest()->getPathInfo()), '/api')) {
             return;
         }
 

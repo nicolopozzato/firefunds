@@ -9,7 +9,6 @@ use App\Currency\DTO\ExchangeRateResponse;
 use App\Entity\ExchangeRateOverride;
 use App\Entity\User;
 use App\Investment\Service\PriceCalendar;
-use App\Repository\CurrencyRepository;
 use App\Repository\ExchangeRateOverrideRepository;
 use App\Repository\ExchangeRateRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,7 +30,6 @@ class UserExchangeRates
     public function __construct(
         private readonly ExchangeRateRepository $rates,
         private readonly ExchangeRateOverrideRepository $overrides,
-        private readonly CurrencyRepository $currencies,
         private readonly EntityManagerInterface $entityManager,
         private readonly PriceCalendar $calendar,
     ) {
@@ -176,11 +174,20 @@ class UserExchangeRates
         $this->entityManager->flush();
     }
 
-    /** The code, if rates against the user's currency exist for it: any other than their own. */
+    /**
+     * The code, if it is one of the currencies the user's rates are about
+     * (currenciesFor). Any other is refused: the shared rates of a currency
+     * start where its holders' data does, so reading them would tell about
+     * other users.
+     */
     private function assertUsable(User $user, string $currency): string
     {
         $code = strtoupper($currency);
-        if ($code === $user->getCurrency() || $this->currencies->findOneByCode($code) === null) {
+        $needed = array_keys($this->rates->neededCurrencies($user));
+        if ($needed !== []) {
+            $needed[] = 'EUR';
+        }
+        if ($code === $user->getCurrency() || !\in_array($code, $needed, true)) {
             throw new ApiException(ErrorCode::RateCurrencyInvalid, ['currency' => $code]);
         }
 

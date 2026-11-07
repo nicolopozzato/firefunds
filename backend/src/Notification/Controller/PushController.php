@@ -26,6 +26,8 @@ class PushController extends AbstractController
     use ResolvesCurrentUser;
 
     private const ID = ['id' => '[0-9a-fA-F-]{36}'];
+    /** More than anyone has; each one costs a request on every push, sent one after another. */
+    private const MAX_DEVICES = 20;
 
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
@@ -56,6 +58,9 @@ class PushController extends AbstractController
         $user = $this->getCurrentUser();
         $this->keys->rememberOrigin($http->getSchemeAndHttpHost());
         $device = $this->subscriptions->findOneByEndpoint($request->endpoint);
+        if ($device === null && \count($this->subscriptions->findByUser($user)) >= self::MAX_DEVICES) {
+            throw new ApiException(ErrorCode::PushTooManyDevices, ['max' => self::MAX_DEVICES], 422);
+        }
         if ($device === null) {
             $device = new PushSubscription($user, $request->endpoint, $request->keys['p256dh'], $request->keys['auth'], trim($request->label), $this->clock->now());
             $this->entityManager->persist($device);

@@ -138,7 +138,7 @@ networks:
 
 Then `docker compose up -d` again. With another proxy (nginx, Caddy, Cloudflare Tunnel), skip the override and point it at `127.0.0.1:8080`.
 
-Login throttling counts failed attempts by the client's address, which the app reads from `X-Forwarded-For` when the request comes from a private network (`TRUSTED_PROXIES` in `.env`). Your proxy must add the client's address to that header rather than pass on what the client sent: Traefik, Caddy and nginx with `$proxy_add_x_forwarded_for` do.
+Login throttling counts failed attempts by the client's address, which the app reads from `X-Forwarded-For` when the request comes from a private network (`TRUSTED_PROXIES` in `.env`). Your proxy must add the client's address to that header rather than pass on what the client sent: Traefik, Caddy and nginx with `$proxy_add_x_forwarded_for` do. Behind Cloudflare (orange cloud) there is nothing to set: the app takes the visitor's address from Cloudflare's `CF-Connecting-IP` when the request comes from one of Cloudflare's servers, and ignores the header otherwise.
 
 The register page is open until the first account exists, and that account is the administrator: create it before the app is reachable from the internet.
 
@@ -246,7 +246,7 @@ docker compose up -d
 
 L'app risponde su `http://127.0.0.1:8080`. Aprila e registrati: il primo utente diventa l'amministratore, quindi crealo **prima** di rendere l'app raggiungibile da internet. Tutto quello che FireFunds salva è in `./data` (database, chiavi di accesso, backup).
 
-**HTTPS:** l'app parla solo HTTP su `127.0.0.1`; mettila dietro un reverse proxy (Traefik, Caddy, nginx, Cloudflare Tunnel). L'esempio per Traefik è nella sezione [HTTPS](#https-reverse-proxy). Il proxy deve aggiungere l'indirizzo del client all'header `X-Forwarded-For`, che serve al blocco dei tentativi di accesso falliti.
+**HTTPS:** l'app parla solo HTTP su `127.0.0.1`; mettila dietro un reverse proxy (Traefik, Caddy, nginx, Cloudflare Tunnel). L'esempio per Traefik è nella sezione [HTTPS](#https-reverse-proxy). Il proxy deve aggiungere l'indirizzo del client all'header `X-Forwarded-For`, che serve al blocco dei tentativi di accesso falliti. Dietro Cloudflare non serve impostare nulla: l'app prende l'indirizzo del visitatore da `CF-Connecting-IP` quando la richiesta arriva da un server di Cloudflare.
 
 **Aggiornare:** `docker compose pull && docker compose up -d` (dalle versioni fino alla 0.3.0, con PostgreSQL 16, il passaggio a PostgreSQL 18 richiede un dump: i comandi sono nella sezione *Updating* in inglese). Le migrazioni del database partono da sole all'avvio, quindi fai prima un backup (Amministrazione → Backup → Fai un backup ora). Se aggiorni da una versione senza backup, aggiungi `- ./data/backups:/app/backend/var/backups` ai `volumes:` di `x-app` in `compose.yml` (o riscaricalo).
 

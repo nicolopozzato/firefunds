@@ -53,6 +53,10 @@ CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
 
 EXPOSE 8000
 
+# The admin API is on a unix socket (Caddyfile), not FrankenPHP's default
+# localhost:2019 that the base image's healthcheck reads.
+HEALTHCHECK CMD curl -f --unix-socket /data/caddy/admin.sock http://localhost/metrics || exit 1
+
 
 # ----------------------------------------------------------------- dev ----
 FROM base AS dev

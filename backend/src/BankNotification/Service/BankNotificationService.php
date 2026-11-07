@@ -25,6 +25,9 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class BankNotificationService
 {
+    /** How many of a source's latest notifications the rules' statistics count: months of a bank's messages. */
+    public const STATS_NOTIFICATIONS = 300;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly NotificationSourceRepository $sources,
@@ -99,9 +102,9 @@ class BankNotificationService
     }
 
     /**
-     * What each rule reads among all the source's notifications, in order (a
-     * notification goes to the first rule that reads it): how many and the
-     * latest. A rule that reads none can go.
+     * What each rule reads among the source's latest notifications
+     * (STATS_NOTIFICATIONS), in order (a notification goes to the first rule
+     * that reads it): how many and the latest. A rule that reads none can go.
      *
      * @param list<array{kind: string, pattern: string}> $rules
      * @return list<array{matches: int, lastMatch: ?string}> one per rule
@@ -109,7 +112,7 @@ class BankNotificationService
     public function ruleStats(NotificationSource $source, array $rules): array
     {
         $stats = array_fill(0, \count($rules), ['matches' => 0, 'lastMatch' => null]);
-        foreach ($this->notifications->findTexts($source) as $row) {
+        foreach ($this->notifications->findLatestTexts($source, self::STATS_NOTIFICATIONS) as $row) {
             $rule = NotificationReading::read($rules, trim($row['title']."\n".$row['text']))['rule'] ?? null;
             if ($rule === null) {
                 continue;

@@ -35,6 +35,15 @@ final readonly class DraftResponse
     ) {
     }
 
+    /**
+     * For a caller that may not read transactions (a `drafts` token): the
+     * draft itself, not the transaction it matched.
+     */
+    public function withoutTransactions(): self
+    {
+        return clone($this, ['possibleDuplicate' => null, 'transactionIds' => []]);
+    }
+
     /** @param array<string, mixed>|null $suggestion */
     public static function fromEntity(Draft $draft, string $currency, ?array $suggestion = null): self
     {

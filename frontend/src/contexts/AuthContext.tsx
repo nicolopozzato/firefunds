@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState, useEffect, ReactNode 
 import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../lib/auth-api';
+import { pausePushHere, resumePushHere } from '../lib/push';
 import { setDefaultCurrency, setNumberFormat } from '../lib/utils';
 import type { User, LoginRequest, RegisterRequest } from '../types/auth';
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.login(credentials);
     const userData = await authApi.getCurrentUser();
     applyUser(userData);
+    void resumePushHere(userData.id);
   };
 
   const register = async (data: RegisterRequest) => {
@@ -73,7 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login({ email: data.email, password: data.password });
   };
 
+  // This device stops getting the user's push notifications first, while the
+  // session can still tell the server so.
   const logout = async () => {
+    if (user) await pausePushHere(user.id);
     await authApi.logout();
     queryClient.clear();
     setUser(null);

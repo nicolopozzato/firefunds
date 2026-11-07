@@ -66,14 +66,19 @@ class DraftController extends AbstractController
     /**
      * 201 with the draft: waiting for the user (`pending`), or already dealt
      * with (`matched`: an identical transaction, or a recurring one recorded).
+     * A `drafts` token may not read transactions, so it isn't told which one.
      */
     #[Route('', name: 'api_drafts_create', methods: ['POST'])]
     public function create(#[MapRequestPayload] CreateDraftRequest $request, Request $http): JsonResponse
     {
         $token = $http->attributes->get('_api_token');
         $draft = $this->drafts->create($this->getCurrentUser(), $request, 'api', $token instanceof ApiToken ? $token->getName() : null);
+        $response = $this->toResponse($draft);
+        if ($token instanceof ApiToken && $token->getScope() !== ApiToken::SCOPE_FULL) {
+            $response = $response->withoutTransactions();
+        }
 
-        return $this->json($this->toResponse($draft), 201);
+        return $this->json($response, 201);
     }
 
     /** What the user wrote before with this payee: its usual description, the latest descriptions and categories. */

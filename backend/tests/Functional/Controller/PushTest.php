@@ -3,10 +3,13 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Notification;
+use App\Entity\PushSubscription;
 use App\Entity\User;
 use App\Notification\Push\PushDelivery;
+use App\Notification\Push\PushSender;
 use App\Notification\Service\NotificationCenter;
 use App\Repository\NotificationRepository;
+use App\Repository\PushSubscriptionRepository;
 use App\Tests\Functional\WebTestCaseBase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -40,7 +43,7 @@ class PushTest extends WebTestCaseBase
         $this->client->request('GET', '/api/push/key');
         $this->assertSame($key, json_decode((string) $this->client->getResponse()->getContent(), true)['publicKey'], 'made once');
 
-        $device = ['endpoint' => 'https://push.example.test/abc', 'keys' => ['p256dh' => 'BPublic', 'auth' => 'secret'], 'label' => 'Chrome su Android'];
+        $device = ['endpoint' => 'https://push.example.test/abc', 'keys' => self::browserKeys(), 'label' => 'Chrome su Android'];
         $this->post('/api/push/subscriptions', $device);
         $this->assertResponseStatusCodeSame(201);
         $this->post('/api/push/subscriptions', [...$device, 'label' => 'Chrome su Android (nuovo)']);
@@ -50,6 +53,79 @@ class PushTest extends WebTestCaseBase
 
         $this->post('/api/push/unsubscribe', ['endpoint' => $device['endpoint']]);
         $this->assertSame([], $this->get('/api/push/subscriptions'));
+    }
+
+    public function testKeysThatAreNotABrowsersAreRefused(): void
+    {
+        $this->post('/api/push/subscriptions', ['endpoint' => 'https://push.example.test/abc', 'keys' => ['p256dh' => 'AAAA', 'auth' => 'AAAA'], 'label' => 'x']);
+        $this->assertResponseStatusCodeSame(422);
+        $this->post('/api/push/subscriptions', ['endpoint' => 'https://push.example.test/abc', 'keys' => [...self::browserKeys(), 'auth' => 'AAAA'], 'label' => 'x']);
+        $this->assertResponseStatusCodeSame(422);
+    }
+
+    public function testTheEndpointIsAPushServicesNeverTheServersOwnNetwork(): void
+    {
+        foreach (['http://push.example.test/abc', 'http://127.0.0.1:2019/stop'] as $endpoint) {
+            $this->post('/api/push/subscriptions', ['endpoint' => $endpoint, 'keys' => self::browserKeys(), 'label' => 'x']);
+            $this->assertResponseStatusCodeSame(422, $endpoint);
+        }
+
+        // One saved before endpoints were checked: refused before any connection is made.
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $entityManager->find(User::class, $this->user->getId());
+        $keys = self::browserKeys();
+        foreach (['https://127.0.0.1:2019/stop', 'https://localhost/stop', 'https://10.0.0.1/'] as $endpoint) {
+            $entityManager->persist(new PushSubscription($user, $endpoint, $keys['p256dh'], $keys['auth'], 'Vecchio', new \DateTimeImmutable()));
+        }
+        $entityManager->flush();
+        $this->assertSame(0, static::getContainer()->get(PushSender::class)->send($user, ['title' => 't', 'body' => 'b', 'url' => '/']));
+    }
+
+    public function testAUserHasAtMostTwentyDevices(): void
+    {
+        for ($i = 0; $i < 20; ++$i) {
+            $this->post('/api/push/subscriptions', ['endpoint' => "https://push.example.test/$i", 'keys' => self::browserKeys(), 'label' => "d$i"]);
+            $this->assertResponseStatusCodeSame(201);
+        }
+        $this->post('/api/push/subscriptions', ['endpoint' => 'https://push.example.test/20', 'keys' => self::browserKeys(), 'label' => 'd20']);
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSame('push_too_many_devices', json_decode((string) $this->client->getResponse()->getContent(), true)['code']);
+        $this->post('/api/push/subscriptions', ['endpoint' => 'https://push.example.test/0', 'keys' => self::browserKeys(), 'label' => 'd0 again']);
+        $this->assertResponseStatusCodeSame(201, 'the same device renewed is not a new one');
+    }
+
+    public function testADeviceThatCantBeSentToStopsNobodyElse(): void
+    {
+        // Saved before keys were checked: the encryption refuses it.
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $other = static::createUser();
+        $entityManager->persist(new PushSubscription($other, 'https://push.example.test/broken', 'AAAA', 'AAAA', 'Vecchio', new \DateTimeImmutable()));
+        static::getContainer()->get(NotificationCenter::class)->raise($other, 'draft_new', 'draft:other', ['draftId' => 'd', 'amount' => '1.00', 'description' => 'x']);
+        $entityManager->flush();
+        self::mockTime('2026-11-10 07:01:00 Europe/Rome');
+        $this->raise('task_failing', 'task:prices');
+
+        $this->assertSame(2, $this->deliver(), 'the alert after it still goes');
+        $this->assertTrue($this->pushed('draft:other'));
+        $this->assertTrue($this->pushed('task:prices'));
+        $this->assertSame([], static::getContainer()->get(PushSubscriptionRepository::class)->findByUser($other), 'never sendable: forgotten');
+    }
+
+    public function testAPileOfNotificationsGoesOutPageByPage(): void
+    {
+        $center = static::getContainer()->get(NotificationCenter::class);
+        $user = static::getContainer()->get(EntityManagerInterface::class)->find(User::class, $this->user->getId());
+        for ($i = 0; $i < 450; ++$i) {
+            $center->raise($user, 'draft_new', "draft:$i", ['draftId' => "$i", 'amount' => '1.00', 'description' => 'x']);
+        }
+        $this->raise('recurring_missing', 'recurring:a:2026-11-03');
+
+        $this->assertSame(450, $this->deliver(), 'more than a page, every one');
+        $this->assertTrue($this->pushed('draft:0'));
+        $this->assertTrue($this->pushed('draft:449'));
+        $this->assertFalse($this->pushed('recurring:a:2026-11-03'), 'the reminder still waits for its time');
+        self::mockTime('2026-11-10 09:05:00 Europe/Rome');
+        $this->assertSame(1, $this->deliver());
     }
 
     public function testRemindersWaitForTheSummaryTimeAndGoOnceADay(): void
@@ -82,6 +158,19 @@ class PushTest extends WebTestCaseBase
         self::mockTime('2026-11-10 10:00:00 Europe/Rome');
         $this->assertSame(0, $this->deliver(), 'reminders are off');
         $this->assertTrue($this->pushed('recurring:a:2026-11-03'), 'left out, not waiting');
+    }
+
+    /** @return array{p256dh: string, auth: string} the shape a browser's PushSubscription.toJSON() has */
+    private static function browserKeys(): array
+    {
+        $key = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => \OPENSSL_KEYTYPE_EC]);
+        $ec = openssl_pkey_get_details($key)['ec'];
+        $b64url = static fn (string $bytes) => rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+
+        // OpenSSL drops leading zero bytes: each coordinate is 32 bytes in the key.
+        $coordinate = static fn (string $bytes) => str_pad($bytes, 32, "\0", \STR_PAD_LEFT);
+
+        return ['p256dh' => $b64url("\x04".$coordinate($ec['x']).$coordinate($ec['y'])), 'auth' => $b64url(random_bytes(16))];
     }
 
     private function raise(string $type, string $key): void

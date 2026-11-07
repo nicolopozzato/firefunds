@@ -38,17 +38,20 @@ class BankNotificationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every notification of the source, only what the rules read: to count
-     * what each rule reads over time.
+     * The source's latest notifications, only what the rules read: to count
+     * what each rule reads lately. Older ones are left out, so the cost of
+     * trying the rules stays the same however long the app has been reading.
      *
      * @return list<array{title: string, text: string, postedAt: \DateTimeImmutable}>
      */
-    public function findTexts(NotificationSource $source): array
+    public function findLatestTexts(NotificationSource $source, int $limit): array
     {
         return $this->createQueryBuilder('n')
             ->select('n.title', 'n.text', 'n.postedAt')
             ->andWhere('n.source = :source')
             ->setParameter('source', $source)
+            ->orderBy('n.postedAt', 'DESC')
+            ->setMaxResults($limit)
             ->getQuery()
             ->getArrayResult();
     }

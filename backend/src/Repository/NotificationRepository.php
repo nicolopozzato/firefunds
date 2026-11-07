@@ -6,6 +6,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -60,20 +61,26 @@ class NotificationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Open, unread, not dismissed and not pushed yet: what PushDelivery looks at.
+     * Open, unread, not dismissed and not pushed yet: what PushDelivery looks
+     * at, a page at a time in the order they were made (ids are UUIDv7),
+     * after the last one of the page before.
      *
      * @return list<Notification>
      */
-    public function findToPush(): array
+    public function findToPush(int $limit, ?Uuid $after = null): array
     {
-        return $this->createQueryBuilder('n')
+        $query = $this->createQueryBuilder('n')
             ->addSelect('u')
             ->join('n.user', 'u')
             ->andWhere('n.resolvedAt IS NULL AND n.dismissedAt IS NULL AND n.readAt IS NULL AND n.pushedAt IS NULL')
             ->andWhere('u.disabledAt IS NULL')
-            ->orderBy('n.createdAt', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('n.id', 'ASC')
+            ->setMaxResults($limit);
+        if ($after !== null) {
+            $query->andWhere('n.id > :after')->setParameter('after', $after, UuidType::NAME);
+        }
+
+        return $query->getQuery()->getResult();
     }
 
     public function findOneByUserAndId(User $user, string $id): ?Notification

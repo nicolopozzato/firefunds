@@ -57,6 +57,14 @@ export function useCreateApiToken() {
   })
 }
 
+export function useRenameApiToken() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => apiTokensApi.rename(id, name),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['api-tokens'] }),
+  })
+}
+
 export function useRevokeApiToken() {
   const queryClient = useQueryClient()
   return useMutation({

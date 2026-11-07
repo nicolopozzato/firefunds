@@ -49,6 +49,9 @@ class UserAdministrationTest extends WebTestCaseBase
         $refused = $this->request('GET', '/api/categories', token: $token);
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
         $this->assertSame('password_change_required', $refused['code']);
+        // Not even with the path encoded: the router reads /%61pi/categories as /api/categories.
+        $this->request('GET', '/%61pi/categories', token: $token);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // The same password again is no change.
         $same = $this->request('PUT', '/api/auth/me/password', ['newPassword' => 'temporary-1'], $token);
@@ -128,6 +131,15 @@ class UserAdministrationTest extends WebTestCaseBase
         // The new email logs in with the same password; the role is stored once.
         $this->login('carla.verdi@example.test', self::PASSWORD);
         $this->assertSame(['ROLE_ADMIN', 'ROLE_USER'], $this->reload($user)->getRoles());
+
+        // Without isAdmin the role stays: changing the name never demotes.
+        $renamed = $this->request('PUT', '/api/admin/users/'.$user->getId(), [
+            'firstName' => 'Carla Maria',
+            'lastName' => 'Verdi',
+            'email' => 'carla.verdi@example.test',
+        ]);
+        $this->assertResponseIsSuccessful();
+        $this->assertTrue($renamed['isAdmin']);
 
         $taken = $this->request('PUT', '/api/admin/users/'.$user->getId(), [
             'firstName' => 'Carla',

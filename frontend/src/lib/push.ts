@@ -65,6 +65,53 @@ export async function disablePush(): Promise<void> {
   await subscription.unsubscribe()
 }
 
+/** Whose notifications this browser received before logging out. */
+const PAUSED_FOR = 'push-paused-for'
+
+async function browserSubscription(): Promise<PushSubscription | null> {
+  if (!('serviceWorker' in navigator)) return null
+  const registration = await navigator.serviceWorker.getRegistration()
+  return (await registration?.pushManager.getSubscription()) ?? null
+}
+
+/**
+ * At logout: the server stops sending this user's notifications here, so
+ * whoever uses the browser next doesn't see them. The browser keeps its
+ * subscription, to give it back to the same user at the next login.
+ */
+export async function pausePushHere(userId: string): Promise<void> {
+  const subscription = await browserSubscription().catch(() => null)
+  if (!subscription) return
+  await api.post('/api/push/unsubscribe', { endpoint: subscription.endpoint }).catch(() => undefined)
+  try {
+    localStorage.setItem(PAUSED_FOR, userId)
+  } catch {
+    // Without it the next login just doesn't resume push here.
+  }
+}
+
+/**
+ * After a login: the user who had push on here gets it back without asking
+ * again; anyone else doesn't inherit it (they turn it on themselves).
+ */
+export async function resumePushHere(userId: string): Promise<void> {
+  let pausedFor: string | null = null
+  try {
+    pausedFor = localStorage.getItem(PAUSED_FOR)
+    localStorage.removeItem(PAUSED_FOR)
+  } catch {
+    // Treated as someone else's.
+  }
+  const subscription = await browserSubscription().catch(() => null)
+  if (!subscription) return
+  if (pausedFor !== userId) {
+    await subscription.unsubscribe().catch(() => undefined)
+    return
+  }
+  const json = subscription.toJSON()
+  await api.post('/api/push/subscriptions', { endpoint: json.endpoint, keys: json.keys, label: deviceLabel() }).catch(() => undefined)
+}
+
 /** "Chrome su Android", "Safari su iPhone": how the device appears in the list. */
 export function deviceLabel(userAgent = navigator.userAgent): string {
   const browser = /Edg\//.test(userAgent)

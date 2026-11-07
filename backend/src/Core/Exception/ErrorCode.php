@@ -58,6 +58,7 @@ enum ErrorCode: string
     case NotificationNotFound = 'notification_not_found';
     case PushDeviceNotFound = 'push_device_not_found';
     case PushFailed = 'push_failed';
+    case PushTooManyDevices = 'push_too_many_devices';
 
     // API tokens and drafts
     case ApiTokenNotFound = 'api_token_not_found';
@@ -135,6 +136,7 @@ enum ErrorCode: string
             self::SourceNotFound => 'Notification source not found.',
             self::DraftClosed => 'This draft has been dealt with already.',
             self::PushFailed => 'The push service did not accept the notification for this device.',
+            self::PushTooManyDevices => 'The user already has {max} devices with notifications on.',
             self::NothingToConfirm => 'Nothing of this recurring transaction is waiting to be confirmed.',
             self::AccountWithoutCurrency => 'The asset account involved in this transaction has no currency set.',
             self::DestinationAmountRequired => 'A transfer from {source} to {destination} needs the amount that arrived.',

@@ -6,6 +6,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\NotificationRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 /**
@@ -20,41 +21,58 @@ class PushDelivery
     public const SYSTEM_TYPES = ['task_failing', 'backup_overdue', 'prices_stale', 'rates_stale'];
     /** A draft is pushed the moment it arrives: that is when the user remembers what it was. */
     public const DRAFT_TYPES = ['draft_new', 'draft_recorded'];
+    private const PAGE = 200;
 
     public function __construct(
         private readonly NotificationRepository $notifications,
         private readonly PushSender $sender,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
-    /** @return int notifications sent */
+    /**
+     * A page at a time: what a page pushed is saved and let go before the
+     * next, so a pile of notifications (one user's thousands of drafts) costs
+     * time, never all the memory at once, and a failure keeps what was done.
+     *
+     * @return int notifications sent
+     */
     public function deliver(): int
     {
         $now = $this->clock->now();
         $sent = 0;
         $reminders = [];
-        foreach ($this->notifications->findToPush() as $notification) {
-            $user = $notification->getUser();
-            if (\in_array($notification->getType(), self::SYSTEM_TYPES, true)) {
-                if ($user->wantsPushSystem()) {
-                    $this->sender->send($user, $this->message($notification, $user));
-                    ++$sent;
+        $after = null;
+        do {
+            $page = $this->notifications->findToPush(self::PAGE, $after);
+            foreach ($page as $notification) {
+                $user = $notification->getUser();
+                if (\in_array($notification->getType(), self::SYSTEM_TYPES, true)) {
+                    if ($user->wantsPushSystem()) {
+                        $sent += $this->send($user, $this->message($notification, $user));
+                    }
+                    $notification->markPushed($now);
+                } elseif (\in_array($notification->getType(), self::DRAFT_TYPES, true)) {
+                    if ($user->wantsPushDrafts()) {
+                        $sent += $this->send($user, $this->message($notification, $user));
+                    }
+                    $notification->markPushed($now);
+                } elseif (!$user->wantsPushReminders()) {
+                    $notification->markPushed($now);
+                } else {
+                    $reminders[$user->getId()->toRfc4122()][] = $notification;
                 }
-                $notification->markPushed($now);
-            } elseif (\in_array($notification->getType(), self::DRAFT_TYPES, true)) {
-                if ($user->wantsPushDrafts()) {
-                    $this->sender->send($user, $this->message($notification, $user));
-                    ++$sent;
-                }
-                $notification->markPushed($now);
-            } elseif (!$user->wantsPushReminders()) {
-                $notification->markPushed($now);
-            } else {
-                $reminders[$user->getId()->toRfc4122()][] = $notification;
             }
-        }
+            $this->entityManager->flush();
+            foreach ($page as $notification) {
+                if ($notification->isPushed()) {
+                    $this->entityManager->detach($notification);
+                }
+            }
+            $after = $page === [] ? null : end($page)->getId();
+        } while (\count($page) === self::PAGE);
 
         foreach ($reminders as $list) {
             $user = $list[0]->getUser();
@@ -63,16 +81,34 @@ class PushDelivery
             if ($local->format('H:i') < $user->getPushSummaryTime() || $user->getPushSummarySentOn() == $today) {
                 continue;
             }
-            $this->sender->send($user, $this->summary($list, $user));
+            $sent += $this->send($user, $this->summary($list, $user));
             $user->setPushSummarySentOn($today);
             foreach ($list as $notification) {
                 $notification->markPushed($now);
             }
-            ++$sent;
         }
         $this->entityManager->flush();
 
         return $sent;
+    }
+
+    /**
+     * One user's failure stays theirs: the others' notifications still go,
+     * and theirs is marked pushed all the same, so it never blocks the queue.
+     *
+     * @param array{title: string, body: string, url: string, tag: string} $message
+     */
+    private function send(User $user, array $message): int
+    {
+        try {
+            $this->sender->send($user, $message);
+
+            return 1;
+        } catch (\Throwable $e) {
+            $this->logger->error('Push to user {user} failed: {error}', ['user' => $user->getId()->toRfc4122(), 'error' => $e->getMessage()]);
+
+            return 0;
+        }
     }
 
     /** @return array{title: string, body: string, url: string, tag: string} */

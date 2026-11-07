@@ -209,8 +209,8 @@ final class OpenApiDocument
                         'destinationAccount' => ['type' => ['object', 'null'], 'additionalProperties' => true],
                         'notes' => ['type' => ['string', 'null']],
                         'rawText' => ['type' => ['string', 'null']],
-                        'possibleDuplicate' => ['type' => ['object', 'null'], 'additionalProperties' => true],
-                        'transactionIds' => ['type' => 'array', 'items' => ['type' => 'string', 'format' => 'uuid']],
+                        'possibleDuplicate' => ['type' => ['object', 'null'], 'additionalProperties' => true, 'description' => 'The identical transaction already recorded. Always null for a `drafts` token, which may not read transactions.'],
+                        'transactionIds' => ['type' => 'array', 'items' => ['type' => 'string', 'format' => 'uuid'], 'description' => 'The transactions it became. Always empty for a `drafts` token.'],
                         'createdAt' => ['type' => 'string'],
                     ]],
                     'CreateTransaction' => [

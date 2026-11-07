@@ -2,8 +2,12 @@
 # TLS is never handled here: Lando's proxy (dev) and Traefik (prod) do it.
 {
 	auto_https off
-	# Admin API on localhost:2019 only: the image's healthcheck reads its
-	# /metrics, and Traefik/Lando skip a container that isn't healthy.
+	# Admin API on a unix socket, not localhost:2019: anything that can make
+	# a request from inside the container (the app's own outbound calls)
+	# could otherwise reconfigure or stop the server. The healthcheck
+	# (Dockerfile) reads its /metrics there; Traefik/Lando skip a container
+	# that isn't healthy.
+	admin unix//data/caddy/admin.sock
 	{$CADDY_GLOBAL_OPTIONS}
 
 	frankenphp {

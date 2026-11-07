@@ -15,14 +15,24 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * Never through a token: tokens themselves, administration, push devices,
  * the password. `drafts`: creating drafts (also from the phone's
  * notifications) and reading what fills them.
+ *
+ * Decided on the route the router matched, never on the path: the router
+ * decodes the path (/api/%74okens is /api/tokens), a pattern on the raw
+ * path would let such a request through.
  */
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 7)]
 final readonly class ApiTokenScopeListener
 {
-    private const NEVER = '#^/api/(tokens|admin|push|auth/me/password)(/|$)#';
+    private const NEVER = '#^(api_tokens_|api_admin_|api_push_|api_auth_change_password$)#';
     private const DRAFTS = [
-        'POST' => '#^/api/(drafts|bank-notifications)$#',
-        'GET' => '#^/api/(accounts/[^/]+|categories|tags|auth/me|openapi\.json)$#',
+        'api_drafts_create',
+        'api_bank_notifications_receive',
+        'api_accounts_list',
+        'api_accounts_get',
+        'api_categories_list',
+        'api_tags_list',
+        'api_auth_me',
+        'api_openapi',
     ];
 
     public function __construct(private Security $security)
@@ -37,12 +47,11 @@ final readonly class ApiTokenScopeListener
         }
         /** @var ApiToken $apiToken */
         $apiToken = $token->getAttribute('api_token');
-        $path = $event->getRequest()->getPathInfo();
-        $method = $event->getRequest()->getMethod();
+        $route = $event->getRequest()->attributes->get('_route');
 
-        $allowed = !preg_match(self::NEVER, $path) && match ($apiToken->getScope()) {
+        $allowed = \is_string($route) && !preg_match(self::NEVER, $route) && match ($apiToken->getScope()) {
             ApiToken::SCOPE_FULL => true,
-            ApiToken::SCOPE_DRAFTS => isset(self::DRAFTS[$method]) && preg_match(self::DRAFTS[$method], $path) === 1,
+            ApiToken::SCOPE_DRAFTS => \in_array($route, self::DRAFTS, true),
             default => false,
         };
         if (!$allowed) {

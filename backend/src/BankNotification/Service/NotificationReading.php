@@ -24,7 +24,7 @@ final class NotificationReading
     public static function read(array $rules, string $text): ?array
     {
         foreach ($rules as $index => $rule) {
-            if (preg_match(self::regex($rule['pattern']), $text, $match) !== 1) {
+            if (self::match(self::regex($rule['pattern']), $text, $match) !== 1) {
                 continue;
             }
             if ($rule['kind'] === 'ignore') {
@@ -39,6 +39,25 @@ final class NotificationReading
         }
 
         return self::generic($text);
+    }
+
+    /**
+     * A user's rule against a text, with a backtracking budget a tenth of
+     * PHP's: a template a bank's text fits needs far less, and one written to
+     * be slow ({*}a{*}a{*}a…) gives up sooner (no match) instead of taking a
+     * couple of milliseconds on every notification it's tried on.
+     *
+     * @param array<int|string, string>|null $match
+     */
+    private static function match(string $regex, string $text, ?array &$match): int|false
+    {
+        $limit = ini_get('pcre.backtrack_limit');
+        ini_set('pcre.backtrack_limit', '100000');
+        try {
+            return preg_match($regex, $text, $match);
+        } finally {
+            ini_set('pcre.backtrack_limit', (string) $limit);
+        }
     }
 
     /** A rule's template as a regular expression; a broken one matches nothing. */

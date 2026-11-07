@@ -74,10 +74,11 @@ class UserAdminService
     /**
      * The email can change without the user's password, unlike on their own
      * profile: the administrator is the one fixing it. Tokens name the user
-     * by id, so their sessions carry on.
+     * by id, so their sessions carry on. No `$isAdmin`: the role stays.
      */
-    public function update(User $user, string $firstName, string $lastName, string $email, bool $isAdmin): User
+    public function update(User $user, string $firstName, string $lastName, string $email, ?bool $isAdmin = null): User
     {
+        $isAdmin ??= $user->isAdmin();
         $existing = $this->userRepository->findByEmail($email);
         if (null !== $existing && !$existing->getId()->equals($user->getId())) {
             throw new ApiException(ErrorCode::EmailAlreadyRegistered, [], Response::HTTP_CONFLICT);

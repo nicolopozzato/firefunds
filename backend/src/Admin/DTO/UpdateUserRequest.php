@@ -19,7 +19,8 @@ final readonly class UpdateUserRequest
         #[Assert\Email]
         public string $email,
 
-        public bool $isAdmin = false,
+        /** Left out: the role stays as it is (a client sending only the name never demotes). */
+        public ?bool $isAdmin = null,
     ) {
     }
 }
