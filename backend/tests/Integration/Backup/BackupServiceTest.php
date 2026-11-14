@@ -49,6 +49,7 @@ class BackupServiceTest extends KernelTestCase
         $this->assertSame('firefunds_20261021_030500_v9.8.7.tar', $file->name);
         $this->assertFileExists($file->path);
         $this->assertGreaterThan(0, $file->size);
+        $this->assertSame(0o600, fileperms($file->path) & 0o777, 'the whole database: the owner only');
         $this->assertSame('9.8.7', $file->manifest?->appVersion);
         $this->assertSame('manual', $file->manifest->trigger);
         $this->assertSame('2026-10-21T03:05:00+00:00', $file->manifest->createdAt);

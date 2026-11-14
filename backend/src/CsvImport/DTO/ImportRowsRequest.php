@@ -2,6 +2,7 @@
 
 namespace App\CsvImport\DTO;
 
+use App\Core\Validation\DateValue;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -21,7 +22,7 @@ final readonly class ImportRowsRequest
 
         #[Assert\Count(min: 1, max: 5000)]
         #[Assert\All([new Assert\Collection(fields: [
-            'date' => [new Assert\NotBlank(), new Assert\Date()],
+            'date' => [new Assert\NotBlank(), new DateValue()],
             'amount' => [new Assert\NotBlank(), new Assert\Regex('/^-?\d{1,15}(\.\d{1,4})?$/')],
             'description' => new Assert\Optional([new Assert\Length(max: 1000)]),
             'counterparty' => new Assert\Optional([new Assert\Length(max: 255)]),

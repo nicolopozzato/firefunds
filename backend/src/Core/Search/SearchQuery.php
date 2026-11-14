@@ -13,6 +13,9 @@ namespace App\Core\Search;
  */
 final readonly class SearchQuery
 {
+    /** Each term is one more condition on every row searched: the rest is ignored. */
+    public const int MAX_TERMS = 10;
+
     /**
      * @param string[] $include
      * @param string[] $exclude
@@ -43,6 +46,9 @@ final readonly class SearchQuery
                 continue;
             }
 
+            if (\count($include) + \count($exclude) === self::MAX_TERMS) {
+                break;
+            }
             if ($match['not'] === '-') {
                 $exclude[] = $term;
             } else {

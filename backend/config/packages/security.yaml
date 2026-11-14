@@ -27,13 +27,12 @@ security:
                 password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
-            # Against brute force: 5 failed
-            # attempts per email and IP, 25 per IP, every 15 minutes. A successful
-            # login resets the count. Answered with a 429 (LoginThrottledListener).
+            # Against brute force: 10 failed attempts per email every 15 minutes
+            # (limiter "login" in framework.yaml, EmailLoginRateLimiter). A
+            # successful login resets the count. Answered with a 429
+            # (LoginThrottledListener).
             login_throttling:
-                max_attempts: 5
-                interval: '15 minutes'
-                storage_service: login_throttling.storage
+                limiter: App\Auth\Security\EmailLoginRateLimiter
 
         register:
             pattern: ^/api/auth/register

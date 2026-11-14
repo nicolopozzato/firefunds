@@ -80,6 +80,17 @@ class CsvImportTest extends WebTestCaseBase
         $this->assertNull($preview[3]['suggestion']);
     }
 
+    /** A day far off would make the preview go through every recurring day up to it. */
+    public function testARowDayMustBeWithinTheSupportedYears(): void
+    {
+        $preview = $this->post('/api/import/preview', ['accountId' => $this->checking, 'rows' => [
+            ['date' => '9999-12-31', 'amount' => '-1', 'description' => 'Far off'],
+        ]]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSame('invalid_date', array_column($preview['violations'], 'code', 'propertyPath')['rows[0][date]']);
+    }
+
     public function testRowsAreImportedAllOrNone(): void
     {
         $row = fn (string $amount, string $day) => ['transaction' => [

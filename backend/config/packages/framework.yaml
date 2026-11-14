@@ -2,15 +2,13 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Requests arrive through a reverse proxy: take the client IP from
-    # X-Forwarded-For, which login throttling counts attempts by. Trusted only
-    # from TRUSTED_PROXIES (private networks by default: Docker's, whatever
-    # pool it picks). The proxy must add the client's address to the header,
-    # not pass on what the client sent (Traefik, Caddy and nginx do). Behind
-    # Cloudflare the visitor's address comes from CF-Connecting-IP
-    # (CloudflareClientIpListener).
-    trusted_proxies: '%env(TRUSTED_PROXIES)%'
-    trusted_headers: ['x-forwarded-for']
+    # Failed logins, per email (EmailLoginRateLimiter, security.yaml).
+    rate_limiter:
+        login:
+            policy: fixed_window
+            limit: 10
+            interval: '15 minutes'
+            storage_service: login_throttling.storage
 
     # Yahoo Finance (YahooFinancePriceProvider, as $yahooClient): a slow or
     # stuck answer must not hold a request or the price fetch for long.

@@ -790,7 +790,7 @@
       "invalid_choice": "valore non consentito.",
       "invalid_type": "valore mancante o non valido.",
       "invalid": "valore non valido.",
-      "invalid_number": "numero non valido, o con troppe cifre decimali.",
+      "invalid_number": "numero non valido, troppo grande o con troppe cifre decimali.",
       "invalid_date": "data non valida.",
       "invalid_id": "elemento non valido.",
       "too_many": "può contenere al massimo {{limit}} elementi.",

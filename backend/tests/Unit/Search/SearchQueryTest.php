@@ -40,6 +40,14 @@ class SearchQueryTest extends TestCase
         $this->assertNull(SearchQuery::parse('- "" --'));
     }
 
+    public function testOnlyTheFirstTermsAreSearched(): void
+    {
+        $search = SearchQuery::parse(implode(' ', range(1, 30)).' -x');
+
+        $this->assertSame(array_map('strval', range(1, SearchQuery::MAX_TERMS)), $search->include);
+        $this->assertSame([], $search->exclude);
+    }
+
     public function testLikeWildcardsAreSearchedAsTyped(): void
     {
         [$condition, $params] = SearchQuery::parse('50% a_b')->toSql('h', 'p');

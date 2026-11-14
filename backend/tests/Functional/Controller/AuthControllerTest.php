@@ -45,7 +45,7 @@ class AuthControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
     }
 
-    public function testLoginIsThrottledAfterFiveFailedAttempts(): void
+    public function testLoginIsThrottledAfterTenFailedAttempts(): void
     {
         $client = static::createClient();
         // The test limiter state lives in memory: keep one kernel for every request.
@@ -62,7 +62,7 @@ class AuthControllerTest extends WebTestCase
             );
         };
 
-        for ($i = 0; $i < 5; ++$i) {
+        for ($i = 0; $i < 10; ++$i) {
             $attempt();
             $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
         }
@@ -73,6 +73,27 @@ class AuthControllerTest extends WebTestCase
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertSame('too_many_login_attempts', $data['code']);
         $this->assertGreaterThanOrEqual(1, $data['params']['minutes']);
+    }
+
+    public function testThrottlingCountsByEmailWhateverTheAddress(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+
+        $attempt = static function (string $email, string $ip) use ($client): void {
+            $client->request('POST', '/api/auth/login', server: ['CONTENT_TYPE' => 'application/json', 'REMOTE_ADDR' => $ip], content: (string) json_encode(['email' => $email, 'password' => 'wrongpassword']));
+        };
+
+        // A different address every time, as behind Cloudflare.
+        for ($i = 1; $i <= 10; ++$i) {
+            $attempt('throttled@example.test', "203.0.113.$i");
+            $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+        }
+        $attempt('THROTTLED@example.test', '203.0.113.99');
+        $this->assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS, 'the same email, any case, any address');
+
+        $attempt('other@example.test', '203.0.113.1');
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED, 'another email has its own attempts');
     }
 
     public function testRegisterValidatesEmailFormat(): void

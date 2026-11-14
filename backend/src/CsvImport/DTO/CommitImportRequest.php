@@ -2,6 +2,7 @@
 
 namespace App\CsvImport\DTO;
 
+use App\Core\Validation\DateValue;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -19,7 +20,7 @@ final readonly class CommitImportRequest
         #[Assert\All([new Assert\Collection(fields: [
             'transaction' => [new Assert\NotBlank(), new Assert\Type('array')],
             'recurringId' => new Assert\Optional([new Assert\Uuid()]),
-            'recurringDay' => new Assert\Optional([new Assert\Date()]),
+            'recurringDay' => new Assert\Optional([new DateValue()]),
         ])])]
         public array $rows,
     ) {

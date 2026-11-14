@@ -78,6 +78,27 @@ class InputValidationTest extends WebTestCaseBase
         $this->assertSame('invalid_number', $trade['fees']);
     }
 
+    /** Each figure fits, their product doesn't: it used to fail with a 500 on saving. */
+    public function testATradeAmountTooLargeToStoreIsRefused(): void
+    {
+        $account = $this->request('POST', '/api/accounts/asset', [
+            'type' => 'asset', 'name' => 'Broker', 'currencyCode' => 'EUR', 'assetKind' => 'investment',
+        ])['id'];
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $instrument = new InvestmentInstrument($this->user, 'ETF', InvestmentInstrumentType::Etf);
+        $entityManager->persist($instrument);
+        $entityManager->flush();
+
+        $this->assertSame('invalid_number', $this->violations('POST', '/api/investment-transactions', [
+            'accountId' => $account,
+            'instrumentId' => (string) $instrument->getId(),
+            'type' => 'buy',
+            'quantity' => '99999999999999',
+            'unitPrice' => '999999999999999',
+            'occurredAt' => '2026-10-01T10:00:00Z',
+        ])['amount']);
+    }
+
     public function testANegativeOpeningBalanceIsANumber(): void
     {
         $this->request('POST', '/api/accounts/asset', [

@@ -18,7 +18,13 @@ use App\Repository\AccountRepository;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentTransactionRepository;
 use App\Core\Doctrine\RestoreWindow;
+use App\Core\Validation\Decimal;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\Validator\ConstraintViolation;
+use Symfony\Component\Validator\ConstraintViolationList;
+use Symfony\Component\Validator\Exception\ValidationFailedException;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class InvestmentTransactionService
 {
@@ -31,6 +37,7 @@ class InvestmentTransactionService
         private readonly CurrencyConverter $converter,
         private readonly InvestmentTransactionRepository $transactionRepository,
         private readonly RestoreWindow $restoreWindow,
+        private readonly ValidatorInterface $validator,
     ) {
     }
 
@@ -132,14 +139,28 @@ class InvestmentTransactionService
         $quote = $instrument->getCurrency();
         $accountCurrency = $account->getCurrency()?->getCode();
         if ($accountCurrency === null || $accountCurrency === $quote) {
-            return $gross;
+            return $this->storable($gross);
         }
 
         $day = TransactionMoment::parse($request->occurredAt, $request->timezone ?? $user->getTimezone())->format('Y-m-d');
         $converted = $this->converter->tableFor($user, [$quote, $accountCurrency], new \DateTimeImmutable($day), new \DateTimeImmutable($day))
             ->convertTo4($gross, $quote, $accountCurrency, $day);
 
-        return $converted ?? throw new ApiException(ErrorCode::AmountRequiredOtherCurrency, ['instrument' => $quote, 'account' => $accountCurrency]);
+        return $this->storable($converted ?? throw new ApiException(ErrorCode::AmountRequiredOtherCurrency, ['instrument' => $quote, 'account' => $accountCurrency]));
+    }
+
+    /** A computed amount too large for its column is refused as the amount field. */
+    private function storable(string $amount): string
+    {
+        $violation = $this->validator->validate($amount, new Decimal())[0] ?? null;
+        if ($violation === null) {
+            return $amount;
+        }
+
+        throw new HttpException(422, 'Validation failed', new ValidationFailedException($amount, new ConstraintViolationList([new ConstraintViolation(
+            $violation->getMessage(), $violation->getMessageTemplate(), $violation->getParameters(),
+            $amount, 'amount', $amount, null, $violation->getCode(), $violation->getConstraint(),
+        )])));
     }
 
     private function resolveBrokerAccount(User $user, string $accountId): Account

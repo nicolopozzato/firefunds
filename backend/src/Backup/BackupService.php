@@ -117,7 +117,9 @@ class BackupService
         $this->filesystem->mkdir($this->directory);
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $work = $this->directory.'/.work-'.bin2hex(random_bytes(4));
+        // The whole database: readable by the app's user only.
         $this->filesystem->mkdir($work);
+        $this->filesystem->chmod($work, 0o700);
 
         try {
             $manifest = new BackupManifest($this->appVersion, $now->format(\DATE_ATOM), $this->latestMigration(), $trigger);
@@ -132,6 +134,7 @@ class BackupService
             }
             $partial = $this->directory.'/'.$name.'.partial';
             $this->run(new Process(['tar', '-cf', $partial, '-C', $work, self::MANIFEST, self::DUMP]));
+            $this->filesystem->chmod($partial, 0o600);
             $this->filesystem->rename($partial, $this->directory.'/'.$name, true);
         } finally {
             $this->discard($work);
