@@ -5,6 +5,7 @@ namespace App\Recurring\DTO;
 use App\Core\Validation\DateValue;
 use App\Core\Validation\Decimal;
 use App\Core\Validation\ViolationCode;
+use App\Entity\InvestmentPlanMode;
 use App\Entity\RecurrenceMode;
 use App\Entity\RecurrenceMonthDay;
 use App\Entity\RecurrenceUnit;
@@ -17,6 +18,10 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
  * A recurring transaction as the form sends it: the transaction it creates
  * (the same fields as CreateTransactionRequest, sides and classification by
  * id or by a new name), when it falls and what happens then.
+ *
+ * A recurring purchase (PAC) sends `instrumentId` too: the investment
+ * account is `sourceAccountId`, `planMode` says how it buys, `amount` each
+ * time (`quantity` instead in units mode) and `fees`.
  */
 final readonly class RecurringTransactionRequest
 {
@@ -31,10 +36,10 @@ final readonly class RecurringTransactionRequest
         #[Assert\Length(max: 255)]
         public ?string $description,
 
-        #[Assert\NotBlank]
+        /** Required, except for a purchase of a fixed number of units. */
         #[Assert\Positive]
         #[Decimal]
-        public string $amount,
+        public ?string $amount,
 
         #[Assert\NotBlank]
         #[DateValue]
@@ -107,6 +112,10 @@ final readonly class RecurringTransactionRequest
         #[Assert\Range(min: 0, max: 30)]
         public int $reminderDays = 3,
 
+        /** Entered by hand: expect the average of the latest this many occurrences; null for the amount. */
+        #[Assert\Range(min: 1, max: 24)]
+        public ?int $estimateCount = null,
+
         /** Planned changes of the amount: from that day on, that amount. */
         #[Assert\Count(max: 50)]
         #[Assert\All([new Assert\Collection([
@@ -115,9 +124,29 @@ final readonly class RecurringTransactionRequest
         ])])]
         public array $amountChanges = [],
 
+        /** A recurring purchase (PAC): what it buys. */
+        #[Assert\Uuid]
+        public ?string $instrumentId = null,
+
+        public ?InvestmentPlanMode $planMode = null,
+
+        /** Plan mode units: how many each time. */
+        #[Assert\Positive]
+        #[Decimal(precision: 20, scale: 6)]
+        public ?string $quantity = null,
+
+        /** The broker's fee on each purchase. */
+        #[Assert\PositiveOrZero]
+        #[Decimal]
+        public ?string $fees = null,
+
         /** New ones only: the transaction it is made from, which counts as its first occurrence. */
         #[Assert\Uuid]
         public ?string $fromTransactionId = null,
+
+        /** New recurring purchases only: the buy it is made from, which counts as its first occurrence. */
+        #[Assert\Uuid]
+        public ?string $fromTradeId = null,
     ) {
     }
 
@@ -130,6 +159,30 @@ final readonly class RecurringTransactionRequest
                 ->setCode(ViolationCode::OUT_OF_RANGE)
                 ->addViolation();
         }
+        $required = fn (string $path) => $context->buildViolation('This value should not be blank.')
+            ->atPath($path)
+            ->setCode(ViolationCode::REQUIRED)
+            ->addViolation();
+        if ($this->isPurchase()) {
+            if ($this->planMode === null) {
+                $required('planMode');
+            }
+            if ($this->sourceAccountId === null) {
+                $required('sourceAccountId');
+            }
+        }
+        if ($this->planMode === InvestmentPlanMode::Units && $this->isPurchase()) {
+            if ($this->quantity === null || $this->quantity === '') {
+                $required('quantity');
+            }
+        } elseif ($this->amount === null || $this->amount === '') {
+            $required('amount');
+        }
+    }
+
+    public function isPurchase(): bool
+    {
+        return $this->instrumentId !== null && $this->instrumentId !== '';
     }
 
     /** The months as stored: null when every month is in. */
@@ -152,7 +205,7 @@ final readonly class RecurringTransactionRequest
             sourceAccountId: $this->sourceAccountId,
             destinationAccountId: $this->destinationAccountId,
             occurredAt: $this->startDate.'T'.$this->time.':00',
-            amount: $this->amount,
+            amount: $this->amount ?? '0',
             destinationAmount: $this->destinationAmount,
             categoryId: $this->categoryId,
             tagIds: $this->tagIds,

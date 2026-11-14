@@ -6,7 +6,19 @@ export type RecurrenceMonthDay = 'day' | 'last_day' | 'weekday' | 'last_weekday'
 export type WeekendShift = 'none' | 'before' | 'after'
 /** Created by itself on its day, or waiting to be confirmed (an amount that changes). */
 export type RecurrenceMode = 'auto' | 'confirm'
-export type RecurringKind = 'withdrawal' | 'deposit' | 'transfer'
+export type RecurringKind = 'withdrawal' | 'deposit' | 'transfer' | 'purchase'
+/** A recurring purchase (PAC): a fixed amount in fractional units, in whole units only, or a fixed number of units. */
+export type InvestmentPlanMode = 'amount' | 'whole_units' | 'units'
+
+/** What a recurring purchase would buy at the latest price; null figures without a price. */
+export interface PlanEstimate {
+  quantity: string | null
+  /** In the instrument's currency. */
+  unitPrice: string | null
+  /** In the account's currency. */
+  amount: string | null
+  priceDate: string | null
+}
 
 export interface RecurringTransaction {
   id: string
@@ -47,6 +59,16 @@ export interface RecurringTransaction {
   pending: number
   /** What it moves over the next twelve months, per month. */
   monthlyAmount: string
+  /** A purchase (PAC): what it buys, how, the fee each time. */
+  instrument: { id: string; name: string; ticker: string | null; currency: string } | null
+  planMode: InvestmentPlanMode | null
+  quantity: string | null
+  fees: string | null
+  estimate: PlanEstimate | null
+  /** Entered by hand: expected as the average of its latest this many occurrences. */
+  estimateCount: number | null
+  /** That average, once there is one: then the next amount and the monthly figure's. */
+  estimatedAmount: string | null
 }
 
 export interface AmountChange {
@@ -56,7 +78,8 @@ export interface AmountChange {
 
 export interface RecurringTransactionRequest {
   description: string
-  amount: string
+  /** Null for a purchase of a fixed number of units. */
+  amount: string | null
   amountChanges: AmountChange[]
   startDate: string
   sourceAccountId: string | null
@@ -80,7 +103,15 @@ export interface RecurringTransactionRequest {
   timezone?: string
   mode: RecurrenceMode
   reminderDays: number
+  estimateCount?: number | null
   fromTransactionId?: string | null
+  /** New purchases only: the buy it is made from, which counts as the first. */
+  fromTradeId?: string | null
+  /** A recurring purchase (PAC): its investment account is the source. */
+  instrumentId?: string | null
+  planMode?: InvestmentPlanMode | null
+  quantity?: string | null
+  fees?: string | null
 }
 
 /** A day a recurrence falls on: coming, or due and waiting for the user. */

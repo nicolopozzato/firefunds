@@ -69,8 +69,9 @@ export function describeSchedule(schedule: Schedule, t: TFunction): string {
   return parts.join(' · ')
 }
 
-/** Out is negative, in is positive, a transfer only moves: the colour and sign of its amount. */
+/** Out is negative, in is positive, a transfer only moves, a purchase is invested: the colour and sign of its amount. */
 export function recurringAmountClass(kind: RecurringKind): string {
+  if (kind === 'purchase') return 'text-invest'
   return kind === 'withdrawal' ? 'text-negative' : kind === 'deposit' ? 'text-positive' : 'text-info'
 }
 

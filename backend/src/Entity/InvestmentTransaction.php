@@ -68,6 +68,11 @@ class InvestmentTransaction implements SoftDeletable
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    /** The recurring purchase (PAC) it is an occurrence of. */
+    #[ORM\ManyToOne(targetEntity: RecurringTransaction::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?RecurringTransaction $recurring = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -238,6 +243,17 @@ class InvestmentTransaction implements SoftDeletable
     public function setNotes(?string $notes): static
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    public function getRecurring(): ?RecurringTransaction
+    {
+        return $this->recurring;
+    }
+
+    public function setRecurring(?RecurringTransaction $recurring): static
+    {
+        $this->recurring = $recurring;
         return $this;
     }
 

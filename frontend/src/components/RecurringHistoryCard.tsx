@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import HistoryCard from '@/components/HistoryCard'
 import { useRecurringAuditLog } from '@/hooks/use-recurring'
 import { isEmptyValue } from '@/lib/audit-log'
-import { dateLocale, formatMoney, formatShortDate } from '@/lib/utils'
+import { dateLocale, formatMoney, formatQuantity, formatShortDate } from '@/lib/utils'
 import type { AmountChange } from '@/types/recurring'
 
 const FIELDS = new Set([
@@ -26,9 +26,15 @@ const FIELDS = new Set([
   'time',
   'mode',
   'paused',
+  'skipped',
+  'instrument',
+  'planMode',
+  'quantity',
+  'fees',
+  'estimateCount',
 ])
 
-/** A recurring transaction's history (HistoryCard): what each save, pause or resume changed. */
+/** A recurring transaction's history (HistoryCard): what each save, pause, resume or skip changed. */
 export default function RecurringHistoryCard({ recurringId, currencySymbol }: { recurringId: string; currencySymbol: string | null }) {
   const { t } = useTranslation()
   const { data: entries, isLoading } = useRecurringAuditLog(recurringId)
@@ -42,6 +48,7 @@ export default function RecurringHistoryCard({ recurringId, currencySymbol }: { 
     switch (field) {
       case 'amount':
       case 'destinationAmount':
+      case 'fees':
         return formatMoney(String(value), currencySymbol)
       case 'amountChanges':
         return (value as AmountChange[])
@@ -49,6 +56,7 @@ export default function RecurringHistoryCard({ recurringId, currencySymbol }: { 
           .join('; ')
       case 'startDate':
       case 'endDate':
+      case 'skipped':
         return formatShortDate(String(value))
       case 'unit':
         return t(`recurring.unit_${value}`, { count: 1 })
@@ -58,6 +66,10 @@ export default function RecurringHistoryCard({ recurringId, currencySymbol }: { 
         return t(`recurring.weekendOption_${value}`)
       case 'mode':
         return t(`recurring.mode_${value}`)
+      case 'planMode':
+        return t(`recurring.planMode_${value}`)
+      case 'quantity':
+        return formatQuantity(String(value))
       case 'months':
         return (value as number[]).map(monthName).join(', ')
       case 'tags':

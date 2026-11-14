@@ -7,6 +7,8 @@ use App\Core\Pagination\Paginator;
 use App\Entity\Account;
 use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentTransaction;
+use App\Entity\InvestmentTransactionType;
+use App\Entity\RecurringTransaction;
 use App\Entity\User;
 use App\Investment\Position\AverageCostPosition;
 use App\Investment\Position\TradeCashEffect;
@@ -36,12 +38,17 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
         ?InvestmentInstrument $instrument = null,
         ?\DateTimeInterface $from = null,
         ?\DateTimeInterface $to = null,
+        ?RecurringTransaction $recurring = null,
     ): array {
         $qb = $this->createQueryBuilder('it')
             ->andWhere('it.user = :user')
             ->setParameter('user', $user)
             ->orderBy('it.occurredAt', 'DESC')
             ->addOrderBy('it.id', 'DESC');
+
+        if ($recurring !== null) {
+            $qb->andWhere('it.recurring = :recurring')->setParameter('recurring', $recurring);
+        }
 
         if ($account !== null) {
             $qb->andWhere('it.account = :account')->setParameter('account', $account);
@@ -192,6 +199,33 @@ class InvestmentTransactionRepository extends ServiceEntityRepository
     public function getPositions(Account $account): array
     {
         return $this->positionsFromTrades($this->findTradeRows($account));
+    }
+
+    /**
+     * Purchases that could be an occurrence of a recurring one (a PAC): buys
+     * of this instrument on this account, from `from` through `to`, not part
+     * of a recurrence yet. Any units and amount: the broker's figures.
+     *
+     * @return list<InvestmentTransaction>
+     */
+    public function findPlanCandidates(User $user, Account $account, InvestmentInstrument $instrument, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        return $this->createQueryBuilder('it')
+            ->andWhere('it.user = :user')
+            ->andWhere('it.account = :account')
+            ->andWhere('it.instrument = :instrument')
+            ->andWhere('it.type = :buy')
+            ->andWhere('it.recurring IS NULL')
+            ->andWhere('it.occurredAt >= :from AND it.occurredAt < :to')
+            ->setParameter('user', $user)
+            ->setParameter('account', $account)
+            ->setParameter('instrument', $instrument)
+            ->setParameter('buy', InvestmentTransactionType::Buy)
+            ->setParameter('from', new \DateTimeImmutable($from->format('Y-m-d')))
+            ->setParameter('to', new \DateTimeImmutable($to->modify('+1 day')->format('Y-m-d')))
+            ->orderBy('it.occurredAt', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

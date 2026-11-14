@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowDownCircle, ArrowUpCircle, Plus, Repeat, X } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, Plus, Repeat, TrendingUp, X } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import FormSection from '@/components/FormSection'
 import FormActions from '@/components/FormActions'
@@ -19,21 +19,25 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAllAccounts } from '@/hooks/use-accounts'
+import { useAllInvestmentInstruments } from '@/hooks/use-investments'
 import { useAllClassification } from '@/hooks/use-classification'
 import { useRecurringTransaction, useSaveRecurring } from '@/hooks/use-recurring'
 import { useTransaction } from '@/hooks/use-transactions'
+import { useInvestmentTransaction } from '@/hooks/use-investment-transactions'
 import { useFormFill } from '@/hooks/use-form-fill'
 import { useAuth } from '@/contexts/AuthContext'
 import { handleApiError } from '@/lib/error-handler'
 import { describeSchedule, monthDayOptions } from '@/lib/recurring'
 import { cn, currencySymbolFor, dateLocale, deviceTimezone, formatAccountBalance, nowAsDatetimeLocal } from '@/lib/utils'
 import type { AccountType } from '@/types/account'
-import type { AmountChange, RecurrenceMode, RecurrenceMonthDay, RecurrenceUnit, RecurringKind, WeekendShift } from '@/types/recurring'
+import type { AmountChange, InvestmentPlanMode, RecurrenceMode, RecurrenceMonthDay, RecurrenceUnit, RecurringKind, WeekendShift } from '@/types/recurring'
 
 const SIDES: Record<RecurringKind, { source: AccountType; destination: AccountType }> = {
   withdrawal: { source: 'asset', destination: 'expense' },
   deposit: { source: 'revenue', destination: 'asset' },
   transfer: { source: 'asset', destination: 'asset' },
+  // A purchase (PAC): the investment account only.
+  purchase: { source: 'asset', destination: 'asset' },
 }
 
 /** The side that may be left empty, as in the transaction form. */
@@ -49,6 +53,9 @@ type Ending = 'never' | 'date' | 'count'
  * A recurring transaction: the transaction it creates (as in the transaction
  * form), when it comes back and what happens then. New ones can start from a
  * transaction (`?fromTransaction=`), which then counts as the first.
+ *
+ * A recurring purchase (PAC, `?kind=purchase`): the investment account, the
+ * instrument and how it buys instead; always entered by the user.
  */
 export default function RecurringTransactionFormPage() {
   const { t } = useTranslation()
@@ -57,17 +64,21 @@ export default function RecurringTransactionFormPage() {
   const isEditing = !!id
   const [searchParams] = useSearchParams()
   const fromTransactionId = isEditing ? null : searchParams.get('fromTransaction')
+  const fromTradeId = isEditing ? null : searchParams.get('fromTrade')
   const { user } = useAuth()
   const save = useSaveRecurring()
   const { data: existing } = useRecurringTransaction(id ?? '')
   const { data: fromTransaction } = useTransaction(fromTransactionId ?? '')
+  const { data: fromTrade } = useInvestmentTransaction(fromTradeId ?? '')
   const { data: categoriesResponse } = useAllClassification('categories')
   const { data: tagsResponse } = useAllClassification('tags')
 
-  const [kind, setKind] = useState<RecurringKind>('withdrawal')
+  const [kind, setKind] = useState<RecurringKind>(() => (searchParams.get('kind') === 'purchase' ? 'purchase' : 'withdrawal'))
+  const isPurchase = kind === 'purchase'
   const sides = SIDES[kind]
   const { data: sourceAccounts } = useAllAccounts(sides.source)
   const { data: destinationAccounts } = useAllAccounts(sides.destination)
+  const { data: instrumentsResponse } = useAllInvestmentInstruments()
 
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
@@ -90,7 +101,13 @@ export default function RecurringTransactionFormPage() {
   const [endDate, setEndDate] = useState('')
   const [count, setCount] = useState('')
   const [mode, setMode] = useState<RecurrenceMode>('auto')
-  const [reminderDays, setReminderDays] = useState('3')
+  const [reminderDays, setReminderDays] = useState(() => (searchParams.get('kind') === 'purchase' ? '0' : '3'))
+  const [estimated, setEstimated] = useState(false)
+  const [estimateCount, setEstimateCount] = useState('3')
+  const [instrumentId, setInstrumentId] = useState('')
+  const [planMode, setPlanMode] = useState<InvestmentPlanMode>('amount')
+  const [quantity, setQuantity] = useState('')
+  const [fees, setFees] = useState('')
   const [filled, setFilled] = useState(false)
 
   useFormFill(existing ? existing.id : null, () => {
@@ -118,6 +135,12 @@ export default function RecurringTransactionFormPage() {
     setCount(existing.count ? String(existing.count) : '')
     setMode(existing.mode)
     setReminderDays(String(existing.reminderDays))
+    setEstimated(existing.estimateCount !== null)
+    if (existing.estimateCount !== null) setEstimateCount(String(existing.estimateCount))
+    setInstrumentId(existing.instrument?.id ?? '')
+    setPlanMode(existing.planMode ?? 'amount')
+    setQuantity(existing.quantity ? String(Number(existing.quantity)) : '')
+    setFees(existing.fees && Number(existing.fees) ? String(Number(existing.fees)) : '')
     setFilled(true)
   })
 
@@ -137,15 +160,35 @@ export default function RecurringTransactionFormPage() {
     setTime(fromTransaction.occurredAt.slice(11, 16))
   })
 
+  // A plan made from a buy: its account, instrument, amount and fee, starting on its day at its time.
+  useFormFill(fromTrade ? `trade:${fromTrade.id}` : null, () => {
+    if (!fromTrade) return
+    setKind('purchase')
+    setDescription(fromTrade.description ?? fromTrade.instrumentName)
+    setSourceId(fromTrade.account.id)
+    setInstrumentId(fromTrade.instrumentId)
+    setPlanMode('amount')
+    setAmount(String(Number(fromTrade.amount)))
+    setFees(Number(fromTrade.fees) ? String(Number(fromTrade.fees)) : '')
+    setStartDate(fromTrade.occurredAt.slice(0, 10))
+    setTime(fromTrade.occurredAt.slice(11, 16))
+    setReminderDays('0')
+  })
+
   const changeKind = (next: RecurringKind) => {
     setKind(next)
-    const asset = user?.defaultAccountId ?? ''
+    // A purchase is asked for on its day; the others give a few days' grace before the reminder.
+    if (!isEditing) setReminderDays(next === 'purchase' ? '0' : '3')
+    // The default account is a current account: a purchase picks its investment account.
+    const asset = next === 'purchase' ? '' : user?.defaultAccountId ?? ''
     setSourceId(next === 'deposit' ? '' : asset)
     setDestinationId(next === 'deposit' ? asset : '')
   }
 
   const accountOptions = (accounts: typeof sourceAccounts, type: AccountType, selected: string) => {
-    const options = (accounts?.items ?? []).map((account) => ({ value: account.id, label: type === 'asset' ? formatAccountBalance(account) : account.name }))
+    const options = (accounts?.items ?? [])
+      .filter((account) => !isPurchase || account.assetKind === 'investment')
+      .map((account) => ({ value: account.id, label: type === 'asset' ? formatAccountBalance(account) : account.name }))
     if (isPending(selected)) options.push({ value: selected, label: t('transactionForm.pendingNew', { name: pendingName(selected) }) })
     return options
   }
@@ -177,15 +220,17 @@ export default function RecurringTransactionFormPage() {
     { value: 'withdrawal', label: t('quickAdd.withdrawal'), icon: ArrowUpCircle, tone: 'negative' },
     { value: 'deposit', label: t('quickAdd.deposit'), icon: ArrowDownCircle, tone: 'positive' },
     { value: 'transfer', label: t('quickAdd.transfer'), icon: Repeat, tone: 'info' },
+    { value: 'purchase', label: t('recurring.kind_purchase'), icon: TrendingUp, tone: 'invest' },
   ]
+  const buysUnits = isPurchase && planMode === 'units'
 
   const canSave =
     !save.isPending &&
     description.trim() !== '' &&
-    Number(amount) > 0 &&
+    (buysUnits ? Number(quantity) > 0 : Number(amount) > 0) &&
     !!startDate &&
     (!!sourceId || OPTIONAL_SIDE[kind] === 'source') &&
-    (!!destinationId || OPTIONAL_SIDE[kind] === 'destination') &&
+    (isPurchase ? !!instrumentId : !!destinationId || OPTIONAL_SIDE[kind] === 'destination') &&
     (!someMonths || months.length > 0) &&
     amountChanges.every((change) => !!change.from && Number(change.amount) > 0)
 
@@ -200,24 +245,30 @@ export default function RecurringTransactionFormPage() {
         id,
         data: {
           description: description.trim(),
-          amount,
-          amountChanges,
+          amount: buysUnits ? null : amount,
+          amountChanges: buysUnits ? [] : amountChanges,
           destinationAmount: isCurrencyTransfer ? destinationAmount || null : null,
           sourceAccountId: source.id,
           newSourceAccountName: source.name,
-          destinationAccountId: destination.id,
-          newDestinationAccountName: destination.name,
-          categoryId: category.id,
-          newCategoryName: category.name,
-          tagIds: tagIds.filter((tagId) => !isPending(tagId)),
-          newTagNames: tagIds.filter(isPending).map(pendingName),
+          destinationAccountId: isPurchase ? null : destination.id,
+          newDestinationAccountName: isPurchase ? null : destination.name,
+          categoryId: isPurchase ? null : category.id,
+          newCategoryName: isPurchase ? null : category.name,
+          tagIds: isPurchase ? [] : tagIds.filter((tagId) => !isPending(tagId)),
+          newTagNames: isPurchase ? [] : tagIds.filter(isPending).map(pendingName),
+          instrumentId: isPurchase ? instrumentId : null,
+          planMode: isPurchase ? planMode : null,
+          quantity: buysUnits ? quantity : null,
+          fees: isPurchase ? fees || '0' : null,
           notes: notes || null,
           ...schedule,
           time,
           timezone: isEditing ? undefined : deviceTimezone(),
-          mode,
+          mode: isPurchase ? 'confirm' : mode,
           reminderDays: Math.min(30, Math.max(0, Number(reminderDays) || 0)),
+          estimateCount: !isPurchase && mode === 'confirm' && estimated ? Math.min(24, Math.max(1, Number(estimateCount) || 3)) : null,
           fromTransactionId,
+          fromTradeId,
         },
       })
       toast.success(t('recurring.saved'))
@@ -226,6 +277,63 @@ export default function RecurringTransactionFormPage() {
       toast.error(handleApiError(error))
     }
   }
+
+  const amountChangesEditor = (
+    <div className="space-y-2 sm:col-span-2">
+      {amountChanges.length > 0 && <div className="text-sm font-medium">{t('recurring.amountChanges')}</div>}
+      {amountChanges.map((change, index) => {
+        const update = (patch: Partial<AmountChange>) =>
+          setAmountChanges((current) => current.map((one, i) => (i === index ? { ...one, ...patch } : one)))
+        return (
+          <div key={index} className="flex items-center gap-2">
+            <span className="shrink-0 text-sm text-muted-foreground">{t('recurring.changeFrom')}</span>
+            <Input
+              type="date"
+              aria-label={t('recurring.changeDay')}
+              className="w-40"
+              min={nowAsDatetimeLocal().slice(0, 10)}
+              required
+              value={change.from}
+              onChange={(e) => update({ from: e.target.value })}
+            />
+            <div className="relative w-32">
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0.01"
+                required
+                aria-label={t('recurring.changeAmount')}
+                className="pr-8 tabular-nums"
+                value={change.amount}
+                onChange={(e) => update({ amount: e.target.value })}
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                {currencySymbolFor(assetCurrency ?? user?.currency ?? '')}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t('recurring.removeChange')}
+              onClick={() => setAmountChanges((current) => current.filter((_, i) => i !== index))}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )
+      })}
+      <button
+        type="button"
+        onClick={() => setAmountChanges((current) => [...current, { from: '', amount: amount }])}
+        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80"
+      >
+        <Plus className="h-4 w-4" />
+        {t('recurring.addChange')}
+      </button>
+    </div>
+  )
 
   if (isEditing && !filled) {
     return (
@@ -245,112 +353,107 @@ export default function RecurringTransactionFormPage() {
           <div className="space-y-6">
             <ChoiceCards label={t('transactionForm.type')} options={kindOptions} value={kind} onChange={changeKind} />
 
-            <FormSection title={t('transactionForm.sectionTransaction')} contentClassName="grid gap-4 sm:grid-cols-2">
-              <Field label={t('transactionForm.amount')} htmlFor="amount">
-                <div className="relative">
-                  <Input
-                    id="amount"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    className="h-12 pr-10 text-2xl font-semibold tabular-nums"
-                    placeholder="0,00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-base text-muted-foreground">
-                    {currencySymbolFor(assetCurrency ?? user?.currency ?? '')}
-                  </span>
-                </div>
-              </Field>
-              {isCurrencyTransfer ? (
-                <Field label={`${t('transactionForm.destinationAmount')} (${currencySymbolFor(destinationCurrency ?? '')})`} htmlFor="destinationAmount">
-                  <Input id="destinationAmount" type="number" inputMode="decimal" step="0.01" min="0.01" required className="sm:h-12 tabular-nums" value={destinationAmount} onChange={(e) => setDestinationAmount(e.target.value)} />
+            {isPurchase ? (
+              <FormSection title={t('recurring.sectionPlan')} contentClassName="grid gap-4 sm:grid-cols-2">
+                <Field label={t('transactionForm.descriptionField')} htmlFor="description" className="sm:col-span-2">
+                  <Input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
                 </Field>
-              ) : (
-                <div className="max-sm:hidden" />
-              )}
-              <Field label={t('transactionForm.descriptionField')} htmlFor="description" className="sm:col-span-2">
-                <Input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
-              </Field>
-              <Field label={t(kind === 'deposit' ? 'transactionForm.sourceRevenue' : 'transactionForm.sourceAsset')}>
-                <Combobox
-                  options={accountOptions(sourceAccounts, sides.source, sourceId)}
-                  value={sourceId}
-                  onChange={setSourceId}
-                  onCreate={sides.source === 'asset' ? undefined : (name) => setSourceId(`${NEW_PREFIX}${name}`)}
-                  placeholder={t(sides.source === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
-                  clearable={OPTIONAL_SIDE[kind] === 'source'}
-                />
-              </Field>
-              <Field label={t(kind === 'withdrawal' ? 'transactionForm.destinationExpense' : 'transactionForm.destinationAsset')}>
-                <Combobox
-                  options={accountOptions(destinationAccounts, sides.destination, destinationId)}
-                  value={destinationId}
-                  onChange={setDestinationId}
-                  onCreate={sides.destination === 'asset' ? undefined : (name) => setDestinationId(`${NEW_PREFIX}${name}`)}
-                  placeholder={t(sides.destination === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
-                  clearable={OPTIONAL_SIDE[kind] === 'destination'}
-                />
-              </Field>
-
-              <div className="space-y-2 sm:col-span-2">
-                {amountChanges.length > 0 && <div className="text-sm font-medium">{t('recurring.amountChanges')}</div>}
-                {amountChanges.map((change, index) => {
-                  const update = (patch: Partial<AmountChange>) =>
-                    setAmountChanges((current) => current.map((one, i) => (i === index ? { ...one, ...patch } : one)))
-                  return (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="shrink-0 text-sm text-muted-foreground">{t('recurring.changeFrom')}</span>
-                      <Input
-                        type="date"
-                        aria-label={t('recurring.changeDay')}
-                        className="w-40"
-                        min={nowAsDatetimeLocal().slice(0, 10)}
-                        required
-                        value={change.from}
-                        onChange={(e) => update({ from: e.target.value })}
-                      />
-                      <div className="relative w-32">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0.01"
-                          required
-                          aria-label={t('recurring.changeAmount')}
-                          className="pr-8 tabular-nums"
-                          value={change.amount}
-                          onChange={(e) => update({ amount: e.target.value })}
-                        />
-                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
-                          {currencySymbolFor(assetCurrency ?? user?.currency ?? '')}
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('recurring.removeChange')}
-                        onClick={() => setAmountChanges((current) => current.filter((_, i) => i !== index))}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                <Field label={t('investmentTransactionForm.account')}>
+                  <Combobox options={accountOptions(sourceAccounts, 'asset', sourceId)} value={sourceId} onChange={setSourceId} placeholder={t('investmentTransactionForm.selectAccount')} />
+                </Field>
+                <Field label={t('investmentTransactionForm.instrument')}>
+                  <Combobox
+                    options={(instrumentsResponse?.items ?? []).map((instrument) => ({
+                      value: instrument.id,
+                      label: instrument.ticker ? `${instrument.name} (${instrument.ticker})` : instrument.name,
+                    }))}
+                    value={instrumentId}
+                    onChange={setInstrumentId}
+                    placeholder={t('investmentTransactionForm.selectInstrument')}
+                  />
+                </Field>
+                <Field label={t('recurring.planMode')} className="sm:col-span-2" hint={t(`recurring.planModeHint_${planMode}`)}>
+                  <SegmentedControl
+                    label={t('recurring.planMode')}
+                    value={planMode}
+                    onChange={setPlanMode}
+                    options={(['amount', 'whole_units', 'units'] as const).map((value) => ({ value, label: t(`recurring.planMode_${value}`) }))}
+                  />
+                </Field>
+                {buysUnits ? (
+                  <Field label={t('investmentTransactionForm.quantity')} htmlFor="quantity">
+                    <Input id="quantity" type="number" inputMode="decimal" step="0.000001" min="0.000001" required className="tabular-nums" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                  </Field>
+                ) : (
+                  <Field label={t('recurring.planAmount')} htmlFor="amount">
+                    <div className="relative">
+                      <Input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" required className="pr-10 tabular-nums" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                        {currencySymbolFor(sourceCurrency ?? user?.currency ?? '')}
+                      </span>
                     </div>
-                  )
-                })}
-                <button
-                  type="button"
-                  onClick={() => setAmountChanges((current) => [...current, { from: '', amount: amount }])}
-                  className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80"
-                >
-                  <Plus className="h-4 w-4" />
-                  {t('recurring.addChange')}
-                </button>
-              </div>
-            </FormSection>
+                  </Field>
+                )}
+                <Field label={t('investmentTransactionForm.fees')} htmlFor="fees" hint={t('recurring.planFeesHint')}>
+                  <Input id="fees" type="number" inputMode="decimal" step="0.01" min="0" className="tabular-nums" value={fees} onChange={(e) => setFees(e.target.value)} />
+                </Field>
+                {!buysUnits && amountChangesEditor}
+              </FormSection>
+            ) : (
+              <FormSection title={t('transactionForm.sectionTransaction')} contentClassName="grid gap-4 sm:grid-cols-2">
+                <Field label={t('transactionForm.amount')} htmlFor="amount">
+                  <div className="relative">
+                    <Input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      className="h-12 pr-10 text-2xl font-semibold tabular-nums"
+                      placeholder="0,00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-base text-muted-foreground">
+                      {currencySymbolFor(assetCurrency ?? user?.currency ?? '')}
+                    </span>
+                  </div>
+                </Field>
+                {isCurrencyTransfer ? (
+                  <Field label={`${t('transactionForm.destinationAmount')} (${currencySymbolFor(destinationCurrency ?? '')})`} htmlFor="destinationAmount">
+                    <Input id="destinationAmount" type="number" inputMode="decimal" step="0.01" min="0.01" required className="sm:h-12 tabular-nums" value={destinationAmount} onChange={(e) => setDestinationAmount(e.target.value)} />
+                  </Field>
+                ) : (
+                  <div className="max-sm:hidden" />
+                )}
+                <Field label={t('transactionForm.descriptionField')} htmlFor="description" className="sm:col-span-2">
+                  <Input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
+                </Field>
+                <Field label={t(kind === 'deposit' ? 'transactionForm.sourceRevenue' : 'transactionForm.sourceAsset')}>
+                  <Combobox
+                    options={accountOptions(sourceAccounts, sides.source, sourceId)}
+                    value={sourceId}
+                    onChange={setSourceId}
+                    onCreate={sides.source === 'asset' ? undefined : (name) => setSourceId(`${NEW_PREFIX}${name}`)}
+                    placeholder={t(sides.source === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
+                    clearable={OPTIONAL_SIDE[kind] === 'source'}
+                  />
+                </Field>
+                <Field label={t(kind === 'withdrawal' ? 'transactionForm.destinationExpense' : 'transactionForm.destinationAsset')}>
+                  <Combobox
+                    options={accountOptions(destinationAccounts, sides.destination, destinationId)}
+                    value={destinationId}
+                    onChange={setDestinationId}
+                    onCreate={sides.destination === 'asset' ? undefined : (name) => setDestinationId(`${NEW_PREFIX}${name}`)}
+                    placeholder={t(sides.destination === 'asset' ? 'transactionForm.selectAccount' : 'transactionForm.selectCounterparty')}
+                    clearable={OPTIONAL_SIDE[kind] === 'destination'}
+                  />
+                </Field>
+
+                {amountChangesEditor}
+              </FormSection>
+            )}
 
             <FormSection title={t('recurring.sectionSchedule')} contentClassName="grid gap-4 sm:grid-cols-2">
               <Field label={t('recurring.every')}>
@@ -476,60 +579,66 @@ export default function RecurringTransactionFormPage() {
               {startDate && <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm sm:col-span-2">{describeSchedule(schedule, t)}</p>}
             </FormSection>
 
-            <FormSection title={t('transactionForm.sectionClassification')} optional contentClassName="grid gap-4 sm:grid-cols-2">
-              <Field label={t('transactionForm.category')}>
-                <Combobox
-                  options={[
-                    ...(categoriesResponse?.items ?? []).map((category) => ({ value: category.id, label: category.name })),
-                    ...(isPending(categoryId) ? [{ value: categoryId, label: t('transactionForm.pendingNew', { name: pendingName(categoryId) }) }] : []),
-                  ]}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  onCreate={(name) => setCategoryId(`${NEW_PREFIX}${name}`)}
-                  placeholder={t('transactionForm.selectCategory')}
-                />
-              </Field>
-              <Field label={t('transactionForm.tags')}>
-                <TagsInput
-                  options={[
-                    ...(tagsResponse?.items ?? []),
-                    ...tagIds.filter(isPending).map((tagId) => ({ id: tagId, name: t('transactionForm.pendingNew', { name: pendingName(tagId) }) })),
-                  ]}
-                  value={tagIds}
-                  onChange={setTagIds}
-                  onCreate={(name) => setTagIds((current) => [...current, `${NEW_PREFIX}${name}`])}
-                  placeholder={t('tagsInput.add')}
-                />
-              </Field>
-            </FormSection>
+            {!isPurchase && (
+              <FormSection title={t('transactionForm.sectionClassification')} optional contentClassName="grid gap-4 sm:grid-cols-2">
+                <Field label={t('transactionForm.category')}>
+                  <Combobox
+                    options={[
+                      ...(categoriesResponse?.items ?? []).map((category) => ({ value: category.id, label: category.name })),
+                      ...(isPending(categoryId) ? [{ value: categoryId, label: t('transactionForm.pendingNew', { name: pendingName(categoryId) }) }] : []),
+                    ]}
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    onCreate={(name) => setCategoryId(`${NEW_PREFIX}${name}`)}
+                    placeholder={t('transactionForm.selectCategory')}
+                  />
+                </Field>
+                <Field label={t('transactionForm.tags')}>
+                  <TagsInput
+                    options={[
+                      ...(tagsResponse?.items ?? []),
+                      ...tagIds.filter(isPending).map((tagId) => ({ id: tagId, name: t('transactionForm.pendingNew', { name: pendingName(tagId) }) })),
+                    ]}
+                    value={tagIds}
+                    onChange={setTagIds}
+                    onCreate={(name) => setTagIds((current) => [...current, `${NEW_PREFIX}${name}`])}
+                    placeholder={t('tagsInput.add')}
+                  />
+                </Field>
+              </FormSection>
+            )}
           </div>
 
           <div className="space-y-6">
             <FormSection title={t('recurring.onTheDay')}>
-              <div role="radiogroup" aria-label={t('recurring.onTheDay')} className="space-y-2">
-                {(['auto', 'confirm'] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={mode === value}
-                    onClick={() => setMode(value)}
-                    className={cn(
-                      'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      mode === value ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-accent/50'
-                    )}
-                  >
-                    <span className={cn('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', mode === value ? 'border-primary' : 'border-muted-foreground/40')}>
-                      {mode === value && <span className="h-2 w-2 rounded-full bg-primary" />}
-                    </span>
-                    <span>
-                      <span className="block text-sm font-medium">{t(`recurring.mode_${value}`)}</span>
-                      <span className="block text-xs text-muted-foreground">{t(`recurring.modeDescription_${value}`)}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {mode === 'confirm' && (
+              {isPurchase ? (
+                <p className="text-sm text-muted-foreground">{t('recurring.planOnTheDay')}</p>
+              ) : (
+                <div role="radiogroup" aria-label={t('recurring.onTheDay')} className="space-y-2">
+                  {(['auto', 'confirm'] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === value}
+                      onClick={() => setMode(value)}
+                      className={cn(
+                        'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        mode === value ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-accent/50'
+                      )}
+                    >
+                      <span className={cn('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', mode === value ? 'border-primary' : 'border-muted-foreground/40')}>
+                        {mode === value && <span className="h-2 w-2 rounded-full bg-primary" />}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-medium">{t(`recurring.mode_${value}`)}</span>
+                        <span className="block text-xs text-muted-foreground">{t(`recurring.modeDescription_${value}`)}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(mode === 'confirm' || isPurchase) && (
                 <Field label={t('recurring.reminderDays')} htmlFor="reminderDays" hint={t('recurring.reminderDaysHint')} className="mt-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Input
@@ -545,6 +654,32 @@ export default function RecurringTransactionFormPage() {
                     {t('recurring.daysAfter')}
                   </div>
                 </Field>
+              )}
+              {mode === 'confirm' && !isPurchase && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <Checkbox id="estimated" checked={estimated} onChange={(e) => setEstimated(e.target.checked)} />
+                    <Label htmlFor="estimated" className="font-normal">
+                      {t('recurring.estimated')}
+                    </Label>
+                  </div>
+                  {estimated && (
+                    <div className="flex items-center gap-2 pl-7 text-sm text-muted-foreground">
+                      {t('recurring.estimateLatest')}
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="24"
+                        aria-label={t('recurring.estimateCount')}
+                        className="w-20 tabular-nums"
+                        value={estimateCount}
+                        onChange={(e) => setEstimateCount(e.target.value)}
+                      />
+                    </div>
+                  )}
+                  <p className="pl-7 text-xs text-muted-foreground">{t('recurring.estimatedHint')}</p>
+                </div>
               )}
             </FormSection>
 

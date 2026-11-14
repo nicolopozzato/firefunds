@@ -18,6 +18,7 @@ use App\Repository\AccountRepository;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentTransactionAuditLogRepository;
 use App\Repository\InvestmentTransactionRepository;
+use App\Repository\RecurringTransactionRepository;
 use App\Transaction\DTO\DistributionEntryResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -36,6 +37,7 @@ class InvestmentTransactionController extends AbstractController
         private readonly AccountRepository $accountRepository,
         private readonly InvestmentInstrumentRepository $instrumentRepository,
         private readonly InvestmentTransactionAuditLogRepository $investmentTransactionAuditLogRepository,
+        private readonly RecurringTransactionRepository $recurringRepository,
     ) {
     }
 
@@ -64,7 +66,16 @@ class InvestmentTransactionController extends AbstractController
             }
         }
 
-        [$transactions, $total] = $this->investmentTransactionRepository->findByUserPaginated($user, $params, $account, $instrument, $from, $to);
+        $recurring = null;
+        if (($recurringId = $request->query->get('recurringId')) !== null) {
+            $recurring = $this->recurringRepository->findOneByUserAndId($user, $recurringId);
+
+            if ($recurring === null) {
+                throw ApiException::notFound(ErrorCode::RecurringNotFound);
+            }
+        }
+
+        [$transactions, $total] = $this->investmentTransactionRepository->findByUserPaginated($user, $params, $account, $instrument, $from, $to, $recurring);
 
         $items = array_map(
             static fn ($transaction) => InvestmentTransactionResponse::fromEntity($transaction),

@@ -14,6 +14,7 @@ use App\Entity\InvestmentTransaction;
 use App\Entity\User;
 use App\Investment\DTO\CreateInvestmentTransactionRequest;
 use App\Investment\DTO\SavedInvestmentTransaction;
+use App\Recurring\Service\RecurringTransactionService;
 use App\Repository\AccountRepository;
 use App\Repository\InvestmentInstrumentRepository;
 use App\Repository\InvestmentTransactionRepository;
@@ -38,6 +39,7 @@ class InvestmentTransactionService
         private readonly InvestmentTransactionRepository $transactionRepository,
         private readonly RestoreWindow $restoreWindow,
         private readonly ValidatorInterface $validator,
+        private readonly RecurringTransactionService $recurringService,
     ) {
     }
 
@@ -64,6 +66,9 @@ class InvestmentTransactionService
 
         $this->entityManager->persist($transaction);
         $this->auditLogService->logCreated($transaction, $user);
+        if ($request->recurringId !== null) {
+            $this->recurringService->recordPurchase($user, $request->recurringId, $transaction);
+        }
         $this->entityManager->flush();
 
         $pricesComplete = $this->priceService->ensureCompletePriceHistoryThroughYesterday($instrument);

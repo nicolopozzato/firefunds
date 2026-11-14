@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Account;
 use App\Entity\Category;
+use App\Entity\InvestmentInstrument;
 use App\Entity\RecurringTransaction;
 use App\Entity\Tag;
 use App\Entity\User;
@@ -67,6 +68,12 @@ class RecurringTransactionRepository extends ServiceEntityRepository
             ->setParameter('account', $account)
             ->getQuery()
             ->getResult();
+    }
+
+    /** @return list<RecurringTransaction> the recurring purchases (PAC) of this instrument */
+    public function findByInstrument(InvestmentInstrument $instrument): array
+    {
+        return $this->findBy(['instrument' => $instrument]);
     }
 
     /** @return list<RecurringTransaction> */

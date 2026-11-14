@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Check, Link2 } from 'lucide-react'
@@ -14,10 +15,14 @@ import { MobileListCard, MobileListRow } from '@/components/MobileList'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { amountColorClass, signedAmount } from '@/lib/transaction-display'
 import { handleApiError } from '@/lib/error-handler'
-import { cn, currencySymbolFor, formatMoney, formatShortDate } from '@/lib/utils'
+import { cn, currencySymbolFor, formatMoney, formatQuantity, formatShortDate } from '@/lib/utils'
 import type { Occurrence } from '@/types/recurring'
 
-/** Due and waiting: the amount actually paid, then confirm (creates the transaction) or skip. */
+/**
+ * Due and waiting: the amount actually paid, then confirm (creates the
+ * transaction) or skip. A recurring purchase (PAC) opens the trade form
+ * instead, filled in, for the broker's figures.
+ */
 export default function PendingOccurrences({ occurrences }: { occurrences: Occurrence[] }) {
   const { t } = useTranslation()
 
@@ -36,6 +41,57 @@ export default function PendingOccurrences({ occurrences }: { occurrences: Occur
 }
 
 function PendingRow({ occurrence }: { occurrence: Occurrence }) {
+  const { recurring } = occurrence
+  return recurring.kind === 'purchase' ? <PendingPurchaseRow occurrence={occurrence} /> : <PendingMoneyRow occurrence={occurrence} />
+}
+
+function PendingPurchaseRow({ occurrence }: { occurrence: Occurrence }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { recurring } = occurrence
+  const skip = useSkipOccurrence()
+  const estimate = recurring.estimate
+
+  const skipIt = async () => {
+    try {
+      await skip.mutateAsync(recurring.id)
+      toast.success(t('recurring.skipped'))
+    } catch (error) {
+      toast.error(handleApiError(error))
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <RecurringKindIcon kind={recurring.kind} />
+        <div className="min-w-0">
+          <div className="truncate font-medium">{recurring.description}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatShortDate(occurrence.day)}
+            {` · ${recurring.instrument?.name ?? ''}`}
+            {estimate?.quantity && ` · ${t('recurring.aboutUnits', { quantity: formatQuantity(Number(estimate.quantity)) })}`}
+            {recurring.pending > 1 && ` · ${t('recurring.moreWaiting', { count: recurring.pending - 1 })}`}
+          </div>
+        </div>
+      </div>
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+        <span className={cn('mr-auto tabular-nums sm:mr-2', recurringAmountClass(recurring.kind))}>
+          {Number(occurrence.amount) > 0 ? formatMoney(occurrence.amount, currencySymbolFor(recurring.currency)) : '—'}
+        </span>
+        <Button variant="ghost" disabled={skip.isPending} onClick={() => void skipIt()}>
+          {t('recurring.skip')}
+        </Button>
+        <Button disabled={skip.isPending} onClick={() => navigate(`/transactions/investments/new?recurringId=${recurring.id}&day=${occurrence.day}`)}>
+          <Check className="mr-2 h-4 w-4" />
+          {t('recurring.confirm')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function PendingMoneyRow({ occurrence }: { occurrence: Occurrence }) {
   const { t } = useTranslation()
   const { recurring } = occurrence
   const [amount, setAmount] = useState(String(Number(occurrence.amount)))

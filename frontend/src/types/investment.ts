@@ -89,6 +89,9 @@ export interface InvestmentTransaction {
   updatedAt: string
   /** True when the instrument's daily closing-price history still has a gap through yesterday after this save's best-effort backfill attempt. */
   pricesIncomplete: boolean
+  /** The recurring purchase (PAC) it is an occurrence of. */
+  recurringId: string | null
+  recurringDescription: string | null
 }
 
 /** The pies above the investment transactions list. An instrument type comes as its code (`etf`…), to translate. */
@@ -113,6 +116,8 @@ export interface CreateInvestmentTransactionRequest {
   /** Where it happened (IANA); left out on an edit to keep it. */
   timezone?: string
   notes?: string | null
+  /** A new purchase recorded as the waiting occurrence of this recurring purchase (PAC). */
+  recurringId?: string | null
 }
 
 export interface PositionHistoryPoint {
@@ -205,4 +210,6 @@ export interface Portfolio {
 export interface InstrumentDeletionPreview {
   investmentTransactions: number
   openPositions: number
+  /** Recurring purchases (PAC) of it, deleted with it. */
+  recurring: number
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Pencil, Trash2, ArrowDownToLine, ArrowUpToLine, Copy, Layers, Wallet } from 'lucide-react'
+import { Pencil, Trash2, ArrowDownToLine, ArrowUpToLine, CalendarClock, Copy, Layers, Wallet } from 'lucide-react'
 import PageHeader from '@/components/PageHeader'
 import PageActions from '@/components/PageActions'
 import TransactionAmount from '@/components/TransactionAmount'
@@ -161,6 +161,9 @@ export default function InvestmentTransactionDetailPage() {
                 icon: Copy,
                 onClick: () => navigate(`${basePath}/new?cloneFrom=${transaction.id}`),
               },
+              ...(transaction.type === 'buy' && !transaction.recurringId
+                ? [{ label: t('recurring.makePlan'), icon: CalendarClock, onClick: () => navigate(`/transactions/recurring/new?kind=purchase&fromTrade=${transaction.id}`) }]
+                : []),
               { label: t('common.delete'), icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true) },
             ]}
           />
@@ -214,6 +217,13 @@ export default function InvestmentTransactionDetailPage() {
                 <DetailField label={t('investmentTransactions.taxes')}>
                   <span className="tabular-nums">{formatMoney(transaction.taxes, currencySymbol)}</span>
                 </DetailField>
+                {transaction.recurringId && (
+                  <DetailField label={t('recurring.from')}>
+                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium underline-offset-4 hover:underline">
+                      {transaction.recurringDescription}
+                    </Link>
+                  </DetailField>
+                )}
                 {transaction.notes && (
                   <DetailField label={t('classificationCommon.notes')} wide>
                     <p className="whitespace-pre-wrap">{transaction.notes}</p>

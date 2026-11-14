@@ -15,7 +15,7 @@ interface DeleteInstrumentDialogProps {
 /**
  * Confirms deleting an instrument. If it still has investment transactions,
  * says how many (and how many positions are still open) and that they will
- * be deleted with it.
+ * be deleted with it; its recurring purchases (PAC) go with it too.
  */
 export default function DeleteInstrumentDialog({ instrument, onClose, onDeleted }: DeleteInstrumentDialogProps) {
   const { t } = useTranslation()
@@ -23,6 +23,7 @@ export default function DeleteInstrumentDialog({ instrument, onClose, onDeleted 
   const deleteInstrument = useDeleteInvestmentInstrument()
 
   const inUse = !!preview && preview.investmentTransactions > 0
+  const hasPlans = !!preview && preview.recurring > 0
 
   const handleConfirm = async () => {
     if (!instrument) return
@@ -44,13 +45,14 @@ export default function DeleteInstrumentDialog({ instrument, onClose, onDeleted 
       onConfirm={handleConfirm}
       pending={isLoading || !preview || deleteInstrument.isPending}
     >
-      {inUse && preview && (
+      {(inUse || hasPlans) && preview && (
         <div className="space-y-2 text-sm">
           <ul className="list-disc space-y-1 pl-5">
-            <li>{t('accountsCommon.deleteInvestmentTransactionsCount', { count: preview.investmentTransactions })}</li>
+            {inUse && <li>{t('accountsCommon.deleteInvestmentTransactionsCount', { count: preview.investmentTransactions })}</li>}
             {preview.openPositions > 0 && <li>{t('accountsCommon.deleteOpenPositionsCount', { count: preview.openPositions })}</li>}
+            {hasPlans && <li>{t('accountsCommon.deleteRecurringCount', { count: preview.recurring })}</li>}
           </ul>
-          <p className="text-muted-foreground">{t('investmentInstruments.deleteInUseWarning')}</p>
+          {inUse && <p className="text-muted-foreground">{t('investmentInstruments.deleteInUseWarning')}</p>}
         </div>
       )}
     </ConfirmDialog>

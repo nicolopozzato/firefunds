@@ -16,7 +16,7 @@ final readonly class RecurringTransactionResponse
     public function __construct(
         public string $id,
         public string $description,
-        /** withdrawal, deposit or transfer */
+        /** withdrawal, deposit, transfer or purchase (a PAC) */
         public string $kind,
         public ?AccountRefResponse $sourceAccount,
         public ?AccountRefResponse $destinationAccount,
@@ -50,10 +50,28 @@ final readonly class RecurringTransactionResponse
         public int $pending,
         /** What it moves over the next twelve months, per month. */
         public string $monthlyAmount,
+        /** A purchase (PAC): what it buys, how, the fee each time. */
+        public ?InstrumentRefResponse $instrument = null,
+        public ?string $planMode = null,
+        public ?string $quantity = null,
+        public ?string $fees = null,
+        /**
+         * A purchase: what the next one would buy at the latest price (units,
+         * price in the instrument's currency, amount in the account's, the
+         * price's day); null figures where there is no price.
+         *
+         * @var array{quantity: ?string, unitPrice: ?string, amount: ?string, priceDate: ?string}|null
+         */
+        public ?array $estimate = null,
+        /** Entered by hand: expected as the average of its latest this many occurrences. */
+        public ?int $estimateCount = null,
+        /** That average, once it has some (it is then the next amount and the monthly figure's). */
+        public ?string $estimatedAmount = null,
     ) {
     }
 
-    public static function fromEntity(RecurringTransaction $recurring, int $pending, string $monthlyAmount): self
+    /** @param array{quantity: ?string, unitPrice: ?string, amount: ?string, priceDate: ?string}|null $estimate */
+    public static function fromEntity(RecurringTransaction $recurring, int $pending, string $monthlyAmount, string $nextAmount, ?array $estimate, ?string $estimatedAmount = null): self
     {
         $source = $recurring->getSourceAccount();
         $destination = $recurring->getDestinationAccount();
@@ -62,12 +80,12 @@ final readonly class RecurringTransactionResponse
         return new self(
             id: (string) $recurring->getId(),
             description: $recurring->getDescription(),
-            kind: self::kind($source?->getType(), $destination?->getType()),
+            kind: $recurring->isPurchase() ? 'purchase' : self::kind($source?->getType(), $destination?->getType()),
             sourceAccount: AccountRefResponse::fromNullable($source),
             destinationAccount: AccountRefResponse::fromNullable($destination),
             amount: $recurring->getAmount(),
             amountChanges: $recurring->getAmountChanges(),
-            nextAmount: $recurring->amountOn($recurring->nextOccurrence() ?? new \DateTimeImmutable()),
+            nextAmount: $nextAmount,
             currency: $recurring->getAssetAccount()->getCurrency()?->getCode() ?? '',
             destinationAmount: $recurring->getDestinationAmount(),
             categoryId: $category !== null ? (string) $category->getId() : null,
@@ -93,6 +111,13 @@ final readonly class RecurringTransactionResponse
             nextOccurrence: $recurring->nextOccurrence()?->format('Y-m-d'),
             pending: $pending,
             monthlyAmount: $monthlyAmount,
+            instrument: InstrumentRefResponse::fromNullable($recurring->getInstrument()),
+            planMode: $recurring->getPlanMode()?->value,
+            quantity: $recurring->getQuantity(),
+            fees: $recurring->getFees(),
+            estimate: $estimate,
+            estimateCount: $recurring->getEstimateCount(),
+            estimatedAmount: $estimatedAmount,
         );
     }
 

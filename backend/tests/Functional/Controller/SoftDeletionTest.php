@@ -261,7 +261,7 @@ class SoftDeletionTest extends WebTestCaseBase
         $this->entityManager->flush();
 
         $preview = $this->request('GET', '/api/investment-instruments/'.$this->id($instrument).'/deletion-preview');
-        $this->assertSame(['investmentTransactions' => 1, 'openPositions' => 1], $preview);
+        $this->assertSame(['investmentTransactions' => 1, 'openPositions' => 1, 'recurring' => 0], $preview);
 
         $this->request('DELETE', '/api/investment-instruments/'.$this->id($instrument));
         $this->assertResponseStatusCodeSame(409);

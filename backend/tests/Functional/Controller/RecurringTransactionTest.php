@@ -99,8 +99,31 @@ class RecurringTransactionTest extends WebTestCaseBase
 
         $this->post("/api/recurring-transactions/{$recurring['id']}/skip", []);
         $this->assertResponseIsSuccessful();
-        $this->post("/api/recurring-transactions/{$recurring['id']}/skip", []);
+        $this->post("/api/recurring-transactions/{$recurring['id']}/confirm", []);
         $this->assertResponseStatusCodeSame(409, 'nothing left to confirm');
+    }
+
+    public function testABillExpectsTheAverageOfItsLatestOccurrences(): void
+    {
+        $bill = $this->create(['description' => 'Electricity', 'amount' => '80', 'startDate' => '2026-11-03', 'mode' => 'confirm', 'estimateCount' => 2]);
+        $this->assertSame(2, $bill['estimateCount']);
+        $this->assertNull($bill['estimatedAmount'], 'nothing to average yet');
+        $this->assertSame('80.0000', $bill['nextAmount']);
+
+        self::mockTime('2027-01-05 09:00:00 Europe/Rome');
+        foreach (['100', '120', '140'] as $amount) {
+            $this->post("/api/recurring-transactions/{$bill['id']}/confirm", ['amount' => $amount]);
+            $this->assertResponseStatusCodeSame(201);
+        }
+
+        $bill = $this->get("/api/recurring-transactions/{$bill['id']}");
+        $this->assertSame('130.0000', $bill['estimatedAmount'], 'the latest two only');
+        $this->assertSame('130.0000', $bill['nextAmount']);
+        $this->assertSame('130.0000', $bill['monthlyAmount']);
+        $this->assertSame('130.0000', $this->get('/api/recurring-transactions/upcoming?days=40')[0]['amount']);
+
+        $automatic = $this->create(['description' => 'SIM', 'amount' => '4.99', 'startDate' => '2026-11-08', 'estimateCount' => 3]);
+        $this->assertNull($automatic['estimateCount'], 'an automatic one never records a guess');
     }
 
     public function testMadeFromATransactionThatCountsAsTheFirst(): void

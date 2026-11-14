@@ -8,13 +8,16 @@ use App\Entity\InvestmentInstrument;
 use App\Entity\InvestmentTransaction;
 use App\Investment\DTO\InstrumentDeletionPreviewResponse;
 use App\Investment\Position\AverageCostPosition;
+use App\Recurring\Service\RecurringTransactionService;
 use App\Repository\InvestmentTransactionRepository;
+use App\Repository\RecurringTransactionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Deleting an instrument never removes data: the instrument is marked as
  * deleted and, if the user confirms it, so are its investment transactions
- * (each with an entry in its audit log). Its price history stays untouched.
+ * (each with an entry in its audit log), and its recurring purchases (PAC)
+ * go with it. Its price history stays untouched.
  */
 class InstrumentDeletionService
 {
@@ -22,6 +25,8 @@ class InstrumentDeletionService
         private readonly EntityManagerInterface $entityManager,
         private readonly InvestmentTransactionRepository $investmentTransactionRepository,
         private readonly InvestmentTransactionAuditLogService $auditLog,
+        private readonly RecurringTransactionRepository $recurringRepository,
+        private readonly RecurringTransactionService $recurringService,
     ) {
     }
 
@@ -32,6 +37,7 @@ class InstrumentDeletionService
         return new InstrumentDeletionPreviewResponse(
             investmentTransactions: \count($transactions),
             openPositions: $this->countOpenPositions($transactions),
+            recurring: \count($this->recurringRepository->findByInstrument($instrument)),
         );
     }
 
@@ -50,6 +56,10 @@ class InstrumentDeletionService
             foreach ($transactions as $transaction) {
                 $transaction->markDeleted();
                 $this->auditLog->logDeleted($transaction, $transaction->getUser());
+            }
+
+            foreach ($this->recurringRepository->findByInstrument($instrument) as $recurring) {
+                $this->recurringService->delete($recurring);
             }
 
             $instrument->markDeleted();

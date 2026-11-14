@@ -66,6 +66,10 @@ final readonly class CreateInvestmentTransactionRequest
         #[Assert\Positive(message: 'Amount must be greater than zero')]
         #[Decimal]
         public ?string $amount = null,
+
+        /** A new purchase recorded as the waiting occurrence of this recurring purchase (PAC). */
+        #[Assert\Uuid]
+        public ?string $recurringId = null,
     ) {
     }
 

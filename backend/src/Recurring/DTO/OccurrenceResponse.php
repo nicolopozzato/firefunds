@@ -16,8 +16,8 @@ final readonly class OccurrenceResponse
     ) {
     }
 
-    public static function of(RecurringTransaction $recurring, \DateTimeImmutable $day, RecurringTransactionResponse $response): self
+    public static function of(RecurringTransaction $recurring, \DateTimeImmutable $day, string $amount, RecurringTransactionResponse $response): self
     {
-        return new self($day->format('Y-m-d'), $recurring->getTime(), $recurring->amountOn($day), $response);
+        return new self($day->format('Y-m-d'), $recurring->getTime(), $amount, $response);
     }
 }

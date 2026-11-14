@@ -18,6 +18,7 @@ import Combobox from '@/components/Combobox'
 import { useAccountOpenPositions, useAllAccounts } from '@/hooks/use-accounts'
 import { useAllInvestmentInstruments } from '@/hooks/use-investments'
 import { useFormFill } from '@/hooks/use-form-fill'
+import { useRecurringTransaction } from '@/hooks/use-recurring'
 import {
   useCreateInvestmentTransaction,
   useInvestmentTransaction,
@@ -107,6 +108,9 @@ export default function InvestmentTransactionFormPage() {
   const [searchParams] = useSearchParams()
   const cloneFromId = searchParams.get('cloneFrom')
   const isCloning = !!cloneFromId
+  // The purchase of a recurring plan (PAC), from its reminder: filled in from the plan, linked to it on save.
+  const recurringId = isEditing ? null : searchParams.get('recurringId')
+  const { data: plan } = useRecurringTransaction(recurringId ?? '')
   const createTransaction = useCreateInvestmentTransaction()
   const updateTransaction = useUpdateInvestmentTransaction()
   const { data: existingTransaction } = useInvestmentTransaction(id ?? cloneFromId ?? '')
@@ -159,6 +163,24 @@ export default function InvestmentTransactionFormPage() {
     setTaxes(existingTransaction.taxes)
     setNotes(existingTransaction.notes ?? '')
     setIsFormPopulated(true)
+  })
+
+  // A plan's purchase: its account, instrument and fee, on its day, with what the latest price says it buys.
+  useFormFill(plan ? `plan:${plan.id}` : null, () => {
+    if (!plan) return
+    setType('buy')
+    setDescription(plan.description)
+    setAccountId(plan.sourceAccount?.id ?? '')
+    setInstrumentId(plan.instrument?.id ?? '')
+    setOccurredAt(`${searchParams.get('day') ?? plan.nextOccurrence ?? nowAsDatetimeLocal().slice(0, 10)}T${plan.time}`)
+    setQuantity(plan.estimate?.quantity ? String(Number(plan.estimate.quantity)) : '')
+    setUnitPrice(plan.estimate?.unitPrice ? String(Number(plan.estimate.unitPrice)) : '')
+    // A fixed amount in fractional units is charged as it is; otherwise it follows units × price.
+    if (plan.planMode === 'amount') {
+      setAmount(String(Number(plan.nextAmount)))
+      setIsAmountEdited(true)
+    }
+    setFees(plan.fees && Number(plan.fees) ? String(Number(plan.fees)) : '')
   })
 
   const isSaving = createTransaction.isPending || updateTransaction.isPending || isSubmitting
@@ -232,6 +254,7 @@ export default function InvestmentTransactionFormPage() {
         // An edit keeps where it happened; a new one happens where this device is.
         timezone: isEditing ? undefined : deviceTimezone(),
         notes: notes || null,
+        recurringId,
       }
 
       let saved
@@ -240,7 +263,9 @@ export default function InvestmentTransactionFormPage() {
         navigate(-1)
       } else {
         saved = await createTransaction.mutateAsync(payload)
-        if (addAnotherRef.current) {
+        if (recurringId) {
+          navigate(`/transactions/recurring/${recurringId}`, { replace: true })
+        } else if (addAnotherRef.current) {
           startAnother()
         } else {
           navigate('/transactions/investments')
@@ -316,6 +341,12 @@ export default function InvestmentTransactionFormPage() {
         title={t(isEditing ? 'investmentTransactionForm.editTitle' : 'investmentTransactionForm.title')}
         description={t('investmentTransactionForm.description')}
       />
+
+      {plan && (
+        <p className="rounded-lg border border-invest/30 bg-invest/5 px-4 py-3 text-sm">
+          {t('investmentTransactionForm.planPurchase', { name: plan.description })}
+        </p>
+      )}
 
       {/* Desktop: the kind, the trade, its amounts and notes on the left, every field on the same two-column grid,
           the read-only summary beside them. Below that the left column dissolves, so the summary comes right
@@ -491,7 +522,7 @@ export default function InvestmentTransactionFormPage() {
           <Button type="button" variant="outline" onClick={handleCancel}>
             {t('common.cancel')}
           </Button>
-          {!isEditing && (
+          {!isEditing && !recurringId && (
             <Button type="submit" variant="outline" disabled={isSaveDisabled} onClick={() => (addAnotherRef.current = true)}>
               {t('transactionForm.saveAndAddAnother')}
             </Button>

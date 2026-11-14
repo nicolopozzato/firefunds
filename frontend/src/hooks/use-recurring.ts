@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { recurringApi } from '@/lib/recurring-api'
 import { transactionsApi } from '@/lib/transactions-api'
+import { investmentTransactionsApi } from '@/lib/investment-transactions-api'
 import { dataChanged } from '@/lib/data-changed'
 import type { RecurringTransactionRequest } from '@/types/recurring'
 
@@ -36,6 +37,16 @@ export function useRecurringTransactionHistory(id: string, page: number) {
     queryKey: ['transactions', 'by-recurring', id, page],
     queryFn: () => transactionsApi.listByRecurring(id, page),
     enabled: !!id,
+    placeholderData: (previousData) => previousData,
+  })
+}
+
+/** What a recurring purchase (PAC) bought, newest first. */
+export function useRecurringPurchaseHistory(id: string, page: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['investment-transactions', 'by-recurring', id, page],
+    queryFn: () => investmentTransactionsApi.listByRecurring(id, page),
+    enabled: !!id && enabled,
     placeholderData: (previousData) => previousData,
   })
 }

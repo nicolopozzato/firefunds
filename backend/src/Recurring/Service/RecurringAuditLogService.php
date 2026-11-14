@@ -46,6 +46,10 @@ class RecurringAuditLogService
             'category' => $recurring->getCategory()?->getName(),
             'tags' => $tags,
             'notes' => $recurring->getNotes(),
+            'instrument' => $recurring->getInstrument()?->getName(),
+            'planMode' => $recurring->getPlanMode()?->value,
+            'quantity' => $recurring->getQuantity() !== null ? bcadd($recurring->getQuantity(), '0', 6) : null,
+            'fees' => $recurring->getFees() !== null ? bcadd($recurring->getFees(), '0', 4) : null,
             'startDate' => $recurring->getStartDate()->format('Y-m-d'),
             'unit' => $recurring->getUnit()->value,
             'interval' => $recurring->getInterval(),
@@ -57,8 +61,17 @@ class RecurringAuditLogService
             'time' => $recurring->getTime(),
             'mode' => $recurring->getMode()->value,
             'reminderDays' => $recurring->getReminderDays(),
+            'estimateCount' => $recurring->getEstimateCount(),
             'paused' => $recurring->isPaused(),
         ];
+    }
+
+    /** An occurrence let go without a transaction ("skip"): its day, as a change of its own. */
+    public function logSkipped(RecurringTransaction $recurring, User $user, \DateTimeImmutable $day): void
+    {
+        $this->entityManager->persist(new RecurringTransactionAuditLog($recurring, $user, 'updated', [
+            ['field' => 'skipped', 'oldValue' => null, 'newValue' => $day->format('Y-m-d')],
+        ]));
     }
 
     /** @param array<string, mixed> $before */

@@ -23,6 +23,14 @@ export const investmentTransactionsApi = {
     return response.data
   },
 
+  /** What a recurring purchase (PAC) bought, newest first. */
+  async listByRecurring(recurringId: string, page = 1): Promise<PaginatedResponse<InvestmentTransaction>> {
+    const response = await api.get<PaginatedResponse<InvestmentTransaction>>('/api/investment-transactions', {
+      params: { recurringId, page },
+    })
+    return response.data
+  },
+
   async distributions(from?: string, to?: string): Promise<InvestmentDistributions> {
     const response = await api.get<InvestmentDistributions>('/api/investment-transactions/distributions', {
       params: { from, to },

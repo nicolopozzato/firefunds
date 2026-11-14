@@ -80,7 +80,11 @@ export default function RecurringTransactions() {
               <Stat size="lg" label={t('recurring.monthlyExpenses')} valueClassName="text-negative" value={formatMoney(monthly('withdrawal'), currency)} />
               <Stat size="lg" label={t('recurring.monthlyIncome')} valueClassName="text-positive" value={formatMoney(monthly('deposit'), currency)} />
               <Stat size="lg" label={t('recurring.monthlyTransfers')} value={formatMoney(monthly('transfer'), currency)} />
-              <Stat size="lg" label={t('recurring.active')} value={active.length} />
+              {active.some((one) => one.kind === 'purchase') ? (
+                <Stat size="lg" label={t('recurring.monthlyInvested')} valueClassName="text-invest" value={formatMoney(monthly('purchase'), currency)} />
+              ) : (
+                <Stat size="lg" label={t('recurring.active')} value={active.length} />
+              )}
             </CardContent>
           </Card>
 

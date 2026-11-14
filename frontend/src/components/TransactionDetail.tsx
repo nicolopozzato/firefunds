@@ -16,6 +16,7 @@ const TONES = {
   positive: 'bg-positive/10 text-positive',
   negative: 'bg-negative/10 text-negative',
   info: 'bg-info/10 text-info',
+  invest: 'bg-invest/10 text-invest',
 } as const
 
 /** The icon in a tinted circle, the amount, and under it what it is and when, as plain text. */

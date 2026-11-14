@@ -395,6 +395,29 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * The expected amount of the user's recurrences estimated from their
+     * latest occurrences (estimate_count set): the average of the latest that
+     * many transactions linked to each, by recurrence id. One query for all.
+     *
+     * @return array<string, string> recurrence id => average (4 decimals); none without a linked transaction
+     */
+    public function averageOfLatestOccurrences(User $user): array
+    {
+        return $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT recurring_id, CAST(AVG(amount) AS numeric(19,4)) FROM (
+                SELECT t.recurring_id, t.amount, r.estimate_count,
+                       ROW_NUMBER() OVER (PARTITION BY t.recurring_id ORDER BY t.occurred_at DESC, t.id DESC) AS n
+                FROM "transaction" t
+                JOIN recurring_transaction r ON r.id = t.recurring_id
+                WHERE t.user_id = :user AND t.deleted_at IS NULL AND r.deleted_at IS NULL AND r.estimate_count IS NOT NULL
+            ) latest
+            WHERE n <= estimate_count
+            GROUP BY recurring_id',
+            ['user' => $user->getId()->toRfc4122()],
+        )->fetchAllKeyValue();
+    }
+
+    /**
      * Transactions on this account, not part of a recurrence, from `from`
      * through `to`: what the user may link to a recurring one by hand.
      *

@@ -15,6 +15,11 @@ use Symfony\Component\Uid\Uuid;
  * happens then (RecurrenceMode). Everything on or before `handledThrough` is
  * dealt with (created, confirmed or skipped), so the next occurrence is the
  * first after it, and nothing is ever created twice.
+ *
+ * With an instrument it is a recurring purchase (a PAC) instead: on its
+ * investment account (`sourceAccount`, no destination), bought as
+ * `planMode` says, always entered by the user with the broker's figures
+ * (mode confirm), so no category or tags.
  */
 #[ORM\Entity(repositoryClass: RecurringTransactionRepository::class)]
 #[ORM\Table(name: 'recurring_transaction')]
@@ -69,6 +74,22 @@ class RecurringTransaction implements SoftDeletable
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    /** A recurring purchase (PAC): what it buys. */
+    #[ORM\ManyToOne(targetEntity: InvestmentInstrument::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?InvestmentInstrument $instrument = null;
+
+    #[ORM\Column(length: 20, nullable: true, enumType: InvestmentPlanMode::class)]
+    private ?InvestmentPlanMode $planMode = null;
+
+    /** Plan mode units: how many each time. */
+    #[ORM\Column(type: 'decimal', precision: 20, scale: 6, nullable: true)]
+    private ?string $quantity = null;
+
+    /** The broker's fee on each purchase. */
+    #[ORM\Column(type: 'decimal', precision: 19, scale: 4, nullable: true)]
+    private ?string $fees = null;
+
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $startDate;
 
@@ -108,6 +129,13 @@ class RecurringTransaction implements SoftDeletable
     /** Entered by hand: days after its day before the user is reminded. */
     #[ORM\Column(options: ['default' => 3])]
     private int $reminderDays = 3;
+
+    /**
+     * Entered by hand, an amount that changes (a bill): what is expected is
+     * the average of its latest this many occurrences; null: its amount.
+     */
+    #[ORM\Column(type: 'smallint', nullable: true)]
+    private ?int $estimateCount = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $pausedAt = null;
@@ -315,6 +343,42 @@ class RecurringTransaction implements SoftDeletable
         return $this;
     }
 
+    public function isPurchase(): bool
+    {
+        return $this->instrument !== null;
+    }
+
+    public function getInstrument(): ?InvestmentInstrument
+    {
+        return $this->instrument;
+    }
+
+    public function getPlanMode(): ?InvestmentPlanMode
+    {
+        return $this->planMode;
+    }
+
+    public function getQuantity(): ?string
+    {
+        return $this->quantity;
+    }
+
+    public function getFees(): ?string
+    {
+        return $this->fees;
+    }
+
+    /** Null instrument: a money transaction again, the plan cleared. */
+    public function setPlan(?InvestmentInstrument $instrument, ?InvestmentPlanMode $mode, ?string $quantity, ?string $fees): static
+    {
+        $this->instrument = $instrument;
+        $this->planMode = $instrument !== null ? $mode : null;
+        $this->quantity = $instrument !== null ? $quantity : null;
+        $this->fees = $instrument !== null ? $fees : null;
+
+        return $this;
+    }
+
     public function getStartDate(): \DateTimeImmutable
     {
         return $this->startDate;
@@ -413,6 +477,18 @@ class RecurringTransaction implements SoftDeletable
     public function setReminderDays(int $days): static
     {
         $this->reminderDays = $days;
+
+        return $this;
+    }
+
+    public function getEstimateCount(): ?int
+    {
+        return $this->estimateCount;
+    }
+
+    public function setEstimateCount(?int $count): static
+    {
+        $this->estimateCount = $count;
 
         return $this;
     }

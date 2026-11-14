@@ -40,6 +40,9 @@ final readonly class InvestmentTransactionResponse
          * until prices are imported manually from the instrument's page.
          */
         public bool $pricesIncomplete = false,
+        /** The recurring purchase (PAC) it is an occurrence of. */
+        public ?string $recurringId = null,
+        public ?string $recurringDescription = null,
     ) {
     }
 
@@ -69,6 +72,8 @@ final readonly class InvestmentTransactionResponse
             createdAt: $transaction->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $transaction->getUpdatedAt()->format(\DateTimeInterface::ATOM),
             pricesIncomplete: $pricesIncomplete,
+            recurringId: $transaction->getRecurring()?->getId()->toRfc4122(),
+            recurringDescription: $transaction->getRecurring()?->getDescription(),
         );
     }
 }

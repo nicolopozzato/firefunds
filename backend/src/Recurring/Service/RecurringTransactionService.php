@@ -4,8 +4,13 @@ namespace App\Recurring\Service;
 
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
+use App\Entity\Account;
 use App\Entity\AccountType;
+use App\Entity\AssetAccountKind;
 use App\Entity\Draft;
+use App\Entity\InvestmentPlanMode;
+use App\Entity\InvestmentTransaction;
+use App\Entity\InvestmentTransactionType;
 use App\Entity\RecurrenceMode;
 use App\Entity\RecurringTransaction;
 use App\Entity\Transaction;
@@ -15,6 +20,9 @@ use App\Recurring\DTO\OccurrenceResponse;
 use App\Recurring\DTO\RecurringTransactionRequest;
 use App\Recurring\DTO\RecurringTransactionResponse;
 use App\Notification\Service\NotificationCenter;
+use App\Repository\AccountRepository;
+use App\Repository\InvestmentInstrumentRepository;
+use App\Repository\InvestmentTransactionRepository;
 use App\Repository\RecurringTransactionRepository;
 use App\Repository\TransactionRepository;
 use App\Transaction\DTO\CreateTransactionRequest;
@@ -36,6 +44,10 @@ use Symfony\Component\HttpFoundation\Response;
  * Only what falls from the day a recurrence is made on is ever created: a
  * start date in the past only sets the rhythm. Each transaction made keeps
  * a link to its recurrence.
+ *
+ * A recurring purchase (PAC) is always entered by the user, with the
+ * broker's figures, from the trade form: a buy of its instrument on its
+ * account within MATCH_DAYS is recognised the same way.
  */
 class RecurringTransactionService
 {
@@ -43,6 +55,9 @@ class RecurringTransactionService
     private const MATCH_DAYS = 7;
     /** How far the user is offered transactions to link by hand. */
     private const LINK_DAYS = 15;
+
+    /** @var array<string, array<string, string>> user id => recurrence id => average of its latest occurrences */
+    private array $averages = [];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -53,6 +68,10 @@ class RecurringTransactionService
         private readonly LoggerInterface $logger,
         private readonly RecurringAuditLogService $auditLog,
         private readonly NotificationCenter $notifications,
+        private readonly AccountRepository $accountRepository,
+        private readonly InvestmentInstrumentRepository $instrumentRepository,
+        private readonly InvestmentTransactionRepository $tradeRepository,
+        private readonly PlanEstimate $planEstimate,
     ) {
     }
 
@@ -60,8 +79,12 @@ class RecurringTransactionService
     {
         $timezone = $request->timezone ?? $user->getTimezone();
         $today = $this->today($timezone);
-        $from = $request->fromTransactionId !== null ? $this->ownedTransaction($user, $request->fromTransactionId) : null;
-        // Nothing before today; made from a transaction, nothing up to its day either: it is the first.
+        $from = match (true) {
+            $request->isPurchase() && $request->fromTradeId !== null => $this->ownedPurchase($user, $request->fromTradeId),
+            !$request->isPurchase() && $request->fromTransactionId !== null => $this->ownedTransaction($user, $request->fromTransactionId),
+            default => null,
+        };
+        // Nothing before today; made from a transaction (or a purchase), nothing up to its day either: it is the first.
         $handled = $today->modify('-1 day');
         if ($from !== null && $from->getOccurredAt()->format('Y-m-d') > $handled->format('Y-m-d')) {
             $handled = new \DateTimeImmutable($from->getOccurredAt()->format('Y-m-d'));
@@ -91,12 +114,14 @@ class RecurringTransactionService
         return $recurring;
     }
 
-    /** Its transactions stay, no longer linked to it. */
+    /** Its transactions (or purchases) stay, no longer linked to it. */
     public function delete(RecurringTransaction $recurring): void
     {
-        $this->entityManager->createQuery('UPDATE '.Transaction::class.' t SET t.recurring = NULL WHERE t.recurring = :recurring')
-            ->setParameter('recurring', $recurring)
-            ->execute();
+        foreach ([Transaction::class, InvestmentTransaction::class] as $class) {
+            $this->entityManager->createQuery('UPDATE '.$class.' t SET t.recurring = NULL WHERE t.recurring = :recurring')
+                ->setParameter('recurring', $recurring)
+                ->execute();
+        }
         $recurring->markDeleted();
         $this->auditLog->logDeleted($recurring, $recurring->getUser());
         $this->notifications->resolve($this->reminderKey($recurring), true);
@@ -175,7 +200,7 @@ class RecurringTransactionService
             $used = [];
             $days = $recurring->rule()->between($recurring->getHandledThrough()->modify('+1 day'), $today->modify('+'.self::MATCH_DAYS.' days'));
             foreach ($days as $day) {
-                $match = $this->closestMatch($recurring, $day, $used);
+                $match = $recurring->isPurchase() ? $this->closestPurchase($recurring, $day, $used) : $this->closestMatch($recurring, $day, $used);
                 if ($match !== null) {
                     $used[] = $match->getId()->toRfc4122();
                     $this->linkOccurrence($recurring, $day, $match);
@@ -210,6 +235,9 @@ class RecurringTransactionService
     public function linkable(RecurringTransaction $recurring): array
     {
         $day = $this->firstPending($recurring);
+        if ($recurring->isPurchase()) {
+            return [];
+        }
         $candidates = $this->transactionRepository->findLinkable(
             $recurring->getUser(),
             $recurring->getAssetAccount(),
@@ -228,7 +256,7 @@ class RecurringTransactionService
         $transaction = $this->ownedTransaction($recurring->getUser(), $transactionId);
         $account = $recurring->getAssetAccount();
         $onAccount = static fn (?\App\Entity\Account $side) => $side !== null && $side->getId()->equals($account->getId());
-        if ($transaction->getRecurring() !== null || (!$onAccount($transaction->getSourceAccount()) && !$onAccount($transaction->getDestinationAccount()))) {
+        if ($recurring->isPurchase() || $transaction->getRecurring() !== null || (!$onAccount($transaction->getSourceAccount()) && !$onAccount($transaction->getDestinationAccount()))) {
             throw new ApiException(ErrorCode::TransactionNotLinkable, [], Response::HTTP_CONFLICT);
         }
         $this->linkOccurrence($recurring, $day, $transaction);
@@ -253,7 +281,7 @@ class RecurringTransactionService
         $direction = $draft->effectiveDirection();
         $found = [];
         foreach ($this->repository->findByUser($draft->getUser()) as $recurring) {
-            $next = $recurring->isPaused() ? null : $recurring->nextOccurrence();
+            $next = $recurring->isPaused() || $recurring->isPurchase() ? null : $recurring->nextOccurrence();
             if ($next === null || abs((int) $next->diff($day)->format('%r%a')) > self::MATCH_DAYS) {
                 continue;
             }
@@ -287,16 +315,43 @@ class RecurringTransactionService
     public function confirm(RecurringTransaction $recurring, ConfirmOccurrenceRequest $request): Transaction
     {
         $day = $this->firstPending($recurring);
+        if ($recurring->isPurchase()) {
+            // A purchase is entered with the broker's figures: recordPurchase().
+            throw new ApiException(ErrorCode::NothingToConfirm, [], Response::HTTP_CONFLICT);
+        }
         $occurredOn = $request->day !== null ? new \DateTimeImmutable($request->day) : $day;
 
         return $this->createOccurrence($recurring, $day, $occurredOn, $request->amount);
     }
 
-    /** The next occurrence of one that waits for the user, let go without a transaction. */
+    /**
+     * A purchase just entered from the trade form for a recurring purchase
+     * (PAC): the first occurrence waiting for it, else the next (bought a day
+     * early). A buy, of any instrument and on any account: the user knows
+     * what the broker did. Saved with the trade.
+     */
+    public function recordPurchase(User $user, string $recurringId, InvestmentTransaction $trade): void
+    {
+        $recurring = $this->repository->findOneByUserAndId($user, $recurringId);
+        if ($recurring === null || !$recurring->isPurchase()) {
+            throw ApiException::notFound(ErrorCode::RecurringNotFound);
+        }
+        if ($trade->getType() !== InvestmentTransactionType::Buy) {
+            throw new ApiException(ErrorCode::TransactionNotLinkable, [], Response::HTTP_CONFLICT);
+        }
+        $this->linkOccurrence($recurring, $this->nextToHandle($recurring), $trade);
+    }
+
+    /**
+     * Lets the next occurrence go without a transaction: the first waiting
+     * for the user, else the next to come ("not this month": a free month,
+     * a skipped instalment), whatever the mode.
+     */
     public function skip(RecurringTransaction $recurring): void
     {
-        $day = $this->firstPending($recurring);
+        $day = $this->nextToHandle($recurring);
         $recurring->handleThrough($day);
+        $this->auditLog->logSkipped($recurring, $recurring->getUser(), $day);
         $this->notifications->resolve($this->reminderKey($recurring, $day));
         $this->entityManager->flush();
     }
@@ -311,7 +366,16 @@ class RecurringTransactionService
     {
         $today = $this->today($recurring->getTimezone());
 
-        return RecurringTransactionResponse::fromEntity($recurring, \count($this->pendingDays($recurring, $today)), $this->monthlyAmount($recurring, $today));
+        $next = $recurring->nextOccurrence();
+
+        return RecurringTransactionResponse::fromEntity(
+            $recurring,
+            \count($this->pendingDays($recurring, $today)),
+            $this->monthlyAmount($recurring, $today),
+            $this->expectedAmount($recurring, $next ?? $today),
+            $recurring->isPurchase() ? $this->planEstimate->on($recurring, $next ?? $today) : null,
+            $this->estimatedAmount($recurring),
+        );
     }
 
     /**
@@ -332,7 +396,7 @@ class RecurringTransactionService
             $response = null;
             foreach ($recurring->rule()->between($from, $today->modify("+{$days} days")) as $day) {
                 $response ??= $this->toResponse($recurring);
-                $occurrences[] = OccurrenceResponse::of($recurring, $day, $response);
+                $occurrences[] = OccurrenceResponse::of($recurring, $day, $this->expectedAmount($recurring, $day), $response);
             }
         }
         usort($occurrences, static fn (OccurrenceResponse $a, OccurrenceResponse $b) => [$a->day, $a->time] <=> [$b->day, $b->time]);
@@ -355,7 +419,7 @@ class RecurringTransactionService
             }
             $days = $this->pendingDays($recurring, $this->today($recurring->getTimezone()));
             if ($days !== []) {
-                $occurrences[] = OccurrenceResponse::of($recurring, $days[0], $this->toResponse($recurring));
+                $occurrences[] = OccurrenceResponse::of($recurring, $days[0], $this->expectedAmount($recurring, $days[0]), $this->toResponse($recurring));
             }
         }
         usort($occurrences, static fn (OccurrenceResponse $a, OccurrenceResponse $b) => $a->day <=> $b->day);
@@ -365,17 +429,24 @@ class RecurringTransactionService
 
     private function apply(RecurringTransaction $recurring, User $user, RecurringTransactionRequest $request): void
     {
-        $template = $request->template();
-        [$source, $destination] = $this->transactionService->resolveSides($user, $template);
-        [$category, $tags] = $this->transactionService->resolveClassification($user, $template);
+        if ($request->isPurchase()) {
+            $this->applyPlan($recurring, $user, $request);
+        } else {
+            $template = $request->template();
+            [$source, $destination] = $this->transactionService->resolveSides($user, $template);
+            [$category, $tags] = $this->transactionService->resolveClassification($user, $template);
 
-        $recurring->setAccounts($source, $destination);
-        $this->applyAmounts($recurring, $request);
-        $recurring->setDestinationAmount($this->destinationAmount($recurring, $request));
-        $recurring->setCategory($category);
-        $recurring->setTags($tags);
+            $recurring->setAccounts($source, $destination);
+            $recurring->setPlan(null, null, null, null);
+            $this->applyAmounts($recurring, $request);
+            $recurring->setDestinationAmount($this->destinationAmount($recurring, $request));
+            $recurring->setCategory($category);
+            $recurring->setTags($tags);
+            $recurring->setMode($request->mode);
+            // Only one the user enters: an automatic one would record a guess by itself.
+            $recurring->setEstimateCount($request->mode === RecurrenceMode::Confirm ? $request->estimateCount : null);
+        }
         $recurring->setNotes($request->notes);
-        $recurring->setMode($request->mode);
         $recurring->setReminderDays($request->reminderDays);
         $recurring->setSchedule(
             startDate: new \DateTimeImmutable($request->startDate),
@@ -391,13 +462,48 @@ class RecurringTransactionService
     }
 
     /**
+     * A recurring purchase (PAC): its investment account and instrument, how
+     * it buys; always entered by the user, never a category or tags.
+     */
+    private function applyPlan(RecurringTransaction $recurring, User $user, RecurringTransactionRequest $request): void
+    {
+        $account = $this->accountRepository->findOneByUserAndId($user, (string) $request->sourceAccountId)
+            ?? throw new ApiException(ErrorCode::AccountNotFound);
+        if ($account->getType() !== AccountType::Asset || $account->getAssetKind() !== AssetAccountKind::Investment) {
+            throw new ApiException(ErrorCode::InvestmentAccountRequired);
+        }
+        $instrument = $this->instrumentRepository->findOneByUserAndId($user, (string) $request->instrumentId)
+            ?? throw new ApiException(ErrorCode::InstrumentNotFound);
+        $mode = $request->planMode ?? InvestmentPlanMode::Amount;
+
+        $recurring->setAccounts($account, null);
+        $recurring->setPlan(
+            $instrument,
+            $mode,
+            $mode === InvestmentPlanMode::Units ? bcadd((string) $request->quantity, '0', 6) : null,
+            bcadd($request->fees ?? '0', '0', 4),
+        );
+        if ($mode === InvestmentPlanMode::Units) {
+            $recurring->setAmount('0');
+            $recurring->setAmountChanges([]);
+        } else {
+            $this->applyAmounts($recurring, $request);
+        }
+        $recurring->setDestinationAmount(null);
+        $recurring->setCategory(null);
+        $recurring->setTags([]);
+        $recurring->setMode(RecurrenceMode::Confirm);
+        $recurring->setEstimateCount(null);
+    }
+
+    /**
      * The amount and its planned changes. A change whose day has come (today
      * where it happens) becomes the amount: what is planned stays ahead.
      */
     private function applyAmounts(RecurringTransaction $recurring, RecurringTransactionRequest $request): void
     {
         $today = $this->today($request->timezone ?? $recurring->getTimezone())->format('Y-m-d');
-        $amount = bcadd($request->amount, '0', 4);
+        $amount = bcadd((string) $request->amount, '0', 4);
         $planned = [];
         $byDay = [];
         foreach ($request->amountChanges as $change) {
@@ -452,12 +558,14 @@ class RecurringTransactionService
         $recurring->handleThrough($day);
         $this->notifications->resolve($this->reminderKey($recurring, $day));
         $this->entityManager->flush();
+        $this->averages = [];
 
         return $transaction;
     }
 
-    private function linkOccurrence(RecurringTransaction $recurring, \DateTimeImmutable $day, Transaction $transaction): void
+    private function linkOccurrence(RecurringTransaction $recurring, \DateTimeImmutable $day, Transaction|InvestmentTransaction $transaction): void
     {
+        $this->averages = [];
         $transaction->setRecurring($recurring);
         $recurring->handleThrough($day);
         $this->notifications->resolve($this->reminderKey($recurring, $day));
@@ -483,7 +591,24 @@ class RecurringTransactionService
         return $candidates[0] ?? null;
     }
 
-    private static function distance(Transaction $transaction, \DateTimeImmutable $day): int
+    /**
+     * @param list<string> $used ids already taken by an earlier occurrence
+     */
+    private function closestPurchase(RecurringTransaction $recurring, \DateTimeImmutable $day, array $used): ?InvestmentTransaction
+    {
+        $account = $recurring->getSourceAccount();
+        $instrument = $recurring->getInstrument();
+        \assert($account instanceof Account && $instrument !== null);
+        $candidates = array_filter(
+            $this->tradeRepository->findPlanCandidates($recurring->getUser(), $account, $instrument, $day->modify('-'.self::MATCH_DAYS.' days'), $day->modify('+'.self::MATCH_DAYS.' days')),
+            static fn (InvestmentTransaction $trade) => !\in_array($trade->getId()->toRfc4122(), $used, true),
+        );
+        usort($candidates, static fn (InvestmentTransaction $a, InvestmentTransaction $b) => self::distance($a, $day) <=> self::distance($b, $day));
+
+        return $candidates[0] ?? null;
+    }
+
+    private static function distance(Transaction|InvestmentTransaction $transaction, \DateTimeImmutable $day): int
     {
         return abs((int) (new \DateTimeImmutable($transaction->getOccurredAt()->format('Y-m-d')))->diff($day)->format('%r%a'));
     }
@@ -506,6 +631,15 @@ class RecurringTransactionService
         return $days[0];
     }
 
+    /** The first occurrence waiting for the user, else the next to come (one entered early). */
+    private function nextToHandle(RecurringTransaction $recurring): \DateTimeImmutable
+    {
+        $pending = $this->pendingDays($recurring, $this->today($recurring->getTimezone()));
+
+        return $pending[0] ?? ($recurring->isPaused() ? null : $recurring->nextOccurrence())
+            ?? throw new ApiException(ErrorCode::NothingToConfirm, [], Response::HTTP_CONFLICT);
+    }
+
     /** @return list<\DateTimeImmutable> */
     private function pendingDays(RecurringTransaction $recurring, \DateTimeImmutable $today): array
     {
@@ -524,10 +658,51 @@ class RecurringTransactionService
         }
         $total = '0';
         foreach ($recurring->rule()->between($today, $today->modify('+1 year -1 day')) as $day) {
-            $total = bcadd($total, $recurring->amountOn($day), 4);
+            $total = bcadd($total, $this->expectedAmount($recurring, $day), 4);
         }
 
         return bcdiv($total, '12', 4);
+    }
+
+    /**
+     * What an occurrence moves: its amount; one estimated from its latest
+     * occurrences, their average (its amount until one is linked); a purchase
+     * of fixed units, what they cost at the latest price (0 without one).
+     */
+    private function expectedAmount(RecurringTransaction $recurring, \DateTimeImmutable $day): string
+    {
+        if ($recurring->isPurchase() && $recurring->getPlanMode() === InvestmentPlanMode::Units) {
+            return $this->planEstimate->amountOn($recurring, $day) ?? '0';
+        }
+
+        return $this->estimatedAmount($recurring) ?? $recurring->amountOn($day);
+    }
+
+    /** The average of its latest occurrences, when it is estimated and has some; null otherwise. */
+    private function estimatedAmount(RecurringTransaction $recurring): ?string
+    {
+        if ($recurring->getEstimateCount() === null) {
+            return null;
+        }
+        // Once per user and request: every recurrence of a list reads the same query.
+        $user = $recurring->getUser()->getId()->toRfc4122();
+        $this->averages[$user] ??= $this->transactionRepository->averageOfLatestOccurrences($recurring->getUser());
+
+        return $this->averages[$user][$recurring->getId()->toRfc4122()] ?? null;
+    }
+
+    /** A buy, not part of a plan yet: what a recurring purchase (PAC) is made from. */
+    private function ownedPurchase(User $user, string $id): InvestmentTransaction
+    {
+        $trade = $this->tradeRepository->findOneByUserAndId($user, $id);
+        if ($trade === null) {
+            throw ApiException::notFound(ErrorCode::InvestmentTransactionNotFound);
+        }
+        if ($trade->getType() !== InvestmentTransactionType::Buy || $trade->getRecurring() !== null) {
+            throw new ApiException(ErrorCode::TransactionNotLinkable, [], Response::HTTP_CONFLICT);
+        }
+
+        return $trade;
     }
 
     private function ownedTransaction(User $user, string $id): Transaction
