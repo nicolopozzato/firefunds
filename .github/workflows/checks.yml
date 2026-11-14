@@ -54,10 +54,12 @@ jobs:
         run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
       # The backup tests run pg_dump, which must be the database's version.
+      # --no-upgrade: the Ubuntu 26.04 runner ships it already, and upgrading
+      # it drags in a libpq-dev that clashes with postgresql-common.
       - name: PostgreSQL 18 client
         run: |
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y postgresql-client-18
+          sudo apt-get install -y --no-upgrade postgresql-client-18
 
       - run: vendor/bin/phpunit
 
