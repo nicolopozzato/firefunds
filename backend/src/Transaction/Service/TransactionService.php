@@ -50,8 +50,11 @@ class TransactionService
      * Names the form wrote instead of picking (new sides, category, tags) are
      * found or created here, in the same flush as the transaction: a refused
      * transaction creates nothing, and saving again finds what is there.
+     * Without `$flush` the caller flushes (many at once: a file's rows), and
+     * must have created the named sides, category and tags already, since
+     * the lookups by name don't see what isn't flushed yet.
      */
-    public function create(User $user, CreateTransactionRequest $request): Transaction
+    public function create(User $user, CreateTransactionRequest $request, bool $flush = true): Transaction
     {
         $sourceAccount = $this->resolveSide($user, $request->sourceAccountId, $request->newSourceAccountName, AccountType::Revenue);
         $destinationAccount = $this->resolveSide($user, $request->destinationAccountId, $request->newDestinationAccountName, AccountType::Expense);
@@ -79,7 +82,9 @@ class TransactionService
 
         $this->entityManager->persist($transaction);
         $this->auditLogService->logCreated($transaction, $user);
-        $this->entityManager->flush();
+        if ($flush) {
+            $this->entityManager->flush();
+        }
 
         return $transaction;
     }

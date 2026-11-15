@@ -115,7 +115,10 @@ class AccountRepository extends ServiceEntityRepository
             return null;
         }
 
-        return $this->findOneBy(['user' => $user, 'id' => $id]);
+        // By id, so a second lookup in the same request (a file's rows) is no query.
+        $found = $this->find($id);
+
+        return $found !== null && $found->getDeletedAt() === null && $found->getUser()->getId()->equals($user->getId()) ? $found : null;
     }
 
     /**

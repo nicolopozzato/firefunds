@@ -39,6 +39,11 @@ class AccountAdjustment implements SoftDeletable
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $description = null;
 
+    /** The file import that recorded it (a Firefly reconciliation), which can be undone as a whole. */
+    #[ORM\ManyToOne(targetEntity: ImportBatch::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?ImportBatch $importBatch = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -105,6 +110,13 @@ class AccountAdjustment implements SoftDeletable
     public function setDescription(?string $description): static
     {
         $this->description = $description;
+        return $this;
+    }
+
+    public function setImportBatch(?ImportBatch $importBatch): static
+    {
+        $this->importBatch = $importBatch;
+
         return $this;
     }
 

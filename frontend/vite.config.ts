@@ -6,8 +6,9 @@ import { readFileSync, readdirSync, writeFileSync } from 'fs'
 import path from 'path'
 import { version } from './package.json'
 
-// Not kept on the device: the worker itself, and the Android app (downloaded once).
-const NOT_KEPT = ['sw.js', 'downloads/']
+// Not kept on the device: the worker itself, the Android app (downloaded once),
+// and the spreadsheet reader (large, loaded only to import an Excel file).
+const NOT_KEPT = ['sw.js', 'downloads/', 'assets/xlsx-']
 
 /**
  * Writes the list of the build's files into the service worker

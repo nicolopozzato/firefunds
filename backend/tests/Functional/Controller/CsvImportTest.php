@@ -63,11 +63,13 @@ class CsvImportTest extends WebTestCaseBase
             'sourceAccountId' => $this->checking, 'newDestinationAccountName' => 'Iliad',
         ]);
 
-        $preview = $this->post('/api/import/preview', ['accountId' => $this->checking, 'rows' => [
-            ['date' => '2026-10-21', 'amount' => '-30', 'description' => 'PRELIEVO BANCOMAT'],
-            ['date' => '2026-10-25', 'amount' => '-45.10', 'description' => 'POS 25/10 ESSELUNGA MILANO CARTA *1234'],
-            ['date' => '2026-11-08', 'amount' => '-4.99', 'description' => 'ADDEBITO ILIAD'],
-            ['date' => '2026-10-27', 'amount' => '1500', 'description' => 'Bonifico'],
+        $preview = $this->post('/api/import/preview', ['rows' => [
+            ['date' => '2026-10-21', 'amount' => '-30', 'accountId' => $this->checking, 'description' => 'PRELIEVO BANCOMAT'],
+            ['date' => '2026-10-25', 'amount' => '-45.10', 'accountId' => $this->checking, 'description' => 'POS 25/10 ESSELUNGA MILANO CARTA *1234'],
+            ['date' => '2026-11-08', 'amount' => '-4.99', 'accountId' => $this->checking, 'description' => 'ADDEBITO ILIAD'],
+            ['date' => '2026-10-27', 'amount' => '1500', 'accountId' => $this->checking, 'description' => 'Bonifico'],
+            // On an account the import will create: nothing to be a duplicate of, suggestions still.
+            ['date' => '2026-10-20', 'amount' => '-30', 'description' => 'POS 20/10 ESSELUNGA MILANO CARTA *5555'],
         ]]);
         $this->assertResponseIsSuccessful();
 
@@ -78,13 +80,27 @@ class CsvImportTest extends WebTestCaseBase
         $this->assertSame('2026-11-08', $preview[2]['recurring']['day']);
         $this->assertNull($preview[3]['duplicate']);
         $this->assertNull($preview[3]['suggestion']);
+        $this->assertNull($preview[4]['duplicate']);
+        $this->assertSame($this->groceries, $preview[4]['suggestion']['categoryId']);
+    }
+
+    public function testAnotherUsersAccountCantBePreviewed(): void
+    {
+        $other = static::createUser();
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $theirs = new Account($entityManager->find(User::class, $other->getId()), AccountType::Asset, 'Theirs');
+        $entityManager->persist($theirs);
+        $entityManager->flush();
+
+        $this->post('/api/import/preview', ['rows' => [['date' => '2026-10-21', 'amount' => '-30', 'accountId' => (string) $theirs->getId()]]]);
+        $this->assertResponseStatusCodeSame(404);
     }
 
     /** A day far off would make the preview go through every recurring day up to it. */
     public function testARowDayMustBeWithinTheSupportedYears(): void
     {
-        $preview = $this->post('/api/import/preview', ['accountId' => $this->checking, 'rows' => [
-            ['date' => '9999-12-31', 'amount' => '-1', 'description' => 'Far off'],
+        $preview = $this->post('/api/import/preview', ['rows' => [
+            ['date' => '9999-12-31', 'amount' => '-1', 'accountId' => $this->checking, 'description' => 'Far off'],
         ]]);
 
         $this->assertResponseStatusCodeSame(422);
@@ -98,12 +114,92 @@ class CsvImportTest extends WebTestCaseBase
             'sourceAccountId' => $this->checking, 'destinationAccountId' => $this->shop,
         ]];
 
-        $this->post('/api/import/commit', ['rows' => [$row('10', '2026-10-25'), $row('-1', '2026-10-26')]]);
+        $this->post('/api/import/commit', ['fileName' => 'a.csv', 'rows' => [
+            $row('10', '2026-10-25'),
+            ['transaction' => ['description' => 'New', 'amount' => '-1', 'occurredAt' => '2026-10-26T12:00:00', 'sourceAccountId' => $this->checking, 'newDestinationAccountName' => 'Brand new', 'newCategoryName' => 'Brand new']],
+        ]]);
         $this->assertResponseStatusCodeSame(422);
         $this->assertSame(2, $this->get('/api/transactions?kind=cash')['total'], 'nothing of a file with a wrong row');
+        $this->assertNotContains('Brand new', array_column($this->get('/api/accounts/expense?pageSize=-1')['items'], 'name'), 'not even the payee it named');
 
-        $this->assertSame(['imported' => 2], $this->post('/api/import/commit', ['rows' => [$row('10', '2026-10-25'), $row('12', '2026-10-26')]]));
+        $batch = $this->post('/api/import/commit', ['fileName' => 'a.csv', 'rows' => [$row('10', '2026-10-25'), $row('12', '2026-10-26')]]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame(2, $batch['transactions']);
         $this->assertSame(4, $this->get('/api/transactions?kind=cash')['total']);
+    }
+
+    /**
+     * A file of several accounts (a Firefly export): an account not in
+     * FireFunds yet is created with its opening balance, payees, categories
+     * and tags named by many rows are created once, a reconciliation becomes
+     * a balance adjustment.
+     */
+    public function testAFileOfSeveralAccountsCreatesWhatItNames(): void
+    {
+        $row = fn (array $transaction, array $keys = []) => ['transaction' => $transaction + ['occurredAt' => '2024-01-10T08:00:00', 'timezone' => 'Europe/Rome']] + $keys;
+        $batch = $this->post('/api/import/commit', [
+            'fileName' => 'firefly.csv',
+            'accounts' => [['key' => 'a1', 'name' => 'Banca', 'currencyCode' => 'EUR', 'openingBalance' => '100', 'openingBalanceDate' => '2024-01-01']],
+            'rows' => [
+                $row(['description' => 'Stipendio', 'amount' => '1500', 'newSourceAccountName' => 'Datore', 'newCategoryName' => 'Stipendio'], ['destinationAccountKey' => 'a1']),
+                $row(['description' => 'Spesa', 'amount' => '20', 'newDestinationAccountName' => 'Esselunga', 'newCategoryName' => 'spesa', 'newTagNames' => ['Casa']], ['sourceAccountKey' => 'a1']),
+                $row(['description' => 'Spesa', 'amount' => '30', 'newDestinationAccountName' => 'Nuovo negozio', 'newCategoryName' => 'Nuova', 'newTagNames' => ['Casa', 'Cibo']], ['sourceAccountKey' => 'a1']),
+                $row(['description' => 'Spesa', 'amount' => '5', 'newDestinationAccountName' => 'nuovo negozio', 'newCategoryName' => 'nuova', 'newTagNames' => ['casa']], ['sourceAccountKey' => 'a1']),
+                $row(['description' => 'Giroconto', 'amount' => '200', 'destinationAccountId' => $this->checking], ['sourceAccountKey' => 'a1']),
+                $row(['description' => 'Regalo', 'amount' => '10'], ['sourceAccountKey' => 'a1']),
+            ],
+            'adjustments' => [['accountKey' => 'a1', 'date' => '2024-02-01', 'amount' => '-0.50', 'description' => 'Riconciliazione']],
+        ]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame(6, $batch['transactions']);
+        $this->assertSame(1, $batch['adjustments']);
+        // Banca, Datore, Nuovo negozio (Esselunga was there); Stipendio and Nuova (Spesa was there); Casa and Cibo.
+        $this->assertSame([3, 2, 2], [$batch['createdAccounts'], $batch['createdCategories'], $batch['createdTags']]);
+
+        $banca = array_values(array_filter($this->get('/api/accounts/asset?pageSize=-1')['items'], fn (array $a) => $a['name'] === 'Banca'))[0];
+        $this->assertSame('EUR', $banca['currencyCode']);
+        // 100 + 1500 - 20 - 30 - 5 - 200 - 10 - 0.50
+        $this->assertEqualsWithDelta(1334.5, (float) $banca['currentBalance'], 0.001);
+        $this->assertSame(1, \count(array_filter($this->get('/api/accounts/expense?pageSize=-1')['items'], fn (array $a) => mb_strtolower($a['name']) === 'nuovo negozio')));
+    }
+
+    public function testAnImportIsUndoneWithWhatItCreatedAndNothingElseUses(): void
+    {
+        $batch = $this->post('/api/import/commit', [
+            'fileName' => 'firefly.csv',
+            'accounts' => [['key' => 'a1', 'name' => 'Banca', 'currencyCode' => 'EUR'], ['key' => 'a2', 'name' => 'Carta', 'currencyCode' => 'EUR']],
+            'rows' => [
+                ['transaction' => ['description' => 'Cena', 'amount' => '40', 'occurredAt' => '2024-01-10T20:00:00', 'newDestinationAccountName' => 'Trattoria', 'newCategoryName' => 'Ristoranti'], 'sourceAccountKey' => 'a1'],
+                ['transaction' => ['description' => 'Spesa', 'amount' => '20', 'occurredAt' => '2024-01-11T20:00:00', 'destinationAccountId' => $this->shop, 'categoryId' => $this->groceries], 'sourceAccountKey' => 'a2'],
+            ],
+        ]);
+        $this->assertResponseStatusCodeSame(201);
+        // Since: something of the user's own on Carta, which must stay.
+        $this->post('/api/transactions', ['description' => 'Caffè', 'amount' => '1', 'occurredAt' => '2026-10-27T09:00:00', 'timezone' => 'Europe/Rome', 'sourceAccountId' => $this->accountId('Carta')]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $undone = $this->post("/api/import/batches/{$batch['id']}/undo", []);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame(['transactions' => 2, 'adjustments' => 0, 'accounts' => 2, 'categories' => 1, 'tags' => 0], $undone);
+
+        $assets = array_column($this->get('/api/accounts/asset?pageSize=-1')['items'], 'name');
+        $this->assertNotContains('Banca', $assets);
+        $this->assertContains('Carta', $assets);
+        $this->assertNotContains('Trattoria', array_column($this->get('/api/accounts/expense?pageSize=-1')['items'], 'name'));
+        $this->assertContains('Esselunga', array_column($this->get('/api/accounts/expense?pageSize=-1')['items'], 'name'), 'there before the import');
+        $this->assertSame(3, $this->get('/api/transactions?kind=cash')['total']);
+        $this->assertNotNull($this->get('/api/import/batches')[0]['undoneAt']);
+
+        $again = $this->post("/api/import/batches/{$batch['id']}/undo", []);
+        $this->assertResponseStatusCodeSame(400);
+        $this->assertSame('import_already_undone', $again['code']);
+    }
+
+    private function accountId(string $name): string
+    {
+        $match = array_values(array_filter($this->get('/api/accounts/asset?pageSize=-1')['items'], fn (array $a) => $a['name'] === $name));
+
+        return $match[0]['id'];
     }
 
     public function testAPresetIsSavedForTheBanksNextFile(): void

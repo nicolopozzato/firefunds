@@ -87,6 +87,11 @@ class Transaction implements SoftDeletable
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?RecurringTransaction $recurring = null;
 
+    /** The file import that recorded it, which can be undone as a whole. */
+    #[ORM\ManyToOne(targetEntity: ImportBatch::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?ImportBatch $importBatch = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -299,6 +304,18 @@ class Transaction implements SoftDeletable
     public function setRecurring(?RecurringTransaction $recurring): static
     {
         $this->recurring = $recurring;
+
+        return $this;
+    }
+
+    public function getImportBatch(): ?ImportBatch
+    {
+        return $this->importBatch;
+    }
+
+    public function setImportBatch(?ImportBatch $importBatch): static
+    {
+        $this->importBatch = $importBatch;
 
         return $this;
     }

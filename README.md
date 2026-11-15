@@ -80,6 +80,7 @@ For any period (this month, this year, a range of your choice): income, expenses
 - Multi-user, every record scoped to its owner; the first user to register is the admin, who can close registrations and add, edit and disable users (Administration → Users).
 - Light and dark theme (or follow the device), Italian and English, your own number format and timezone.
 - Search across descriptions, notes, accounts, categories and tags.
+- **Import** from a bank statement or a spreadsheet (CSV or Excel), or from a Firefly III transaction export: you match its accounts, payees and categories once, review every row (duplicates and recurring transactions are spotted), and can undo a whole import later.
 - JWT login with single-use refresh tokens (a replayed one signs the session out), logout and password changes that end sessions, and login throttling (10 failed attempts lock an email for up to 15 minutes).
 
 ## Installation
@@ -205,7 +206,7 @@ Backups made by hand with `pg_dump` (before this existed) are restored with `pg_
 
 - Live quotes, realized gains on sales, dividends.
 - Split transactions, reconciliation.
-- Imports (bank CSV, payment notifications) with proposed transactions to confirm, optionally AI-assisted classification.
+- Optionally AI-assisted classification of imported transactions.
 
 ## Contributing
 
@@ -229,6 +230,7 @@ Usa la partita doppia, come [Firefly III](https://www.firefly-iii.org) da cui pr
 - **Dashboard** per qualsiasi periodo: entrate, uscite, risparmio, investimenti, patrimonio netto e grafici.
 - **Investimenti**: strumenti con ticker Yahoo Finance e prezzi di chiusura scaricati in automatico, acquisti e vendite con commissioni e tasse, posizioni con prezzo medio di carico, panoramica su tutti i broker e la stima del capital gain (26% di default, o l'aliquota del singolo strumento, es. 12,5% sui titoli di Stato).
 - **Report**: entrate e uscite per mese o per anno con confronto, il patrimonio netto mese per mese, e il flusso di cassa da oggi in poi, liquidità o patrimonio con gli investimenti al valore di oggi (per giorno, settimana o mese, in totale o conto per conto) con quanto già inserito, le ricorrenze e una stima dalle medie per categoria.
+- **Importazione** da un estratto conto o da un foglio di calcolo (CSV o Excel), o dall'export delle transazioni di Firefly III: abbini una volta conti, beneficiari e categorie, controlli ogni riga (doppioni e ricorrenze vengono riconosciuti) e puoi annullare un'importazione intera anche dopo.
 - Più utenti, ognuno con i suoi dati; il primo che si registra è l'amministratore. Tema chiaro e scuro, formato dei numeri e fuso orario a scelta, ricerca.
 
 ### Installazione

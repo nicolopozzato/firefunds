@@ -65,6 +65,8 @@ enum ErrorCode: string
     case DraftNotFound = 'draft_not_found';
     case DraftClosed = 'draft_closed';
     case ImportPresetNotFound = 'import_preset_not_found';
+    case ImportBatchNotFound = 'import_batch_not_found';
+    case ImportAlreadyUndone = 'import_already_undone';
     case SourceNotFound = 'source_not_found';
 
     // Investments
@@ -134,6 +136,8 @@ enum ErrorCode: string
             self::ApiTokenNotFound => 'API token not found.',
             self::DraftNotFound => 'Draft not found.',
             self::ImportPresetNotFound => 'Import preset not found.',
+            self::ImportBatchNotFound => 'Import not found.',
+            self::ImportAlreadyUndone => 'This import has been undone already.',
             self::SourceNotFound => 'Notification source not found.',
             self::DraftClosed => 'This draft has been dealt with already.',
             self::PushFailed => 'The push service did not accept the notification for this device.',

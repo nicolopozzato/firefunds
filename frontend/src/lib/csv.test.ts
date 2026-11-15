@@ -50,7 +50,7 @@ describe('a whole file', () => {
     const table = parse('Conto;IT60X\nMovimenti dal 01/10\nData;Descrizione;Importo\n25/10/2026;Bar;-2,50\n26/10/2026;Pane;-1,80\n', ';')
     const settings = guessSettings(table, 'utf-8', ';')
     expect(settings.skipRows).toBe(2)
-    expect(toRows(table, settings)[0]).toEqual({ line: 4, date: '2026-10-25', amount: '-2.50', description: 'Bar', counterparty: '' })
+    expect(toRows(table, settings)[0]).toEqual({ line: 4, date: '2026-10-25', amount: '-2.50', description: 'Bar', counterparty: '', account: '', category: '', tags: [], notes: '' })
   })
 
   it('guesses the columns of an Italian bank with debit and credit', () => {
@@ -59,8 +59,8 @@ describe('a whole file', () => {
 
     expect(settings.amountMode).toBe('split')
     expect(toRows(table, settings)).toEqual([
-      { line: 2, date: '2026-10-25', amount: '-45.10', description: 'POS ESSELUNGA', counterparty: '' },
-      { line: 3, date: '2026-10-27', amount: '1500.00', description: 'Stipendio', counterparty: '' },
+      { line: 2, date: '2026-10-25', amount: '-45.10', description: 'POS ESSELUNGA', counterparty: '', account: '', category: '', tags: [], notes: '' },
+      { line: 3, date: '2026-10-27', amount: '1500.00', description: 'Stipendio', counterparty: '', account: '', category: '', tags: [], notes: '' },
     ])
   })
 })

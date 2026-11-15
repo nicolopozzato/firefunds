@@ -29,6 +29,16 @@ export interface CsvSettings {
   descriptionColumns: number[]
   /** The other side's name, when the file has it. */
   counterpartyColumn: number | null
+  /**
+   * One account for the whole file (a bank's statement), or a column naming
+   * the user's account on each row (a spreadsheet of several accounts).
+   */
+  accountMode: 'fixed' | 'column'
+  accountColumn: number | null
+  categoryColumn: number | null
+  /** Several tags in one cell, separated by commas. */
+  tagsColumn: number | null
+  notesColumn: number | null
 }
 
 export interface CsvRow {
@@ -39,6 +49,16 @@ export interface CsvRow {
   amount: string | null
   description: string
   counterparty: string
+  /** The user's account the row is on, when the file has a column for it. */
+  account: string
+  category: string
+  tags: string[]
+  notes: string
+}
+
+/** A preset saved before some settings existed, with those settings off. */
+export function withDefaults(settings: Partial<CsvSettings> & Omit<CsvSettings, 'accountMode' | 'accountColumn' | 'categoryColumn' | 'tagsColumn' | 'notesColumn'>): CsvSettings {
+  return { accountMode: 'fixed', accountColumn: null, categoryColumn: null, tagsColumn: null, notesColumn: null, ...settings }
 }
 
 /** The file as text: UTF-8 when it is valid UTF-8, else what the user chose (older Italian banks write Windows-1252). */
@@ -206,6 +226,12 @@ export function guessSettings(table: string[][], encoding: CsvEncoding, delimite
     .map((cell, i) => (/(descri|causale|operazione|dettagli|details|memo|reference|riferimento)/.test(cell) ? i : -1))
     .filter((i) => i >= 0 && i !== dateColumn)
   const counterpartyColumn = find('beneficiario', 'controparte', 'esercente', 'merchant', 'payee', 'counterparty')
+  // Exact names only: banks write "Conto n." or "Account number" above their own details.
+  const exact = (...names: string[]) => header.findIndex((cell) => names.includes(cell))
+  const accountColumn = exact('conto', 'account', 'conto corrente', 'account name')
+  const categoryColumn = exact('categoria', 'category')
+  const tagsColumn = exact('tag', 'tags', 'etichetta', 'etichette')
+  const notesColumn = exact('note', 'notes', 'nota')
   const amountSamples = body.flatMap((row) => (split ? [row[debitColumn] ?? '', row[creditColumn] ?? ''] : [row[amountColumn] ?? '']))
   return {
     encoding,
@@ -221,6 +247,11 @@ export function guessSettings(table: string[][], encoding: CsvEncoding, delimite
     invert: false,
     descriptionColumns: descriptionColumns.length > 0 ? descriptionColumns : [Math.min(header.length - 1, dateColumn + 1)],
     counterpartyColumn: counterpartyColumn >= 0 && !descriptionColumns.includes(counterpartyColumn) ? counterpartyColumn : null,
+    accountMode: accountColumn >= 0 ? 'column' : 'fixed',
+    accountColumn: accountColumn >= 0 ? accountColumn : null,
+    categoryColumn: categoryColumn >= 0 ? categoryColumn : null,
+    tagsColumn: tagsColumn >= 0 ? tagsColumn : null,
+    notesColumn: notesColumn >= 0 ? notesColumn : null,
   }
 }
 
@@ -236,12 +267,17 @@ export function toRows(table: string[][], settings: CsvSettings): CsvRow[] {
       amount = parseAmount(cells[settings.amountColumn] ?? '', settings.decimal)
     }
     if (amount !== null && settings.invert) amount = amount.startsWith('-') ? amount.slice(1) : `-${amount}`
+    const cell = (column: number | null) => (column !== null ? (cells[column] ?? '').trim() : '')
     return {
       line: settings.skipRows + i + 2,
       date: parseDate(cells[settings.dateColumn] ?? '', settings.dateFormat),
       amount,
       description: settings.descriptionColumns.map((column) => (cells[column] ?? '').trim()).filter(Boolean).join(' · '),
-      counterparty: settings.counterpartyColumn !== null ? (cells[settings.counterpartyColumn] ?? '').trim() : '',
+      counterparty: cell(settings.counterpartyColumn),
+      account: settings.accountMode === 'column' ? cell(settings.accountColumn) : '',
+      category: cell(settings.categoryColumn),
+      tags: cell(settings.tagsColumn).split(',').map((tag) => tag.trim()).filter(Boolean),
+      notes: cell(settings.notesColumn),
     }
   })
 }

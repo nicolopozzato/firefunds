@@ -9,7 +9,10 @@ use App\CsvImport\DTO\CommitImportRequest;
 use App\CsvImport\DTO\ImportPresetRequest;
 use App\CsvImport\DTO\ImportRowsRequest;
 use App\CsvImport\Service\CsvImportService;
+use App\CsvImport\Service\ImportUndo;
+use App\Entity\ImportBatch;
 use App\Entity\ImportPreset;
+use App\Repository\ImportBatchRepository;
 use App\Repository\ImportPresetRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,7 +20,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** Importing a bank's CSV file (read in the browser): presets per bank, the preview's checks, the import. */
+/** Importing a file (read in the browser): presets per bank, the preview's checks, the import, undoing one. */
 #[Route('/api/import')]
 class CsvImportController extends AbstractController
 {
@@ -28,6 +31,8 @@ class CsvImportController extends AbstractController
     public function __construct(
         private readonly CsvImportService $import,
         private readonly ImportPresetRepository $presets,
+        private readonly ImportBatchRepository $batches,
+        private readonly ImportUndo $undo,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -38,13 +43,29 @@ class CsvImportController extends AbstractController
     {
         $user = $this->getCurrentUser();
 
-        return $this->json($this->import->preview($user, $this->import->ownedAssetAccount($user, $request->accountId), $request->rows));
+        return $this->json($this->import->preview($user, $request->rows));
     }
 
     #[Route('/commit', name: 'api_import_commit', methods: ['POST'])]
     public function commit(#[MapRequestPayload] CommitImportRequest $request): JsonResponse
     {
-        return $this->json(['imported' => $this->import->commit($this->getCurrentUser(), $request)], 201);
+        return $this->json(self::batchToArray($this->import->commit($this->getCurrentUser(), $request)), 201);
+    }
+
+    /** The latest imports, newest first, to undo one. */
+    #[Route('/batches', name: 'api_import_batches', methods: ['GET'])]
+    public function batches(): JsonResponse
+    {
+        return $this->json(array_map(self::batchToArray(...), $this->batches->findLatestByUser($this->getCurrentUser(), 10)));
+    }
+
+    #[Route('/batches/{id}/undo', name: 'api_import_batches_undo', methods: ['POST'], requirements: self::ID)]
+    public function undo(string $id): JsonResponse
+    {
+        $batch = $this->batches->findOneByUserAndId($this->getCurrentUser(), $id)
+            ?? throw ApiException::notFound(ErrorCode::ImportBatchNotFound);
+
+        return $this->json($this->undo->undo($batch));
     }
 
     #[Route('/presets', name: 'api_import_presets', methods: ['GET'])]
@@ -82,6 +103,22 @@ class CsvImportController extends AbstractController
         $this->entityManager->flush();
 
         return new JsonResponse(null, 204);
+    }
+
+    /** @return array<string, mixed> */
+    private static function batchToArray(ImportBatch $batch): array
+    {
+        return [
+            'id' => (string) $batch->getId(),
+            'fileName' => $batch->getFileName(),
+            'createdAt' => $batch->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            'transactions' => $batch->getTransactionCount(),
+            'adjustments' => $batch->getAdjustmentCount(),
+            'createdAccounts' => \count($batch->getCreatedAccountIds()),
+            'createdCategories' => \count($batch->getCreatedCategoryIds()),
+            'createdTags' => \count($batch->getCreatedTagIds()),
+            'undoneAt' => $batch->getUndoneAt()?->format(\DateTimeInterface::ATOM),
+        ];
     }
 
     /** @return array<string, mixed> */
