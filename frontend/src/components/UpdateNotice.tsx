@@ -99,7 +99,7 @@ export function UpdateDialog() {
             <DrawerDescription>{t('update.current', { version: update.current })}</DrawerDescription>
           </DrawerHeader>
           <div className="px-4">{body}</div>
-          <DrawerFooter className="pb-[calc(env(safe-area-inset-bottom)+1rem)] [&>*]:h-11">
+          <DrawerFooter className="pb-4 [&>*]:h-11">
             {notes}
             {later}
           </DrawerFooter>

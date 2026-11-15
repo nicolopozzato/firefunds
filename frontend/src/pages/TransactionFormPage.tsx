@@ -369,10 +369,7 @@ export default function TransactionFormPage() {
   if ((isEditing || isCloning) && (!isFormPopulated || isReferenceDataLoading)) {
     return (
       <div className="max-w-5xl space-y-6">
-        <PageHeader
-          title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')}
-          description={t('transactionForm.description')}
-        />
+        <PageHeader title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')} />
         <div className="space-y-6 lg:w-2/3 lg:pr-4">
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {[0, 1, 2].map((i) => (
@@ -387,10 +384,7 @@ export default function TransactionFormPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <PageHeader
-        title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')}
-        description={t('transactionForm.description')}
-      />
+      <PageHeader title={t(isEditing ? 'transactionForm.editTitle' : 'transactionForm.title')} />
 
       {/* Desktop: the kind, what, how much, between which accounts and its categories on the left, the
           optional extras on the right, every field on the same two-column grid. Below that, one column. */}
@@ -577,7 +571,8 @@ export default function TransactionFormPage() {
         </div>
 
         <FormActions>
-          <Button type="button" variant="outline" onClick={handleCancel}>
+          {/* Phones: three buttons don't fit; the back arrow at the top cancels anyway. */}
+          <Button type="button" variant="outline" onClick={handleCancel} className={!isEditing ? 'max-md:hidden' : undefined}>
             {t('common.cancel')}
           </Button>
           {!isEditing && (

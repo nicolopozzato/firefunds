@@ -51,6 +51,7 @@ import { useIsMobile } from '@/hooks/use-media-query'
 import { useTimeframe } from '@/contexts/TimeframeContext'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 import EmptyState from '@/components/EmptyState'
+import LoadFailed from '@/components/LoadFailed'
 
 type KindFilter = AssetAccountKind | 'all'
 
@@ -74,7 +75,7 @@ function AccountListRow({ account, onClick }: { account: Account; onClick: () =>
     )
   const subtitle = [
     account.type === 'asset' && account.assetKind ? t(`accountsCommon.assetKind_${account.assetKind}`) : null,
-    !account.isActive ? t('accountsCommon.status_inactive') : null,
+    !account.isActive ? t('accountsCommon.inactive') : null,
     account.lastActivityAt ? formatDateTime(account.lastActivityAt) : null,
   ]
     .filter(Boolean)
@@ -219,7 +220,7 @@ export default function AccountsTable({
   const { timeframe } = useTimeframe()
   const balanceDay = format(timeframe.to, 'yyyy-MM-dd')
   const { page, setPage } = useListPage([status, kind])
-  const { data, isLoading, isPlaceholderData } = useAccounts(
+  const { data, isLoading, isPlaceholderData, error, refetch } = useAccounts(
     type,
     page,
     {
@@ -228,6 +229,7 @@ export default function AccountsTable({
     },
     balanceDay
   )
+  const loadError = data ? null : error
   const balanceHeading = t('accountsCommon.balanceOn', { date: formatDateTime(balanceDay) })
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const isMobile = useIsMobile()
@@ -315,7 +317,9 @@ export default function AccountsTable({
         )}
       </FilterBar>
 
-      {isMobile ? (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isMobile ? (
         isLoading || (isEmpty && isFiltered && isCheckingAny) ? (
           <MobileListSkeleton rows={4} />
         ) : !accounts || accounts.length === 0 ? (

@@ -121,7 +121,7 @@ export default function InvestmentTransactionDetailPage() {
     <button
       type="button"
       onClick={() => navigate(`/accounts/${transaction.account.type}/${transaction.account.id}`)}
-      className="flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+      className="flex items-center gap-1.5 font-medium text-link"
     >
       <Wallet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       {transaction.account.name}
@@ -132,7 +132,7 @@ export default function InvestmentTransactionDetailPage() {
     <button
       type="button"
       onClick={() => navigate(`/investments/instruments/${transaction.instrumentId}`)}
-      className="flex items-center gap-1.5 text-left underline-offset-4 hover:underline"
+      className="flex items-center gap-1.5 text-left text-link"
     >
       <Layers className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       {transaction.instrumentTicker && <span className="font-medium">{transaction.instrumentTicker}</span>}
@@ -219,7 +219,7 @@ export default function InvestmentTransactionDetailPage() {
                 </DetailField>
                 {transaction.recurringId && (
                   <DetailField label={t('recurring.from')}>
-                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium underline-offset-4 hover:underline">
+                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium text-link">
                       {transaction.recurringDescription}
                     </Link>
                   </DetailField>

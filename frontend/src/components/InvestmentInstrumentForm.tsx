@@ -171,6 +171,9 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               <Label htmlFor="ticker">{t('investmentInstruments.ticker')}</Label>
               <Input
                 id="ticker"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 value={form.ticker}
                 onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
               />
@@ -180,6 +183,9 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               <Label htmlFor="isin">{t('investmentInstruments.isin')}</Label>
               <Input
                 id="isin"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 className="font-mono"
                 value={form.isin}
                 onChange={(e) => setForm({ ...form, isin: e.target.value.toUpperCase() })}
@@ -190,6 +196,9 @@ export default function InvestmentInstrumentForm({ instrument }: InvestmentInstr
               <Label htmlFor="yahooTicker">{t('investmentInstruments.yahooTicker')}</Label>
               <Input
                 id="yahooTicker"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder={t('investmentInstruments.yahooTickerPlaceholder')}
                 value={form.yahooTicker}
                 onChange={(e) => setForm({ ...form, yahooTicker: e.target.value.toUpperCase() })}

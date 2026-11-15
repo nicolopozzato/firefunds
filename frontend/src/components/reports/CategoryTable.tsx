@@ -105,7 +105,7 @@ export default function CategoryTable({ title, flow, table, periods, by, compari
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
         <h3 className="section-title">{title}</h3>
         <span className="text-xs text-muted-foreground">
-          {t('reports.amountsIn', { currency: currency ?? '' })} · {t('reports.cellHint')}
+          {t('reports.amountsIn', { currency: currency ?? '' })}
         </span>
       </div>
       <div className="mt-3 overflow-x-auto">

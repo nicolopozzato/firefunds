@@ -51,8 +51,16 @@ export default function BottomNav() {
     }
   }, [location.pathname, location.search])
 
+  // The current tab again: its first page, or the top of it when already there (as apps do), without
+  // adding to the history.
   const openTab = (tab: MobileTab) => {
-    navigate(tab === currentTab ? TAB_ROOT[tab] : lastPageOfTab.current[tab] ?? TAB_ROOT[tab])
+    if (tab !== currentTab) {
+      navigate(lastPageOfTab.current[tab] ?? TAB_ROOT[tab])
+    } else if (location.pathname + location.search === TAB_ROOT[tab]) {
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      navigate(TAB_ROOT[tab], { replace: true })
+    }
   }
 
   const tabs: { tab: MobileTab; label: string; icon: LucideIcon }[] = [

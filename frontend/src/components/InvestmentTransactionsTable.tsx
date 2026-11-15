@@ -44,6 +44,7 @@ import { groupByDay, useDayLabel } from '@/hooks/use-day-groups'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import LoadFailed from '@/components/LoadFailed'
 
 const basePath = '/transactions/investments'
 
@@ -66,7 +67,8 @@ export default function InvestmentTransactionsTable() {
   const isMobile = useIsMobile()
   const dayLabel = useDayLabel()
   const { page, setPage, showAll, setShowAll } = useListPage([timeframe.from.getTime(), timeframe.to.getTime()])
-  const { data, isLoading, isPlaceholderData } = useInvestmentTransactions(page, showAll)
+  const { data, isLoading, isPlaceholderData, error, refetch } = useInvestmentTransactions(page, showAll)
+  const loadError = data ? null : error
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const transactions = data?.items
   const { data: distributions } = useInvestmentTransactionDistributions(!showAll)
@@ -168,7 +170,6 @@ export default function InvestmentTransactionsTable() {
     <div className="space-y-4 md:space-y-6">
       <PageHeader
         title={t('investmentTransactions.title')}
-        description={t('investmentTransactions.description')}
         compactActions
         actions={
           <>
@@ -202,7 +203,9 @@ export default function InvestmentTransactionsTable() {
 
       {!isMobile && charts}
 
-      {isMobile ? mobileList : (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isMobile ? mobileList : (
       <Card className="overflow-hidden">
         <CardContent className="p-0 sm:p-0">
           {isLoading ? (

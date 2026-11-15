@@ -346,7 +346,7 @@ export default function RecurringTransactionFormPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <PageHeader title={t(isEditing ? 'recurring.editTitle' : 'recurring.newTitle')} description={t('recurring.formDescription')} />
+      <PageHeader title={t(isEditing ? 'recurring.editTitle' : 'recurring.newTitle')} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
@@ -502,7 +502,7 @@ export default function RecurringTransactionFormPage() {
                   </Select>
                 </Field>
               )}
-              <Field label={t('recurring.time')} htmlFor="time" hint={t('recurring.timeHint')}>
+              <Field label={t('recurring.time')} htmlFor="time">
                 <Input id="time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
               </Field>
 

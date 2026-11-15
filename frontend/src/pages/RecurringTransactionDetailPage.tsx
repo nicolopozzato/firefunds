@@ -158,7 +158,7 @@ export default function RecurringTransactionDetailPage() {
                   from={<AccountSide account={recurring.sourceAccount} />}
                   to={
                     recurring.instrument ? (
-                      <Link to={`/investments/instruments/${recurring.instrument.id}`} className="flex items-center gap-1.5 font-medium underline-offset-4 hover:underline">
+                      <Link to={`/investments/instruments/${recurring.instrument.id}`} className="flex items-center gap-1.5 font-medium text-link">
                         <TrendingUp className="h-4 w-4 text-invest" />
                         {recurring.instrument.name}
                       </Link>

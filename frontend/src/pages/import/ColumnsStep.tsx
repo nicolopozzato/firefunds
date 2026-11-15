@@ -109,6 +109,7 @@ export default function ColumnsStep(props: ColumnsStepProps) {
           <Field label={t('csvImport.skipRows')} hint={t('csvImport.skipRowsHint')}>
             <Input
               type="number"
+              inputMode="numeric"
               min="0"
               max="50"
               value={settings.skipRows}

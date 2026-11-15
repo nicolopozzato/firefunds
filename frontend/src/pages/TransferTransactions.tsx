@@ -8,7 +8,6 @@ export default function TransferTransactions() {
     <TransactionsTable
       kind="transfer"
       title={t('transactionsTransfer.title')}
-      description={t('transactionsTransfer.description')}
       emptyTitle={t('transactionsTransfer.empty')}
       emptyDescription={t('transactionsTransfer.emptyDescription')}
     />

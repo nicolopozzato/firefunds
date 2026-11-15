@@ -219,7 +219,7 @@ export default function TransactionDetailPage() {
                 </DetailField>
                 {transaction.recurringId && (
                   <DetailField label={t('recurring.from')}>
-                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium underline-offset-4 hover:underline">
+                    <Link to={`/transactions/recurring/${transaction.recurringId}`} className="font-medium text-link">
                       {transaction.recurringDescription}
                     </Link>
                   </DetailField>

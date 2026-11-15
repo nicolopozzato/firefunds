@@ -32,7 +32,7 @@ export default function ApiTokenRenameDialog({ token, onClose }: ApiTokenRenameD
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription className="sr-only">{t('apiTokens.nameHint')}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{body}</div>
+          <div className="px-4 pb-4">{body}</div>
         </DrawerContent>
       </Drawer>
     )

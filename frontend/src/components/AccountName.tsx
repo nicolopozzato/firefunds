@@ -35,7 +35,7 @@ export default function AccountName({ account, highlight, link }: { account: Acc
   if (!link) return name
 
   return (
-    <Link to={accountPath(account)} onClick={(event) => event.stopPropagation()} className="underline-offset-4 hover:underline">
+    <Link to={accountPath(account)} onClick={(event) => event.stopPropagation()} className="text-link">
       {name}
     </Link>
   )

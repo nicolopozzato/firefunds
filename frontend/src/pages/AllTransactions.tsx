@@ -8,7 +8,6 @@ export default function AllTransactions() {
     <TransactionsTable
       kind="all"
       title={t('transactionsAll.title')}
-      description={t('transactionsAll.description')}
       emptyTitle={t('transactionsAll.empty')}
       emptyDescription={t('transactionsAll.emptyDescription')}
     />

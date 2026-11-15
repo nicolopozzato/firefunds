@@ -202,7 +202,6 @@ function PeriodTable({ report, measure, onOpen }: { report: ReportData; measure:
     <section className="min-w-0 surface pb-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
         <h3 className="section-title">{t('reports.cashFlow.tableTitle')}</h3>
-        <span className="text-xs text-muted-foreground">{t('reports.cashFlow.tableHint')}</span>
       </div>
       <table className="mt-2 w-full table-fixed text-sm">
         <thead>

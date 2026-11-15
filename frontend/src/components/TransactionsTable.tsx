@@ -17,11 +17,12 @@ import { cn } from '@/lib/utils'
 import type { TransactionKind } from '@/types/transaction'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 import EmptyState from '@/components/EmptyState'
+import LoadFailed from '@/components/LoadFailed'
 
 interface TransactionsTableProps {
   kind: TransactionKind
   title: string
-  description: string
+  description?: string
   emptyTitle: string
   emptyDescription: string
 }
@@ -38,7 +39,8 @@ export default function TransactionsTable({
   const { timeframe } = useTimeframe()
   const isMobile = useIsMobile()
   const { page, setPage, showAll, setShowAll } = useListPage([timeframe.from.getTime(), timeframe.to.getTime()])
-  const { data, isLoading, isPlaceholderData } = useTransactions(kind, page, showAll)
+  const { data, isLoading, isPlaceholderData, error, refetch } = useTransactions(kind, page, showAll)
+  const loadError = data ? null : error
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const transactions = data?.items
   const { data: distributions } = useTransactionDistributions(kind, !showAll)
@@ -127,14 +129,18 @@ export default function TransactionsTable({
 
       {!isMobile && charts}
 
-      <TransactionList
-        data={data}
-        isLoading={isLoading}
-        onPageChange={setPage}
-        empty={
-          <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('transactionsCommon.add'), onClick: () => navigate(newTransactionPath) }} />
-        }
-      />
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : (
+        <TransactionList
+          data={data}
+          isLoading={isLoading}
+          onPageChange={setPage}
+          empty={
+            <EmptyState title={emptyTitle} description={emptyDescription} action={{ label: t('transactionsCommon.add'), onClick: () => navigate(newTransactionPath) }} />
+          }
+        />
+      )}
 
       {isMobile && charts}
 

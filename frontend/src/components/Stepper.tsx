@@ -22,7 +22,7 @@ export default function Stepper({ children, onPrevious, onNext, previousLabel, n
       type="button"
       variant="ghost"
       size="icon"
-      className={cn('h-9 w-8 text-muted-foreground hover:text-foreground', direction === 'previous' ? 'rounded-r-none' : 'rounded-l-none')}
+      className={cn('h-9 w-8 text-muted-foreground hover:text-foreground max-md:h-11 max-md:w-10', direction === 'previous' ? 'rounded-r-none' : 'rounded-l-none')}
       aria-label={direction === 'previous' ? previousLabel : nextLabel}
       title={direction === 'previous' ? previousLabel : nextLabel}
       disabled={direction === 'previous' ? previousDisabled : nextDisabled}
@@ -35,7 +35,7 @@ export default function Stepper({ children, onPrevious, onNext, previousLabel, n
   return (
     <div className={cn('inline-flex items-center rounded-md border border-input bg-background', className)}>
       {arrow('previous')}
-      <span className="flex h-9 min-w-24 items-center justify-center border-x border-input px-3 text-sm font-medium capitalize tabular-nums">{children}</span>
+      <span className="flex h-9 min-w-24 items-center max-md:h-11 justify-center border-x border-input px-3 text-sm font-medium capitalize tabular-nums">{children}</span>
       {arrow('next')}
     </div>
   )

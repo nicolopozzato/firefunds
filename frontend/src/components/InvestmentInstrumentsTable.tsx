@@ -33,6 +33,7 @@ import { MobileListCard, MobileListRow, MobileListSkeleton } from '@/components/
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 import EmptyState from '@/components/EmptyState'
+import LoadFailed from '@/components/LoadFailed'
 
 const basePath = '/investments/instruments'
 
@@ -43,7 +44,8 @@ export default function InvestmentInstrumentsTable() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const { page, setPage } = useListPage()
-  const { data, isLoading, isPlaceholderData } = useInvestmentInstruments(page)
+  const { data, isLoading, isPlaceholderData, error, refetch } = useInvestmentInstruments(page)
+  const loadError = data ? null : error
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const instruments = data?.items
   const [instrumentToDelete, setInstrumentToDelete] = useState<InvestmentInstrument | null>(null)
@@ -65,7 +67,9 @@ export default function InvestmentInstrumentsTable() {
       <InvestmentSectionTabs />
 
       {/* Phones: a list, each instrument opening its page (where edit and delete are). */}
-      {isMobile ? (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isMobile ? (
         isLoading ? (
           <MobileListSkeleton />
         ) : !instruments || instruments.length === 0 ? (

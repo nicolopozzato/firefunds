@@ -91,15 +91,15 @@ export default function ProfileSettings() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">{t('common.firstName')}</Label>
-                <Input id="firstName" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                <Input id="firstName" autoComplete="given-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">{t('common.lastName')}</Label>
-                <Input id="lastName" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                <Input id="lastName" autoComplete="family-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="email">{t('common.email')}</Label>
-                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               {emailChanged && (
                 <div className="space-y-2 sm:col-span-2">
@@ -141,6 +141,7 @@ export default function ProfileSettings() {
                 <Input
                   id="currentPassword"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -151,6 +152,7 @@ export default function ProfileSettings() {
                 <Input
                   id="newPassword"
                   type="password"
+                  autoComplete="new-password"
                   required
                   minLength={8}
                   value={newPassword}
@@ -162,6 +164,7 @@ export default function ProfileSettings() {
                 <Input
                   id="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   required
                   minLength={8}
                   value={confirmPassword}

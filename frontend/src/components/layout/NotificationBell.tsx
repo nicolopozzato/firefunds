@@ -75,7 +75,7 @@ export default function NotificationBell({ className }: { className?: string }) 
               <DrawerTitle asChild>{header}</DrawerTitle>
               <DrawerDescription className="sr-only">{t('notifications.title')}</DrawerDescription>
             </DrawerHeader>
-            <div className="max-h-[70vh] overflow-y-auto px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{list}</div>
+            <div className="max-h-[70vh] overflow-y-auto px-2 pb-4">{list}</div>
           </DrawerContent>
         </Drawer>
       </>

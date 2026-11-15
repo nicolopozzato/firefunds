@@ -319,10 +319,7 @@ export default function InvestmentTransactionFormPage() {
   if ((isEditing || isCloning) && (!isFormPopulated || isReferenceDataLoading)) {
     return (
       <div className="max-w-5xl space-y-6">
-        <PageHeader
-          title={t(isEditing ? 'investmentTransactionForm.editTitle' : 'investmentTransactionForm.title')}
-          description={t('investmentTransactionForm.description')}
-        />
+        <PageHeader title={t(isEditing ? 'investmentTransactionForm.editTitle' : 'investmentTransactionForm.title')} />
         <div className="space-y-6 lg:w-2/3 lg:pr-4">
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {[0, 1].map((i) => (
@@ -337,10 +334,7 @@ export default function InvestmentTransactionFormPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <PageHeader
-        title={t(isEditing ? 'investmentTransactionForm.editTitle' : 'investmentTransactionForm.title')}
-        description={t('investmentTransactionForm.description')}
-      />
+      <PageHeader title={t(isEditing ? 'investmentTransactionForm.editTitle' : 'investmentTransactionForm.title')} />
 
       {plan && (
         <p className="rounded-lg border border-invest/30 bg-invest/5 px-4 py-3 text-sm">
@@ -519,7 +513,8 @@ export default function InvestmentTransactionFormPage() {
         </div>
 
         <FormActions>
-          <Button type="button" variant="outline" onClick={handleCancel}>
+          {/* Phones: three buttons don't fit; the back arrow at the top cancels anyway. */}
+          <Button type="button" variant="outline" onClick={handleCancel} className={!isEditing && !recurringId ? 'max-md:hidden' : undefined}>
             {t('common.cancel')}
           </Button>
           {!isEditing && !recurringId && (

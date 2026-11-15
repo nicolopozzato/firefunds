@@ -43,7 +43,7 @@ export default function ExchangeRateEditDialog({ currency, ownCurrency, rate, on
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription className="sr-only">{t('exchangeRates.editHint')}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{body}</div>
+          <div className="px-4 pb-4">{body}</div>
         </DrawerContent>
       </Drawer>
     )
@@ -112,6 +112,7 @@ function RateForm({
           <Input
             id="rate-value"
             type="number"
+            inputMode="decimal"
             step="0.00000001"
             min="0.00000001"
             required

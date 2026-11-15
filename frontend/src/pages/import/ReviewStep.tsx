@@ -230,7 +230,7 @@ export default function ReviewStep({ rows, onRows, lists, newAccounts, showOwn, 
                   <div className="ml-auto w-36 lg:hidden">{amountField}</div>
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <Input value={row.description} aria-label={t('transactionForm.description')} onChange={(e) => update(index, { description: e.target.value })} className="h-9" />
+                  <Input value={row.description} aria-label={t('transactionsCommon.description')} onChange={(e) => update(index, { description: e.target.value })} className="h-9" />
                   {(row.check.duplicate || row.check.recurring || problem || row.tags.length > 0) && (
                     <div className="flex flex-wrap gap-1.5">
                       {problem && <Badge variant="destructive" className="font-normal">{t(`csvImport.problem_${problem}`)}</Badge>}

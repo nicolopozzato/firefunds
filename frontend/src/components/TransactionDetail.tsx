@@ -113,7 +113,7 @@ export function AccountSide({ account }: { account: AccountRef | null }) {
     <button
       type="button"
       onClick={() => navigate(`/accounts/${account.type}/${account.id}`)}
-      className="flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+      className="flex items-center gap-1.5 font-medium text-link"
     >
       <AccountTypeIcon type={account.type} />
       {account.name}

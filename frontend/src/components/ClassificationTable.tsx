@@ -33,6 +33,7 @@ import { useIsMobile } from '@/hooks/use-media-query'
 import { useKeepPageInRange, useListPage } from '@/hooks/use-list-page'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import LoadFailed from '@/components/LoadFailed'
 
 interface ClassificationTableProps {
   resource: ClassificationResource
@@ -55,7 +56,8 @@ export default function ClassificationTable({
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const { page, setPage } = useListPage()
-  const { data, isLoading, isPlaceholderData } = useClassificationList(resource, page)
+  const { data, isLoading, isPlaceholderData, error, refetch } = useClassificationList(resource, page)
+  const loadError = data ? null : error
   useKeepPageInRange(page, setPage, isPlaceholderData ? undefined : data)
   const items = data?.items
   const deleteItem = useDeleteClassification(resource)
@@ -109,7 +111,9 @@ export default function ClassificationTable({
         }
       />
 
-      {isMobile ? (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isMobile ? (
         isLoading ? (
           <MobileListSkeleton />
         ) : !items || items.length === 0 ? (

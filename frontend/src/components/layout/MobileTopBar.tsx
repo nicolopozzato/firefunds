@@ -44,7 +44,7 @@ export default function MobileTopBar() {
               <DollarSign className="h-5 w-5" />
             </div>
           ) : (
-            <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={goBack} aria-label={t('common.back')}>
+            <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" onClick={goBack} aria-label={t('common.back')}>
               <ChevronLeft className="h-6 w-6" />
             </Button>
           )}
@@ -53,12 +53,12 @@ export default function MobileTopBar() {
             {showsPeriod(location.pathname) && <TimeframeSelector />}
           </div>
 
-          <HideAmountsButton className="h-10 w-9 shrink-0" />
-          <NotificationBell className="h-10 w-9 shrink-0" />
+          <HideAmountsButton className="h-11 w-9 shrink-0" />
+          <NotificationBell className="h-11 w-9 shrink-0" />
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-9 shrink-0"
+            className="h-11 w-9 shrink-0"
             onClick={() => setSearching(true)}
             aria-label={t('search.placeholder')}
           >

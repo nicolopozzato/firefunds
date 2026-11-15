@@ -9,17 +9,21 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { sourcesApi } from '@/lib/sources-api'
 import { formatShortDate } from '@/lib/utils'
+import LoadFailed from '@/components/LoadFailed'
 
 /** The apps whose notifications the phone sends: one per app, opened to set its account and how to read it. */
 export default function Sources() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data: sources, isLoading } = useQuery({ queryKey: ['sources'], queryFn: () => sourcesApi.list() })
+  const { data: sources, isLoading, error, refetch } = useQuery({ queryKey: ['sources'], queryFn: () => sourcesApi.list() })
+  const loadError = sources ? null : error
 
   return (
     <div className="max-w-3xl space-y-4 md:space-y-6">
       <PageHeader title={t('sources.title')} description={t('sources.description')} />
-      {isLoading ? (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isLoading ? (
         <MobileListSkeleton rows={3} />
       ) : !sources || sources.length === 0 ? (
         <Card>

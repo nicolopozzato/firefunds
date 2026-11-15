@@ -32,10 +32,11 @@ function formatRange(from: Date, to: Date, locale: typeof it): string {
 }
 
 /** What the button says: the month or the year when the period is one, otherwise its dates. */
-function timeframeLabel(timeframe: Timeframe, locale: typeof it, allLabel: string): string {
+/** The period in the selector; `short` on phones, where the top bar has little room ("Nov 2026"). */
+function timeframeLabel(timeframe: Timeframe, locale: typeof it, allLabel: string, short: boolean): string {
   switch (unitOf(timeframe.preset)) {
     case 'month':
-      return capitalize(format(timeframe.from, 'LLLL yyyy', { locale }))
+      return capitalize(format(timeframe.from, short ? 'LLL yyyy' : 'LLLL yyyy', { locale }))
     case 'year':
       return format(timeframe.from, 'yyyy')
     case 'none':
@@ -102,7 +103,7 @@ export default function TimeframeSelector() {
             aria-label={label}
             disabled={!canShift}
             onClick={() => shift(direction)}
-            className={cn('h-9 w-8 text-muted-foreground hover:text-foreground', direction < 0 ? 'rounded-r-none' : 'rounded-l-none')}
+            className={cn('h-9 w-8 text-muted-foreground hover:text-foreground max-md:h-11', direction < 0 ? 'rounded-r-none' : 'rounded-l-none')}
           >
             <Icon className="h-4 w-4" />
           </Button>
@@ -173,10 +174,10 @@ export default function TimeframeSelector() {
     <Button
       variant="ghost"
       onClick={isMobile ? () => setOpen(true) : undefined}
-      className="h-9 min-w-0 gap-2 rounded-none border-x border-input px-2 font-normal text-foreground md:px-3"
+      className="h-9 min-w-0 gap-2 rounded-none border-x border-input px-2 font-normal text-foreground max-md:h-11 md:px-3"
     >
       <CalendarDays className="hidden h-4 w-4 text-muted-foreground min-[400px]:block" />
-      <span className="truncate tabular-nums">{timeframeLabel(timeframe, locale, t('timeframe.all'))}</span>
+      <span className="truncate tabular-nums">{timeframeLabel(timeframe, locale, t('timeframe.all'), isMobile)}</span>
       <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     </Button>
   )

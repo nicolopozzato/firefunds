@@ -159,6 +159,16 @@
   .table-fixed .cell-text {
     @apply max-w-full;
   }
+  /* A name in text that opens its page: underlined under the pointer; on touch screens, with no
+     pointer to tell, in the accent colour. */
+  .text-link {
+    @apply underline-offset-4 hover:underline;
+  }
+  @media (hover: none) {
+    .text-link {
+      @apply text-primary;
+    }
+  }
   /* The box a chart shows over the point under the pointer. */
   .chart-tooltip {
     @apply rounded-md border bg-popover/95 px-2.5 py-1.5 text-xs tabular-nums text-popover-foreground shadow-md;

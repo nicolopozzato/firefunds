@@ -310,11 +310,11 @@ export default function AccountForm({ type, title, description, account }: Accou
             >
                 <div className="space-y-2">
                   <Label htmlFor="iban">{t('accountsCommon.iban')}</Label>
-                  <Input id="iban" value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} />
+                  <Input id="iban" autoCapitalize="characters" autoCorrect="off" spellCheck={false} value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bic">{t('accountsCommon.bic')}</Label>
-                  <Input id="bic" className="sm:max-w-[12rem] lg:max-w-none" value={form.bic} onChange={(e) => setForm({ ...form, bic: e.target.value })} />
+                  <Input id="bic" autoCapitalize="characters" autoCorrect="off" spellCheck={false} className="sm:max-w-[12rem] lg:max-w-none" value={form.bic} onChange={(e) => setForm({ ...form, bic: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="accountNumber">{t('accountsCommon.accountNumber')}</Label>

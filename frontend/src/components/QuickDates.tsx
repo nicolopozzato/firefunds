@@ -34,7 +34,8 @@ export default function QuickDates({ value, onChange }: { value: string; onChang
               aria-pressed={current}
               onClick={() => onChange(next)}
               className={cn(
-                'rounded px-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                // Phones: a taller tap area than the text, which sits on a label's line.
+                'relative rounded px-1 font-medium transition-colors before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[""] md:before:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 current ? 'text-foreground' : 'text-primary hover:text-primary/80'
               )}
             >

@@ -37,7 +37,7 @@ export default function ReportAccountsTable({ accounts, summary, currency }: Rep
           {accounts.map((account) => (
             <tr key={account.id} className="border-b last:border-b-0 hover:bg-muted/50">
               <td className="max-w-48 truncate py-1.5 pr-2">
-                <Link to={`/accounts/asset/${account.id}`} className={cn('hover:underline', !account.isActive && 'text-muted-foreground')}>
+                <Link to={`/accounts/asset/${account.id}`} className={cn('text-link', !account.isActive && 'text-muted-foreground')}>
                   {account.name}
                 </Link>
                 <CurrencyTag code={account.currencyCode} />

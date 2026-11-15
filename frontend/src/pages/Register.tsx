@@ -170,6 +170,7 @@ export default function Register() {
                 <Input
                   id="firstName"
                   name="firstName"
+                  autoComplete="given-name"
                   value={formData.firstName}
                   onChange={handleChange}
                   required
@@ -181,6 +182,7 @@ export default function Register() {
                 <Input
                   id="lastName"
                   name="lastName"
+                  autoComplete="family-name"
                   value={formData.lastName}
                   onChange={handleChange}
                   required

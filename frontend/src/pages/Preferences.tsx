@@ -279,6 +279,7 @@ function GeneralPreferences({ user }: { user: User }) {
           <Input
             id="capitalGainsTaxRate"
             type="number"
+            inputMode="decimal"
             step="0.01"
             min="0"
             max="100"

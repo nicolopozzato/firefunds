@@ -8,7 +8,6 @@ export default function WithdrawalTransactions() {
     <TransactionsTable
       kind="withdrawal"
       title={t('transactionsWithdrawal.title')}
-      description={t('transactionsWithdrawal.description')}
       emptyTitle={t('transactionsWithdrawal.empty')}
       emptyDescription={t('transactionsWithdrawal.emptyDescription')}
     />

@@ -47,7 +47,7 @@ export default function ConfirmDialog({ open, onOpenChange, title, description, 
             {description ? <DrawerDescription>{description}</DrawerDescription> : <DrawerDescription className="sr-only">{title}</DrawerDescription>}
           </DrawerHeader>
           {children && <div className="px-4">{children}</div>}
-          <DrawerFooter className="pb-[calc(env(safe-area-inset-bottom)+1rem)] [&>button]:h-11">
+          <DrawerFooter className="pb-4 [&>button]:h-11">
             {confirm}
             {cancel}
           </DrawerFooter>

@@ -62,7 +62,7 @@ function PositionAccounts({ position, currencySymbol }: { position: PortfolioPos
       <div className="divide-y border-t">
         {position.accounts.map((holding) => (
           <div key={holding.accountId} className="space-y-2 py-3 last:pb-0">
-            <Link to={`/accounts/asset/${holding.accountId}`} className="block truncate text-sm font-medium hover:underline">
+            <Link to={`/accounts/asset/${holding.accountId}`} className="block truncate text-sm font-medium text-link">
               {holding.accountName}
             </Link>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2">
@@ -99,7 +99,7 @@ function PositionAccounts({ position, currencySymbol }: { position: PortfolioPos
           {position.accounts.map((holding) => (
             <TableRow key={holding.accountId}>
               <TableCell>
-                <Link to={`/accounts/asset/${holding.accountId}`} className="font-medium hover:underline">
+                <Link to={`/accounts/asset/${holding.accountId}`} className="font-medium text-link">
                   {holding.accountName}
                 </Link>
               </TableCell>

@@ -66,7 +66,7 @@ export default function AdminUserDialog({ state, isLastAdmin, onClose }: AdminUs
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription className={description ? undefined : 'sr-only'}>{description ?? title}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{body}</div>
+          <div className="px-4 pb-4">{body}</div>
         </DrawerContent>
       </Drawer>
     )

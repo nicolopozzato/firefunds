@@ -162,7 +162,7 @@ function RuleDialog({ editing, onClose, ...props }: RuleDialogProps) {
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription className="sr-only">{t('sources.patternHint')}</DrawerDescription>
           </DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{body}</div>
+          <div className="overflow-y-auto px-4 pb-4">{body}</div>
         </DrawerContent>
       </Drawer>
     )

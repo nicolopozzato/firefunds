@@ -1,13 +1,16 @@
 import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul'
+import { useBackToClose } from '@/hooks/use-back-to-close'
 import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { cn } from '@/lib/utils'
 
 /** A panel that slides up from the bottom of the screen and can be dragged down to close (phones). */
-const Drawer = ({ shouldScaleBackground = false, repositionInputs = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
+const Drawer = ({ shouldScaleBackground = false, repositionInputs = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
+  useBackToClose(props.open ?? false, () => props.onOpenChange?.(false))
+
   // repositionInputs off: the panel follows the keyboard itself (DrawerContent), vaul's own way misplaces it.
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} repositionInputs={repositionInputs} {...props} />
-)
+  return <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} repositionInputs={repositionInputs} {...props} />
+}
 Drawer.displayName = 'Drawer'
 
 const DrawerTrigger = DrawerPrimitive.Trigger
@@ -32,6 +35,7 @@ const DrawerContent = React.forwardRef<
   // the search field stays on screen above the keyboard.
   const keyboard = useKeyboardViewport(true)
 
+  // The home indicator's room is here, once: the panels' own content adds only its usual padding.
   return (
     <DrawerPortal>
       <DrawerOverlay />

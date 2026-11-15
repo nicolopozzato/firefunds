@@ -40,7 +40,7 @@ export default function PillGroup<T extends string>({ label, options, value, onC
                 aria-checked={isActive}
                 onClick={() => onChange(option.value)}
                 className={cn(
-                  'whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-medium max-md:min-h-9 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'bg-background text-foreground shadow-sm dark:bg-accent'
                     : 'text-muted-foreground hover:text-foreground'

@@ -13,6 +13,7 @@ import { useDrafts, useRecentDrafts } from '@/hooks/use-drafts'
 import { sourcesApi } from '@/lib/sources-api'
 import { currencySymbolFor, formatMoney, formatShortDate, formatTime24h } from '@/lib/utils'
 import type { Draft } from '@/types/draft'
+import LoadFailed from '@/components/LoadFailed'
 
 export function DraftIcon({ draft }: { draft: Draft }) {
   if (draft.suggestion?.kind === 'transfer') return <ArrowLeftRight className="h-4 w-4 text-info" />
@@ -31,7 +32,8 @@ export function DraftIcon({ draft }: { draft: Draft }) {
 export default function Drafts() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data: drafts, isLoading } = useDrafts()
+  const { data: drafts, isLoading, error, refetch } = useDrafts()
+  const loadError = drafts ? null : error
   const { data: recent } = useRecentDrafts()
   const { data: sources } = useQuery({ queryKey: ['sources'], queryFn: () => sourcesApi.list() })
   const { data: categories } = useAllClassification('categories')
@@ -65,7 +67,9 @@ export default function Drafts() {
         </button>
       ))}
 
-      {isLoading ? (
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : isLoading ? (
         <MobileListSkeleton />
       ) : !drafts || drafts.length === 0 ? (
         <Card>

@@ -197,7 +197,7 @@ function LinkDialog({ occurrence, open, onOpenChange }: { occurrence: Occurrence
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription>{description}</DrawerDescription>
           </DrawerHeader>
-          <div className="max-h-[60vh] overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{list}</div>
+          <div className="max-h-[60vh] overflow-y-auto px-4 pb-4">{list}</div>
         </DrawerContent>
       </Drawer>
     )

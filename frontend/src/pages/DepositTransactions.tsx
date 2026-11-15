@@ -8,7 +8,6 @@ export default function DepositTransactions() {
     <TransactionsTable
       kind="deposit"
       title={t('transactionsDeposit.title')}
-      description={t('transactionsDeposit.description')}
       emptyTitle={t('transactionsDeposit.empty')}
       emptyDescription={t('transactionsDeposit.emptyDescription')}
     />

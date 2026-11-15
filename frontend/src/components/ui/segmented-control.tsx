@@ -51,7 +51,8 @@ export default function SegmentedControl<T extends string>({ label, options, val
               onClick={() => onChange(option.value)}
               className={cn(
                 'whitespace-nowrap rounded-md py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                fill ? 'flex-auto px-1.5 text-xs' : 'px-2.5 text-sm',
+                // Phones: at least 44px with the box around it, a finger's size.
+                fill ? 'flex-auto px-1.5 text-xs max-md:min-h-9' : 'px-2.5 text-sm max-md:min-h-9',
                 isActive ? 'bg-background text-foreground shadow-sm dark:bg-accent' : 'text-muted-foreground hover:text-foreground'
               )}
             >

@@ -1,8 +1,9 @@
+import { Fragment, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { it, enUS } from 'date-fns/locale'
-import { ArrowDownCircle, ArrowUpCircle, Plus, Repeat, ShoppingCart, Banknote } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, Plus, Repeat, ShoppingCart, Banknote, type LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { useIsMobile } from '@/hooks/use-media-query'
 import { cn, currencySymbolFor, formatMoney, parseDate } from '@/lib/utils'
 import { amountColorClass, amountCurrency, detailPath, signedAmount } from '@/lib/transaction-display'
 import type { DashboardAccount } from '@/types/dashboard'
@@ -28,8 +31,24 @@ interface DashboardAccountCardProps {
 export default function DashboardAccountCard({ account, color, to }: DashboardAccountCardProps) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
   const locale = i18n.language === 'it' ? it : enUS
   const isInvestment = account.assetKind === 'investment'
+
+  // Shortcuts to add a transaction on this account: a menu, a panel from the bottom on phones.
+  const actions: { label: string; icon: LucideIcon; className: string; href: string; separated?: boolean }[] = isInvestment
+    ? [
+        { label: t('dashboard.newBuy'), icon: ShoppingCart, className: 'text-info', href: `/transactions/investments/new?type=buy&accountId=${account.id}` },
+        { label: t('dashboard.newSell'), icon: Banknote, className: 'text-positive', href: `/transactions/investments/new?type=sell&accountId=${account.id}` },
+        { label: t('dashboard.newTransferIn'), icon: Repeat, className: 'text-info', href: `/transactions/new?type=transfer&destinationAccountId=${account.id}`, separated: true },
+        { label: t('quickAdd.deposit'), icon: ArrowDownCircle, className: 'text-positive', href: `/transactions/new?type=deposit&destinationAccountId=${account.id}` },
+      ]
+    : [
+        { label: t('quickAdd.withdrawal'), icon: ArrowUpCircle, className: 'text-negative', href: `/transactions/new?type=withdrawal&sourceAccountId=${account.id}` },
+        { label: t('quickAdd.deposit'), icon: ArrowDownCircle, className: 'text-positive', href: `/transactions/new?type=deposit&destinationAccountId=${account.id}` },
+        { label: t('quickAdd.transfer'), icon: Repeat, className: 'text-info', href: `/transactions/new?type=transfer&sourceAccountId=${account.id}` },
+      ]
 
   return (
     <Card className="surface-interactive">
@@ -37,7 +56,7 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
-            <Link to={`/accounts/asset/${account.id}`} className="truncate font-semibold hover:underline">
+            <Link to={`/accounts/asset/${account.id}`} className="truncate font-semibold text-link">
               {account.name}
             </Link>
           </div>
@@ -80,51 +99,58 @@ export default function DashboardAccountCard({ account, color, to }: DashboardAc
           <Link to={`/accounts/asset/${account.id}`} className="text-xs font-medium text-muted-foreground hover:text-foreground">
             {t('dashboard.allTransactions')}
           </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={t('dashboard.newTransaction')} title={t('dashboard.newTransaction')}>
-                <Plus className="h-4 w-4" />
+          {isMobile ? (
+            <>
+              <Button variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground" aria-label={t('dashboard.newTransaction')} onClick={() => setMenuOpen(true)}>
+                <Plus className="h-5 w-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {isInvestment ? (
-                <>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/investments/new?type=buy&accountId=${account.id}`)}>
-                    <ShoppingCart className="mr-2 h-4 w-4 text-info" />
-                    {t('dashboard.newBuy')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/investments/new?type=sell&accountId=${account.id}`)}>
-                    <Banknote className="mr-2 h-4 w-4 text-positive" />
-                    {t('dashboard.newSell')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/new?type=transfer&destinationAccountId=${account.id}`)}>
-                    <Repeat className="mr-2 h-4 w-4 text-info" />
-                    {t('dashboard.newTransferIn')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/new?type=deposit&destinationAccountId=${account.id}`)}>
-                    <ArrowDownCircle className="mr-2 h-4 w-4 text-positive" />
-                    {t('navigation.depositTransactions')}
-                  </DropdownMenuItem>
-                </>
-              ) : (
-                <>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/new?type=withdrawal&sourceAccountId=${account.id}`)}>
-                    <ArrowUpCircle className="mr-2 h-4 w-4 text-negative" />
-                    {t('navigation.withdrawalTransactions')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/new?type=deposit&destinationAccountId=${account.id}`)}>
-                    <ArrowDownCircle className="mr-2 h-4 w-4 text-positive" />
-                    {t('navigation.depositTransactions')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(`/transactions/new?type=transfer&sourceAccountId=${account.id}`)}>
-                    <Repeat className="mr-2 h-4 w-4 text-info" />
-                    {t('navigation.transferTransactions')}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>{account.name}</DrawerTitle>
+                    <DrawerDescription className="sr-only">{t('dashboard.newTransaction')}</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-4">
+                    <div className="divide-y overflow-hidden surface">
+                      {actions.map((action) => (
+                        <button
+                          key={action.label}
+                          type="button"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate(action.href)
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm font-medium transition-colors active:bg-accent"
+                        >
+                          <action.icon className={cn('h-5 w-5', action.className)} />
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={t('dashboard.newTransaction')} title={t('dashboard.newTransaction')}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {actions.map((action) => (
+                  <Fragment key={action.label}>
+                    {action.separated && <DropdownMenuSeparator />}
+                    <DropdownMenuItem onClick={() => navigate(action.href)}>
+                      <action.icon className={cn('mr-2 h-4 w-4', action.className)} />
+                      {action.label}
+                    </DropdownMenuItem>
+                  </Fragment>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -56,7 +56,7 @@ export default function PriceEditDialog({ instrumentId, currencyCode, price, kno
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription className="sr-only">{t('instrumentPrices.manualHint')}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{body}</div>
+          <div className="px-4 pb-4">{body}</div>
         </DrawerContent>
       </Drawer>
     )
@@ -157,6 +157,7 @@ function PriceForm({
           <Input
             id="price-value"
             type="number"
+            inputMode="decimal"
             step="0.0001"
             min="0.0001"
             required

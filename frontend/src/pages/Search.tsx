@@ -15,6 +15,7 @@ import { searchTerms } from '@/lib/search'
 import { cn, formatMoney } from '@/lib/utils'
 import type { SearchKind, TransactionTotals } from '@/types/search'
 import EmptyState from '@/components/EmptyState'
+import LoadFailed from '@/components/LoadFailed'
 
 const KINDS: SearchKind[] = ['all', 'withdrawal', 'deposit', 'transfer', 'trade']
 
@@ -44,7 +45,8 @@ export default function Search() {
   const page = Math.max(1, Number(searchParams.get('page')) || 1)
   const terms = searchTerms(q)
 
-  const { data, isLoading } = useSearchResults(q, kind, page, inPeriod)
+  const { data, isLoading, error, refetch } = useSearchResults(q, kind, page, inPeriod)
+  const loadError = data ? null : error
   const { data: totals } = useSearchTotals(q, kind, inPeriod)
 
   /** Changes one filter of the URL; any change but the page goes back to the first page. */
@@ -130,13 +132,17 @@ export default function Search() {
         ))}
       </div>
 
-      <TransactionList
-        data={data}
-        isLoading={isLoading}
-        onPageChange={(next) => update('page', String(next))}
-        highlight={terms}
-        empty={<EmptyState icon={SearchX} title={t('search.empty')} description={t('search.emptyDescription')} />}
-      />
+      {loadError ? (
+        <LoadFailed error={loadError} onRetry={() => void refetch()} canGoBack={false} />
+      ) : (
+        <TransactionList
+          data={data}
+          isLoading={isLoading}
+          onPageChange={(next) => update('page', String(next))}
+          highlight={terms}
+          empty={<EmptyState icon={SearchX} title={t('search.empty')} description={t('search.emptyDescription')} />}
+        />
+      )}
     </div>
   )
 }

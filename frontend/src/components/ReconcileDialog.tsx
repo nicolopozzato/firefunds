@@ -183,7 +183,7 @@ export default function ReconcileDialog({ account, open, onOpenChange }: Reconci
             <DrawerDescription>{t('reconcile.description')}</DrawerDescription>
           </DrawerHeader>
           <div className="overflow-y-auto px-4">{body}</div>
-          <DrawerFooter className="pb-[calc(env(safe-area-inset-bottom)+1rem)] [&>button]:h-11">
+          <DrawerFooter className="pb-4 [&>button]:h-11">
             {primary}
             {cancel}
           </DrawerFooter>

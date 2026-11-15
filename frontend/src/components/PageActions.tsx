@@ -105,7 +105,7 @@ export default function PageActions({ actions }: { actions: PageAction[] }) {
                 <DrawerTitle>{t('common.moreActions')}</DrawerTitle>
                 <DrawerDescription>{t('common.moreActions')}</DrawerDescription>
               </DrawerHeader>
-              <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
+              <div className="px-4 pb-4 pt-2">
                 <div className="divide-y overflow-hidden surface">
                   {menu.map((action) => (
                     <button
