@@ -268,9 +268,12 @@ class RecurringTransactionService
     /**
      * The recurring transaction a draft is (the bank's notification of a
      * subscription, a bill): one whose next occurrence falls within
-     * MATCH_DAYS of it, going the same way, on the same account when the
-     * draft knows it, else for the very same amount. Only one may fit: two
-     * would be a guess.
+     * MATCH_DAYS of it, going the same way on the draft's account (for a
+     * transfer, out of its source, into its destination), and either for
+     * the very same amount or named in the draft's text (its description or
+     * other side), as the CSV import does. Only one may fit: two would be a
+     * guess. The account alone is never enough: a card that pays a
+     * subscription pays the chemist's too.
      *
      * @return array{0: RecurringTransaction, 1: \DateTimeImmutable}|null
      */
@@ -279,21 +282,35 @@ class RecurringTransactionService
         $day = new \DateTimeImmutable($draft->getOccurredAt()->format('Y-m-d'));
         $account = $draft->getAssetAccount();
         $direction = $draft->effectiveDirection();
+        $text = mb_strtolower(trim(($draft->getDescription() ?? '')."\n".($draft->getRawText() ?? '')));
         $found = [];
         foreach ($this->repository->findByUser($draft->getUser()) as $recurring) {
             $next = $recurring->isPaused() || $recurring->isPurchase() ? null : $recurring->nextOccurrence();
             if ($next === null || abs((int) $next->diff($day)->format('%r%a')) > self::MATCH_DAYS) {
                 continue;
             }
-            $kind = $recurring->getSourceAccount()?->getType() === AccountType::Asset
-                ? ($recurring->getDestinationAccount()?->getType() === AccountType::Asset ? null : 'out')
-                : 'in';
-            if ($direction !== null && $kind !== null && $direction !== $kind) {
+            $source = $recurring->getSourceAccount();
+            $destination = $recurring->getDestinationAccount();
+            // Which way the recurrence goes for the draft's account: out of it, into it, or not on it.
+            $out = $account !== null && $source?->getId()->equals($account->getId()) && $source->getType() === AccountType::Asset;
+            $in = $account !== null && $destination?->getId()->equals($account->getId()) && $destination->getType() === AccountType::Asset;
+            if ($account === null) {
+                $out = $source?->getType() === AccountType::Asset && $destination?->getType() !== AccountType::Asset;
+                $in = $destination?->getType() === AccountType::Asset && $source?->getType() !== AccountType::Asset;
+            }
+            if (!$out && !$in) {
                 continue;
             }
+            if ($direction !== null && !($direction === 'out' ? $out : $in)) {
+                continue;
+            }
+            $other = $out ? $destination : $source;
+            $named = $text !== '' && (
+                ($other !== null && str_contains($text, mb_strtolower($other->getName())))
+                || str_contains($text, mb_strtolower($recurring->getDescription()))
+            );
             $sameAmount = bccomp($recurring->amountOn($next), $draft->getAmount(), 2) === 0;
-            $sameAccount = $account !== null && $recurring->getAssetAccount()->getId()->equals($account->getId());
-            if ($sameAccount || ($account === null && $sameAmount)) {
+            if ($sameAmount || ($account !== null && $named)) {
                 $found[] = [$recurring, $next];
             }
         }

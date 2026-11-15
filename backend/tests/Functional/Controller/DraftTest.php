@@ -126,6 +126,51 @@ class DraftTest extends WebTestCaseBase
         $this->assertSame(['draft_recorded'], array_column($this->get('/api/notifications'), 'type'));
     }
 
+    public function testAPaymentOnTheAccountOfARecurringTransferIsNotThatTransfer(): void
+    {
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
+        $savings = new Account($this->user, AccountType::Asset, 'Conto Titoli');
+        $savings->setAssetKind(AssetAccountKind::Checking);
+        $savings->setCurrency($entityManager->getRepository(Currency::class)->findOneBy(['code' => 'EUR']));
+        $entityManager->persist($savings);
+        $entityManager->flush();
+        $this->post('/api/recurring-transactions', [
+            'description' => 'Investimento PAC', 'amount' => '50', 'startDate' => '2026-10-16', 'time' => '16:30', 'timezone' => 'Europe/Rome',
+            'sourceAccountId' => $this->checking, 'destinationAccountId' => (string) $savings->getId(),
+        ]);
+        $recurringId = json_decode((string) $this->client->getResponse()->getContent(), true)['id'];
+
+        self::mockTime('2026-11-15 23:00:20 Europe/Rome');
+        $draft = $this->draft([
+            'amount' => '194.83', 'occurredAt' => '2026-11-15T23:00:17', 'direction' => 'out', 'description' => 'Zfarma srl',
+            'rawText' => "Zfarma srl\nSpesi 194,83 € presso Zfarma srl", 'sourceAccountId' => $this->checking,
+        ]);
+
+        $this->assertSame('pending', $draft['status'], 'same account, another amount, nothing in common: the user decides');
+        $this->assertSame('2026-11-16', $this->get("/api/recurring-transactions/{$recurringId}")['nextOccurrence']);
+        $this->assertSame(['draft_new'], array_column($this->get('/api/notifications'), 'type'));
+    }
+
+    public function testARecurringBillOfAnotherAmountIsRecognisedByItsName(): void
+    {
+        $this->post('/api/recurring-transactions', [
+            'description' => 'Luce', 'amount' => '60', 'startDate' => '2026-01-10', 'time' => '09:00', 'timezone' => 'Europe/Rome',
+            'sourceAccountId' => $this->checking, 'destinationAccountId' => $this->restaurant,
+        ]);
+        $recurringId = json_decode((string) $this->client->getResponse()->getContent(), true)['id'];
+        self::mockTime('2026-11-10 10:00:00 Europe/Rome');
+
+        $other = $this->draft(['amount' => '72.10', 'occurredAt' => '2026-11-10T09:30:00', 'direction' => 'out', 'description' => 'Farmacia', 'sourceAccountId' => $this->checking]);
+        $this->assertSame('pending', $other['status']);
+
+        $bill = $this->draft(['amount' => '72.10', 'occurredAt' => '2026-11-10T09:40:00', 'direction' => 'out', 'description' => 'Addebito DA MARIO', 'sourceAccountId' => $this->checking]);
+        $this->assertSame('matched', $bill['status'], 'its other side named in the text');
+        $this->assertSame($recurringId, $this->get("/api/transactions/{$bill['transactionIds'][0]}")['recurringId']);
+
+        $in = $this->draft(['amount' => '60', 'occurredAt' => '2026-11-10T09:50:00', 'direction' => 'in', 'description' => 'Luce', 'destinationAccountId' => $this->checking]);
+        $this->assertSame('pending', $in['status'], 'the other way');
+    }
+
     public function testATransactionSentWithIfExistsReviewBecomesADraft(): void
     {
         $this->post('/api/transactions', [
