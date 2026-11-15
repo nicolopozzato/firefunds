@@ -6,9 +6,11 @@ use App\Core\Controller\ResolvesCurrentUser;
 use App\Core\Exception\ApiException;
 use App\Core\Exception\ErrorCode;
 use App\Core\Period\CalendarRange;
+use App\Report\DTO\CashFlowReportQuery;
 use App\Report\DTO\NetWorthReportQuery;
 use App\Report\DTO\ReportQuery;
 use App\Report\Period\ReportRange;
+use App\Report\Service\CashFlowReportService;
 use App\Report\Service\IncomeExpenseReportService;
 use App\Report\Service\NetWorthReportService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,6 +26,7 @@ class ReportController extends AbstractController
     public function __construct(
         private readonly IncomeExpenseReportService $incomeExpenseReportService,
         private readonly NetWorthReportService $netWorthReportService,
+        private readonly CashFlowReportService $cashFlowReportService,
     ) {
     }
 
@@ -53,5 +56,23 @@ class ReportController extends AbstractController
     public function netWorth(#[MapQueryString(validationFailedStatusCode: 400)] NetWorthReportQuery $query = new NetWorthReportQuery()): JsonResponse
     {
         return $this->json($this->netWorthReportService->forUser($this->getCurrentUser(), $query->year));
+    }
+
+    /** The asset accounts' cash from today on: what is entered, what recurs, what the past suggests. */
+    #[Route('/cash-flow', name: 'api_reports_cash_flow', methods: ['GET'])]
+    public function cashFlow(#[MapQueryString(validationFailedStatusCode: 400)] CashFlowReportQuery $query = new CashFlowReportQuery()): JsonResponse
+    {
+        if ($query->months > CashFlowReportService::MAX_MONTHS[$query->by]) {
+            throw new ApiException(ErrorCode::InvalidDateRange);
+        }
+
+        return $this->json($this->cashFlowReportService->forUser(
+            $this->getCurrentUser(),
+            $query->months,
+            $query->by,
+            $query->average,
+            $query->seasonal,
+            $query->layerList(),
+        ));
     }
 }

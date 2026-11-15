@@ -29,6 +29,7 @@ import {
   FileBarChart,
   BarChart3,
   Landmark,
+  Hourglass,
   ChevronLeft,
 } from 'lucide-react'
 import CollapsibleNavSection from './CollapsibleNavSection'
@@ -235,6 +236,11 @@ export default function Sidebar() {
       name: t('navigation.netWorthReport'),
       href: '/reports/net-worth',
       icon: Landmark,
+    },
+    {
+      name: t('navigation.cashFlowReport'),
+      href: '/reports/cash-flow',
+      icon: Hourglass,
     },
   ]
 

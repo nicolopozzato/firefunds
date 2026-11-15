@@ -25,8 +25,15 @@ export interface InstrumentSuggestion {
   type: string
 }
 
-/** Accounts and instruments matching what is typed in the search box. */
+export interface NamedSuggestion {
+  id: string
+  name: string
+}
+
+/** Accounts, instruments, categories and tags matching what is typed in the search box. */
 export interface SearchSuggestions {
   accounts: AccountSuggestion[]
   instruments: InstrumentSuggestion[]
+  categories: NamedSuggestion[]
+  tags: NamedSuggestion[]
 }

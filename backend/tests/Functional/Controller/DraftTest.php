@@ -61,10 +61,12 @@ class DraftTest extends WebTestCaseBase
         // 25 dinner, 25 a friend's: recorded as taken out, no account on the other side.
         $this->post("/api/drafts/{$draft['id']}/accept", ['parts' => [
             ['description' => 'Cena', 'amount' => '25', 'occurredAt' => '2026-10-25T21:30:00', 'sourceAccountId' => $this->checking, 'destinationAccountId' => $this->restaurant],
-            ['description' => 'Prelievo per Marco', 'amount' => '25', 'occurredAt' => '2026-10-25T21:30:00', 'sourceAccountId' => $this->checking, 'destinationAccountId' => null],
+            ['description' => 'Prelievo per Marco', 'amount' => '25', 'occurredAt' => '2026-10-25T21:30:00', 'sourceAccountId' => $this->checking, 'destinationAccountId' => null, 'notes' => 'Me li ridà sabato'],
         ]]);
         $this->assertResponseIsSuccessful();
-        $this->assertCount(2, json_decode((string) $this->client->getResponse()->getContent(), true));
+        $created = json_decode((string) $this->client->getResponse()->getContent(), true);
+        $this->assertCount(2, $created);
+        $this->assertSame([null, 'Me li ridà sabato'], array_column($created, 'notes'), 'each part keeps its own notes');
         $this->assertSame([], $this->get('/api/drafts'));
         $this->assertSame(['pending' => 0], $this->get('/api/drafts/count'));
         $this->assertSame([], $this->get('/api/notifications'));

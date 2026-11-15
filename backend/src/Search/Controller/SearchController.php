@@ -5,7 +5,9 @@ namespace App\Search\Controller;
 use App\Core\Search\SearchQuery;
 use App\Entity\User;
 use App\Repository\AccountRepository;
+use App\Repository\CategoryRepository;
 use App\Repository\InvestmentInstrumentRepository;
+use App\Repository\TagRepository;
 use App\Search\DTO\SearchSuggestionsResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,6 +28,8 @@ class SearchController extends AbstractController
     public function __construct(
         private readonly AccountRepository $accountRepository,
         private readonly InvestmentInstrumentRepository $instrumentRepository,
+        private readonly CategoryRepository $categoryRepository,
+        private readonly TagRepository $tagRepository,
     ) {
     }
 
@@ -39,12 +43,14 @@ class SearchController extends AbstractController
 
         $search = SearchQuery::parse($request->query->get('q'));
         if ($search === null) {
-            return $this->json(new SearchSuggestionsResponse(accounts: [], instruments: []));
+            return $this->json(new SearchSuggestionsResponse(accounts: [], instruments: [], categories: [], tags: []));
         }
 
         return $this->json(new SearchSuggestionsResponse(
             accounts: $this->accountRepository->searchByName($user, $search, self::SUGGESTIONS_PER_GROUP),
             instruments: $this->instrumentRepository->search($user, $search, self::SUGGESTIONS_PER_GROUP),
+            categories: $this->categoryRepository->searchByName($user, $search, self::SUGGESTIONS_PER_GROUP),
+            tags: $this->tagRepository->searchByName($user, $search, self::SUGGESTIONS_PER_GROUP),
         ));
     }
 }

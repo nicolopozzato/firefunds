@@ -65,6 +65,7 @@ security:
 
     access_control:
         - { path: ^/api/auth/(login|register|refresh|logout|check-registration)$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/setup/restore$, roles: PUBLIC_ACCESS }
         - { path: ^/api/health, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 

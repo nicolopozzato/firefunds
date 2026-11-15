@@ -96,6 +96,11 @@ export default function Login() {
                   {t('auth.createAdminAccount')}
                 </Button>
               </Link>
+              <Link to="/restore">
+                <Button variant="outline" className="w-full" size="lg">
+                  {t('auth.restoreBackup')}
+                </Button>
+              </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

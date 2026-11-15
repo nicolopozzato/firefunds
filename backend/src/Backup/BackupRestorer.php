@@ -13,10 +13,11 @@ use Symfony\Component\Process\Process;
 
 /**
  * Puts a backup back: replaces the whole database with the backup's. Used
- * only by app:backup:restore. Running the migrations afterwards (the caller's
- * job) brings an older backup up to date.
+ * by app:backup:restore, and by FirstStartRestore on an installation with no
+ * users yet. Running the migrations afterwards (the caller's job) brings an
+ * older backup up to date.
  */
-#[PhysicalDelete('Restoring a backup replaces the whole database with the backup\'s, which the owner asks for by running app:backup:restore.')]
+#[PhysicalDelete('Restoring a backup replaces the whole database with the backup\'s, which the owner asks for by running app:backup:restore, or by uploading one before anybody uses the installation.')]
 class BackupRestorer
 {
     public function __construct(
@@ -57,13 +58,19 @@ class BackupRestorer
 
         try {
             $this->backups->run(new Process(['tar', '-xf', $path, '-C', $work, BackupService::DUMP]));
-            $this->connection->executeStatement('DROP SCHEMA public CASCADE');
-            $this->connection->executeStatement('CREATE SCHEMA public');
-            $this->connection->close();
+            $this->emptyDatabase();
             $this->backups->run($this->backups->pg('pg_restore', ['--no-owner', '--no-acl', '--exit-on-error', $work.'/'.BackupService::DUMP]));
         } finally {
             $this->backups->discard($work);
         }
+    }
+
+    /** No tables at all: the migrations build them again (an installation left as new). */
+    public function emptyDatabase(): void
+    {
+        $this->connection->executeStatement('DROP SCHEMA public CASCADE');
+        $this->connection->executeStatement('CREATE SCHEMA public');
+        $this->connection->close();
     }
 
     /**

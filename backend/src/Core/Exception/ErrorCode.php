@@ -81,6 +81,7 @@ enum ErrorCode: string
     case BackupInProgress = 'backup_in_progress';
     case BackupFromNewerVersion = 'backup_from_newer_version';
     case BackupUnreadable = 'backup_unreadable';
+    case RestoreNotFirstStart = 'restore_not_first_start';
 
     // Exchange rates
     case RateCurrencyInvalid = 'rate_currency_invalid';
@@ -153,6 +154,7 @@ enum ErrorCode: string
             self::BackupInProgress => 'Another backup or restore is running: try again in a moment.',
             self::BackupFromNewerVersion => 'This backup comes from FireFunds {version}, newer than the {current} that is running: update FireFunds first.',
             self::BackupUnreadable => 'This file is not a FireFunds backup, or it is damaged.',
+            self::RestoreNotFirstStart => 'FireFunds already has users: a backup can only be restored from the console now.',
             self::RateCurrencyInvalid => 'There is no rate for {currency} against your currency.',
             self::RateDateInFuture => 'A rate can only be entered for today or a day before.',
             self::RateNotFound => 'You have not entered a rate for that day.',

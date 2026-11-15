@@ -36,6 +36,7 @@ const MORE_PAGES = [
   '/tags',
   '/reports/income-expenses',
   '/reports/net-worth',
+  '/reports/cash-flow',
   '/preferences',
   '/sources',
   '/admin/users',

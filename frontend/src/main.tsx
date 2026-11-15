@@ -14,7 +14,7 @@ import { registerServiceWorker } from './lib/push'
 // Initialize theme system
 applyTheme(getTheme())
 
-// For push notifications only (public/sw.js): nothing is cached.
+// Push notifications and the app's own files kept on the device (public/sw.js); never the data.
 registerServiceWorker()
 
 // No pinch zoom, as in a native app: Safari on iOS ignores user-scalable=no in

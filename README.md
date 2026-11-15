@@ -73,6 +73,7 @@ For any period (this month, this year, a range of your choice): income, expenses
 
 - **Income and expenses**: a column per month or per year over any range, optionally compared with the range before or the year before; income, expenses, savings, net worth, and a category × month table where every cell opens its transactions.
 - **Net worth**: a year at a time, every account and instrument at the end of each month, and each month's change split into what you saved and what the market did.
+- **Cash flow**: where your cash and net worth are going from today on (investments at today's value, a savings plan moving cash into them), by day, week or month, in total or account by account: what you already entered for the days to come, what your recurring transactions will move, and an estimate of the rest from each category's average over the months you choose (optionally weighing the same month a year earlier). It also shows the lowest point your cash reaches, and when.
 
 ### Everything else
 
@@ -174,7 +175,9 @@ FireFunds backs up its own database: once a day, keeping the last 14 days, in `.
 2. a backup file from `./data/backups` (download it from the app, or copy the newest one);
 3. optionally `./data/jwt`: without it everyone simply logs in again.
 
-**Restore** (on the same server, or on a new one with your `compose.yml` and `.env` in place and the backup file copied into `./data/backups`). Run the commands in the folder with `compose.yml`:
+**On a new installation** (a new server, or one rebuilt after a problem), the login page offers **Restore from a backup** until the first account exists: upload the backup file (up to 20 MB) and, after a minute or two, log in with your usual account and find everything as it was. The version checks below apply. Once there is a user, restoring is done from the terminal only.
+
+**Restore** on an installation in use (or with a backup larger than 20 MB), on the same server or on a new one with your `compose.yml` and `.env` in place and the backup file copied into `./data/backups`. Run the commands in the folder with `compose.yml`:
 
 ```bash
 docker compose stop app scheduler
@@ -225,7 +228,7 @@ Usa la partita doppia, come [Firefly III](https://www.firefly-iii.org) da cui pr
 - **Entrate e uscite**: ogni transazione sposta denaro fra due conti (i tuoi conti, chi paghi, chi ti paga), con categorie, etichette e la cronologia delle modifiche. Niente viene mai cancellato davvero.
 - **Dashboard** per qualsiasi periodo: entrate, uscite, risparmio, investimenti, patrimonio netto e grafici.
 - **Investimenti**: strumenti con ticker Yahoo Finance e prezzi di chiusura scaricati in automatico, acquisti e vendite con commissioni e tasse, posizioni con prezzo medio di carico, panoramica su tutti i broker e la stima del capital gain (26% di default, o l'aliquota del singolo strumento, es. 12,5% sui titoli di Stato).
-- **Report**: entrate e uscite per mese o per anno con confronto, e il patrimonio netto mese per mese.
+- **Report**: entrate e uscite per mese o per anno con confronto, il patrimonio netto mese per mese, e il flusso di cassa da oggi in poi, liquidità o patrimonio con gli investimenti al valore di oggi (per giorno, settimana o mese, in totale o conto per conto) con quanto già inserito, le ricorrenze e una stima dalle medie per categoria.
 - Più utenti, ognuno con i suoi dati; il primo che si registra è l'amministratore. Tema chiaro e scuro, formato dei numeri e fuso orario a scelta, ricerca.
 
 ### Installazione
@@ -250,7 +253,7 @@ L'app risponde su `http://127.0.0.1:8080`. Aprila e registrati: il primo utente 
 
 **Aggiornare:** `docker compose pull && docker compose up -d` (dalle versioni fino alla 0.3.0, con PostgreSQL 16, il passaggio a PostgreSQL 18 richiede un dump: i comandi sono nella sezione *Updating* in inglese). Le migrazioni del database partono da sole all'avvio, quindi fai prima un backup (Amministrazione → Backup → Fai un backup ora). Se aggiorni da una versione senza backup, aggiungi `- ./data/backups:/app/backend/var/backups` ai `volumes:` di `x-app` in `compose.yml` (o riscaricalo).
 
-**Backup e ripristino:** FireFunds fa da solo un backup del database ogni giorno e tiene gli ultimi 14 giorni in `./data/backups`; l'amministratore cambia frequenza e durata, ne fa uno al volo e li scarica da **Amministrazione → Backup**. Per poter ricostruire tutto altrove, tieni una copia **fuori da questo server** di `compose.yml`, `.env` (con i segreti) e di un file di backup. Per ripristinare (nella cartella con `compose.yml`, con il file di backup in `./data/backups`):
+**Backup e ripristino:** FireFunds fa da solo un backup del database ogni giorno e tiene gli ultimi 14 giorni in `./data/backups`; l'amministratore cambia frequenza e durata, ne fa uno al volo e li scarica da **Amministrazione → Backup**. Per poter ricostruire tutto altrove, tieni una copia **fuori da questo server** di `compose.yml`, `.env` (con i segreti) e di un file di backup. Su una **nuova installazione** (un nuovo server, o uno rifatto dopo un problema) la pagina di accesso offre **Ripristina da un backup** finché non esiste il primo account: carichi il file (fino a 20 MB) e dopo un paio di minuti accedi con il tuo solito account e ritrovi tutto. Con un'installazione già in uso (o un backup più grande) si ripristina da terminale, nella cartella con `compose.yml`, con il file di backup in `./data/backups`:
 
 ```bash
 docker compose stop app scheduler

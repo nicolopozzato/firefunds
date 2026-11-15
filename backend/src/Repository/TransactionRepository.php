@@ -616,6 +616,75 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Income and expenses not made by a recurrence, per asset account (the
+     * one paying or receiving), category and month, in the account's currency:
+     * what the cash flow report estimates the future from (recurrences are
+     * forecast one by one, so they would count twice). Nor those between the
+     * same two accounts as a recurrence still running: the salaries and bills
+     * from before it existed, never linked to it.
+     *
+     * @return list<array{account_id: string, flow: string, category_id: ?string, category_name: ?string, month: string, total: string}>
+     */
+    public function sumUnplannedFlowsByAccountAndMonth(User $user, \DateTimeImmutable $from, \DateTimeImmutable $through): array
+    {
+        $flow = TransactionKind::sqlFlowCase();
+        $sql = <<<SQL
+            SELECT CAST(account_id AS text) AS account_id, flow, CAST(category_id AS text) AS category_id, category_name, month,
+                CAST(SUM(amount) AS numeric(19,4)) AS total
+            FROM (
+                SELECT
+                    {$flow} AS flow,
+                    CASE WHEN dst.type = 'asset' THEN dst.id ELSE src.id END AS account_id,
+                    t.category_id,
+                    c.name AS category_name,
+                    to_char(t.occurred_at, 'YYYY-MM') AS month,
+                    t.amount
+                FROM transaction t
+                LEFT JOIN account src ON src.id = t.source_account_id
+                LEFT JOIN account dst ON dst.id = t.destination_account_id
+                LEFT JOIN category c ON c.id = t.category_id
+                WHERE t.user_id = :user AND t.deleted_at IS NULL AND t.recurring_id IS NULL
+                    AND t.occurred_at >= :from AND t.occurred_at < :until
+                    AND NOT EXISTS (
+                        SELECT 1 FROM recurring_transaction r
+                        WHERE r.user_id = t.user_id AND r.deleted_at IS NULL AND r.paused_at IS NULL
+                            AND r.source_account_id = t.source_account_id AND r.destination_account_id = t.destination_account_id
+                    )
+            ) flows
+            WHERE flow IN ('expense', 'income')
+            GROUP BY account_id, flow, category_id, category_name, month
+            SQL;
+
+        return $this->getEntityManager()->getConnection()->executeQuery($sql, [
+            'user' => $user->getId()->toRfc4122(),
+            'from' => $from->format('Y-m-d 00:00:00'),
+            'until' => $through->modify('+1 day')->format('Y-m-d 00:00:00'),
+        ])->fetchAllAssociative();
+    }
+
+    /**
+     * The money transactions already entered for the days after `today`
+     * through `through`, oldest first: the cash flow report's first layer.
+     *
+     * @return list<Transaction>
+     */
+    public function findPlanned(User $user, \DateTimeImmutable $today, \DateTimeImmutable $through): array
+    {
+        return $this->createQueryBuilder('t')
+            ->addSelect('src', 'dst')
+            ->leftJoin('t.sourceAccount', 'src')
+            ->leftJoin('t.destinationAccount', 'dst')
+            ->andWhere('t.user = :user')
+            ->andWhere('t.occurredAt >= :from AND t.occurredAt < :until')
+            ->setParameter('user', $user)
+            ->setParameter('from', $today->modify('+1 day')->format('Y-m-d 00:00:00'))
+            ->setParameter('until', $through->modify('+1 day')->format('Y-m-d 00:00:00'))
+            ->orderBy('t.occurredAt')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Month by month, what was spent and received with one category or one
      * tag over a range, in the user's currency (each amount at its day's
      * rate): the chart of a category's or a tag's page. Transfers are neither.

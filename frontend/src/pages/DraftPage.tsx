@@ -13,6 +13,7 @@ import LoadFailed from '@/components/LoadFailed'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
 import SegmentedControl from '@/components/ui/segmented-control'
 import { useAllAccounts } from '@/hooks/use-accounts'
 import { useAllClassification } from '@/hooks/use-classification'
@@ -45,6 +46,7 @@ interface Part {
   sourceId: string
   destinationId: string
   categoryId: string
+  notes: string
 }
 
 /** The first part: the draft as it came, on the user's default account when it says none, completed with what it most likely is. */
@@ -62,6 +64,7 @@ function firstPart(draft: Draft, defaultAccountId: string | null): Part {
     sourceId: incoming ? other : asset,
     destinationId: incoming ? asset : other,
     categoryId: suggestion?.categoryId ?? '',
+    notes: draft.notes ?? '',
   }
 }
 
@@ -116,7 +119,7 @@ export default function DraftPage() {
           {formatShortDate(draft.occurredAt.slice(0, 10))} · {formatTime24h(draft.occurredAt)} · {draft.sourceName ?? t(`drafts.source_${draft.source}`, { defaultValue: draft.source })}
         </div>
         {draft.rawText && <p className="whitespace-pre-wrap rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs">{draft.rawText}</p>}
-        {draft.notes && <p className="whitespace-pre-wrap">{draft.notes}</p>}
+        {draft.notes && closed && <p className="whitespace-pre-wrap">{draft.notes}</p>}
       </div>
     </FormSection>
   )
@@ -143,7 +146,7 @@ export default function DraftPage() {
     setParts((current) => {
       const last = current[current.length - 1]
       const rest = Math.max(0, Number(draft.amount) - assigned)
-      return [...current, { ...last, key: Math.max(...current.map((p) => p.key)) + 1, amount: rest > 0 ? String(Math.round(rest * 100) / 100) : '', description: '', categoryId: '' }]
+      return [...current, { ...last, key: Math.max(...current.map((p) => p.key)) + 1, amount: rest > 0 ? String(Math.round(rest * 100) / 100) : '', description: '', categoryId: '', notes: '' }]
     })
 
   const toRequest = (part: Part): CreateTransactionRequest => {
@@ -163,6 +166,7 @@ export default function DraftPage() {
       categoryId: category.id,
       newCategoryName: category.name,
       tagIds: [],
+      notes: part.notes.trim() || null,
     }
   }
 
@@ -280,7 +284,7 @@ interface PartEditorProps {
   onRemove?: () => void
 }
 
-/** One transaction the draft becomes: its kind, amount, what, between which accounts, its category. */
+/** One transaction the draft becomes: its kind, amount, what, between which accounts, its category, its notes. */
 function PartEditor({ part, index, accounts, categories, symbol, similar, onChange, onRemove }: PartEditorProps) {
   const { t } = useTranslation()
   const sides = SIDES[part.kind]
@@ -381,6 +385,9 @@ function PartEditor({ part, index, accounts, categories, symbol, similar, onChan
           label={t('drafts.recentWithPayee')}
           options={recentCategories.map((category) => ({ key: category.value, label: category.label, onPick: () => onChange({ categoryId: category.value }) }))}
         />
+      </Field>
+      <Field label={t('classificationCommon.notes')} htmlFor={`notes-${part.key}`} className="sm:col-span-2" optional>
+        <Textarea id={`notes-${part.key}`} value={part.notes} onChange={(e) => onChange({ notes: e.target.value })} />
       </Field>
     </div>
   )

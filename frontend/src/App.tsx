@@ -7,6 +7,7 @@ import { Toaster } from './components/ui/sonner'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import RestoreBackup from './pages/RestoreBackup'
 import ChooseNewPassword from './pages/ChooseNewPassword'
 import { useApplyThemePreference } from './hooks/use-theme'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -46,6 +47,7 @@ const ClassificationDetailPage = lazy(() => import('./pages/ClassificationDetail
 const InvestmentsOverview = lazy(() => import('./pages/InvestmentsOverview'))
 const IncomeExpenseReport = lazy(() => import('./pages/reports/IncomeExpenseReport'))
 const NetWorthReport = lazy(() => import('./pages/reports/NetWorthReport'))
+const CashFlowReport = lazy(() => import('./pages/reports/CashFlowReport'))
 const Search = lazy(() => import('./pages/Search'))
 const More = lazy(() => import('./pages/More'))
 const InvestmentInstruments = lazy(() => import('./pages/InvestmentInstruments'))
@@ -120,6 +122,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/restore" element={<RestoreBackup />} />
       <Route
         path="/*"
         element={
@@ -177,6 +180,7 @@ function AppRoutes() {
                 <Route path="/reports" element={<Navigate to="/reports/income-expenses" replace />} />
                 <Route path="/reports/income-expenses" element={<IncomeExpenseReport />} />
                 <Route path="/reports/net-worth" element={<NetWorthReport />} />
+                <Route path="/reports/cash-flow" element={<CashFlowReport />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/more" element={<More />} />
                 <Route path="/profile" element={<Navigate to="/preferences?tab=account" replace />} />

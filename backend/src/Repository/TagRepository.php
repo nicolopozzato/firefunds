@@ -3,10 +3,12 @@
 namespace App\Repository;
 
 use App\Core\Pagination\PaginationParams;
+use App\Core\Search\SearchQuery;
 use App\Core\Pagination\Paginator;
 use App\Entity\Tag;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -63,5 +65,26 @@ class TagRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The search box's suggestions: names matching what is typed.
+     *
+     * @return array{id: string, name: string}[]
+     */
+    public function searchByName(User $user, SearchQuery $search, int $limit): array
+    {
+        [$condition, $params] = $search->toSql('unaccent(name)', 'tag');
+
+        return $this->getEntityManager()->getConnection()->executeQuery(
+            <<<SQL
+                SELECT CAST(id AS text) AS id, name FROM tag
+                WHERE user_id = :userId AND deleted_at IS NULL AND {$condition}
+                ORDER BY name
+                LIMIT :limit
+                SQL,
+            $params + ['userId' => $user->getId()->toRfc4122(), 'limit' => $limit],
+            ['limit' => ParameterType::INTEGER],
+        )->fetchAllAssociative();
     }
 }

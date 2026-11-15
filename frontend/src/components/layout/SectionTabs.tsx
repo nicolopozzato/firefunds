@@ -63,7 +63,7 @@ export function InvestmentSectionTabs() {
   )
 }
 
-/** The reports: income and expenses, net worth. */
+/** The reports: income and expenses, net worth, cash flow. */
 export function ReportSectionTabs() {
   const { t } = useTranslation()
   return (
@@ -72,6 +72,7 @@ export function ReportSectionTabs() {
       links={[
         { label: t('navigation.incomeExpensesReport'), href: '/reports/income-expenses' },
         { label: t('navigation.netWorthReport'), href: '/reports/net-worth' },
+        { label: t('navigation.cashFlowReport'), href: '/reports/cash-flow' },
       ]}
     />
   )

@@ -30,6 +30,14 @@ export const authApi = {
     return response.data;
   },
 
+  /** Before the first account exists: the whole installation from a backup file. */
+  async restoreFirstStart(file: File): Promise<void> {
+    const body = new FormData();
+    body.append('backup', file);
+    // The instance sends JSON by default: a FormData would be turned into it.
+    await api.post('/api/setup/restore', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
   async checkRegistration(): Promise<CheckRegistrationResponse> {
     const response = await api.get<CheckRegistrationResponse>('/api/auth/check-registration');
     return response.data;

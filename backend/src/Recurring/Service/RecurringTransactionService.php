@@ -405,6 +405,38 @@ class RecurringTransactionService
     }
 
     /**
+     * What the recurrences will still move through `to` (the cash flow
+     * report): every occurrence not dealt with yet, with the amount expected.
+     * One waiting for the user since an earlier day counts today: its money
+     * hasn't moved. A purchase's fee is part of what leaves the account.
+     *
+     * @return list<array{recurring: RecurringTransaction, day: \DateTimeImmutable, amount: string}>
+     */
+    public function expected(User $user, \DateTimeImmutable $to): array
+    {
+        $expected = [];
+        foreach ($this->repository->findByUser($user) as $recurring) {
+            if ($recurring->isPaused()) {
+                continue;
+            }
+            $today = $this->today($recurring->getTimezone());
+            foreach ($recurring->rule()->between($recurring->getHandledThrough()->modify('+1 day'), $to) as $day) {
+                // An automatic one is made at its time: one of a past day is already a transaction (or about to be).
+                if ($day < $today && $recurring->getMode() !== RecurrenceMode::Confirm) {
+                    continue;
+                }
+                $amount = $this->expectedAmount($recurring, $day);
+                if ($recurring->isPurchase()) {
+                    $amount = bcadd($amount, $recurring->getFees() ?? '0', 4);
+                }
+                $expected[] = ['recurring' => $recurring, 'day' => max($day, $today), 'amount' => $amount];
+            }
+        }
+
+        return $expected;
+    }
+
+    /**
      * Occurrences waiting for the user (mode confirm, due by today), oldest
      * first: only the first of each can be confirmed or skipped.
      *

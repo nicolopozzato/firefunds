@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { createSearchParams, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Command as CommandPrimitive } from 'cmdk'
-import { Banknote, CornerDownLeft, Layers, Search, ShoppingCart, Wallet, type LucideIcon } from 'lucide-react'
+import { Banknote, CornerDownLeft, Layers, Search, ShoppingCart, Tag, Tags, Wallet, type LucideIcon } from 'lucide-react'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import Highlight from '@/components/Highlight'
 import { useDebouncedValue, useSearchSuggestions } from '@/hooks/use-search'
 import { searchTerms } from '@/lib/search'
 import { cn } from '@/lib/utils'
-import type { AccountSuggestion } from '@/types/search'
+import type { AccountSuggestion, NamedSuggestion } from '@/types/search'
 
 const accountIcons: Record<AccountSuggestion['type'], LucideIcon> = {
   asset: Wallet,
@@ -23,8 +23,9 @@ function isTyping(target: EventTarget | null): boolean {
 
 /**
  * The search box in the header. Enter (or the first entry of its menu) opens
- * the transactions found on /search; the menu also offers the accounts and
- * instruments whose name matches, to open their page directly.
+ * the transactions found on /search; the menu also offers the accounts,
+ * instruments, categories and tags whose name matches, to open their page
+ * directly.
  * `/` or Ctrl+K puts the cursor in it from anywhere.
  *
  * On phones it opens from the top bar's magnifier: `autoFocus` brings up the
@@ -54,6 +55,8 @@ export default function SearchBox({ className, autoFocus, onDone }: { className?
   // Suggestions for an older text stay hidden until the new ones arrive.
   const accounts = debouncedQuery === query ? suggestions?.accounts ?? [] : []
   const instruments = debouncedQuery === query ? suggestions?.instruments ?? [] : []
+  const categories = debouncedQuery === query ? suggestions?.categories ?? [] : []
+  const tags = debouncedQuery === query ? suggestions?.tags ?? [] : []
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -167,10 +170,29 @@ export default function SearchBox({ className, autoFocus, onDone }: { className?
                 ))}
               </CommandGroup>
             )}
+
+            <NamedGroup heading={t('search.categories')} kind="categories" icon={Tag} items={categories} terms={terms} onOpen={openPage} />
+            <NamedGroup heading={t('search.tags')} kind="tags" icon={Tags} items={tags} terms={terms} onOpen={openPage} />
           </CommandList>
           <p className="border-t px-3 py-2 text-xs text-muted-foreground">{t('search.hint')}</p>
         </div>
       )}
     </Command>
+  )
+}
+
+/** Categories or tags matching what is typed, each opening its page. */
+function NamedGroup({ heading, kind, icon: Icon, items, terms, onOpen }: { heading: string; kind: 'categories' | 'tags'; icon: LucideIcon; items: NamedSuggestion[]; terms: string[]; onOpen: (path: string) => void }) {
+  if (items.length === 0) return null
+
+  return (
+    <CommandGroup heading={heading}>
+      {items.map((item) => (
+        <CommandItem key={item.id} value={`${kind}:${item.id}`} onSelect={() => onOpen(`/${kind}/${item.id}`)} className="gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="flex-1 truncate"><Highlight text={item.name} terms={terms} /></span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
   )
 }

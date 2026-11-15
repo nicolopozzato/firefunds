@@ -32,7 +32,7 @@ export function pushSupport(): PushSupport {
 export function registerServiceWorker(): void {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Without it there is no push; the app works the same.
+      // Without it there is no push and the app always loads from the server; it works the same.
     })
   }
 }

@@ -14,7 +14,7 @@ export interface MonthlySeries {
 }
 
 interface MonthlyLineChartProps {
-  /** One label per month, under the axis. */
+  /** One label per point, under the axis (every few when they don't fit). */
   labels: string[]
   series: MonthlySeries[]
   currency: string | null
@@ -23,7 +23,11 @@ interface MonthlyLineChartProps {
   height?: number
 }
 
-/** Lines over the twelve months of a year, e.g. this year's net worth against last year's. */
+/**
+ * Lines over the twelve months of a year, e.g. this year's net worth against
+ * last year's; or over any run of periods (the cash flow's days, weeks,
+ * months), where dots are left out once the points get dense.
+ */
 export default function MonthlyLineChart({ labels, series, currency, emptyLabel, tooltip, height = 280 }: MonthlyLineChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const chartTouch = useChartTouch(() => setHoveredIndex(null))
@@ -55,6 +59,9 @@ export default function MonthlyLineChart({ labels, series, currency, emptyLabel,
   }, [series, labels.length, width, height, currency])
 
   const hoveredX = chart && hoveredIndex !== null ? chart.xFor(hoveredIndex) : 0
+  // Labels: all of them while they fit, else every few. Dots only while they don't touch.
+  const labelEvery = chart ? Math.max(1, Math.ceil(labels.length / Math.max(1, Math.floor((width - chart.left) / 56)))) : 1
+  const dots = chart ? chart.slot >= 12 : true
 
   return (
     <div ref={containerRef} className="relative" style={{ height }}>
@@ -87,9 +94,10 @@ export default function MonthlyLineChart({ labels, series, currency, emptyLabel,
                   strokeLinejoin="round"
                   strokeLinecap="round"
                 />
-                {line.coords.map((point, index) => (
-                  <circle key={index} cx={point.x} cy={point.y} r={line.dashed ? 2 : 3} fill={line.color} />
-                ))}
+                {dots &&
+                  line.coords.map((point, index) => (
+                    <circle key={index} cx={point.x} cy={point.y} r={line.dashed ? 2 : 3} fill={line.color} />
+                  ))}
               </g>
             ))}
 
@@ -114,11 +122,13 @@ export default function MonthlyLineChart({ labels, series, currency, emptyLabel,
               />
             ))}
 
-            {labels.map((label, index) => (
-              <text key={`label-${index}`} x={chart.xFor(index)} y={height - 8} fontSize={10} textAnchor="middle" fill="hsl(var(--muted-foreground))">
-                {label}
-              </text>
-            ))}
+            {labels.map((label, index) =>
+              index % labelEvery === 0 ? (
+                <text key={`label-${index}`} x={chart.xFor(index)} y={height - 8} fontSize={10} textAnchor="middle" fill="hsl(var(--muted-foreground))">
+                  {label}
+                </text>
+              ) : null,
+            )}
           </svg>
 
           {hoveredIndex !== null && (

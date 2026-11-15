@@ -170,6 +170,23 @@ class TransactionSearchTest extends WebTestCaseBase
         $this->assertSame(['Vanguard FTSE All-World'], array_column($this->json()['instruments'], 'name'));
     }
 
+    public function testSuggestsCategoriesAndTagsOfTheUserOnly(): void
+    {
+        $gone = new Tag($this->user, 'Vacanze 2024');
+        $gone->markDeleted();
+        $this->entityManager->persist($gone);
+        $this->entityManager->persist(new Category(static::createUser(), 'Ristoranti altrui'));
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/search/suggestions', ['q' => 'ristor']);
+        $this->assertSame(['Ristoranti'], array_column($this->json()['categories'], 'name'));
+
+        $this->client->request('GET', '/api/search/suggestions', ['q' => 'vacanz']);
+        $suggestions = $this->json();
+        $this->assertSame(['Vacanza'], array_column($suggestions['tags'], 'name'), 'not a deleted one');
+        $this->assertSame([], $suggestions['categories']);
+    }
+
     /**
      * Descriptions of the transactions found, newest first.
      *

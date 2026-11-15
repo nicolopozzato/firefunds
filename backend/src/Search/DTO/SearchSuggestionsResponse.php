@@ -3,8 +3,8 @@
 namespace App\Search\DTO;
 
 /**
- * The shortcuts under the search box: accounts and instruments whose name
- * matches what is typed, each opening its own page.
+ * The shortcuts under the search box: accounts, instruments, categories and
+ * tags whose name matches what is typed, each opening its own page.
  */
 final readonly class SearchSuggestionsResponse
 {
@@ -13,6 +13,10 @@ final readonly class SearchSuggestionsResponse
         public array $accounts,
         /** @var array{id: string, name: string, ticker: ?string, type: string}[] */
         public array $instruments,
+        /** @var array{id: string, name: string}[] */
+        public array $categories,
+        /** @var array{id: string, name: string}[] */
+        public array $tags,
     ) {
     }
 }

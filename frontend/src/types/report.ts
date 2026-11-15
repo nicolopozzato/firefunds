@@ -142,3 +142,72 @@ export interface NetWorthReport {
   /** The net worth by currency of what is held, in the user's currency; empty with one currency. */
   currencies?: NetWorthRow[]
 }
+
+export type CashFlowBy = 'day' | 'week' | 'month'
+export type CashFlowLayer = 'entered' | 'recurring' | 'estimated'
+export type CashFlowFlow = 'income' | 'expense' | 'invested' | 'transfer'
+
+/** One amount per layer, positive, in the user's currency. */
+export type CashFlowLayers = Record<CashFlowLayer, string>
+
+/** Something a column expects: a transaction entered, a recurrence's occurrence, a category's estimate. */
+export interface CashFlowItem {
+  source: CashFlowLayer
+  flow: CashFlowFlow
+  amount: string
+  /** The description; a category's name for an estimate (null: no category). */
+  label: string | null
+  /** Null for an estimate, spread over the column. */
+  day: string | null
+  accountName: string | null
+  toAccountName: string | null
+  transactionId: string | null
+  recurringId: string | null
+  categoryId: string | null
+}
+
+/** A column: a day, a week or a month (the first from today). */
+export interface CashFlowPeriod {
+  start: string
+  end: string
+  income: CashFlowLayers
+  expense: CashFlowLayers
+  invested: CashFlowLayers
+  /** Every account's cash at the column's end. */
+  balance: string
+  /** That cash and what is held, at today's prices. */
+  netWorth: string
+  items: CashFlowItem[]
+}
+
+export interface CashFlowAccount {
+  id: string
+  name: string
+  currencyCode: string | null
+  opening: string
+  balances: string[]
+  /** Cash and what it holds. */
+  openingValue: string
+  values: string[]
+}
+
+/** The asset accounts' cash from today on (GET /api/reports/cash-flow). */
+export interface CashFlowReport {
+  currency: string
+  today: string
+  by: CashFlowBy
+  opening: string
+  openingNetWorth: string
+  periods: CashFlowPeriod[]
+  accounts: CashFlowAccount[]
+  /** Past months the estimate's mean is made of; 0: no estimate. */
+  estimateMonths: number
+}
+
+export interface CashFlowOptions {
+  months: number
+  by: CashFlowBy
+  average: number
+  seasonal: number
+  layers: CashFlowLayer[]
+}
